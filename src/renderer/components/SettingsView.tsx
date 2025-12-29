@@ -16,13 +16,51 @@ interface SettingsViewProps {
     logs: string[];
     onClearLogs: () => void;
     debugMode: boolean;
+    pythonPath: string;
+    setPythonPath: (path: string) => void;
+    ffmpegPath: string;
+    setFfmpegPath: (path: string) => void;
+    ffprobePath: string;
+    setFfprobePath: (path: string) => void;
 }
+
+const AdvancedPathInput = ({ label, value, onChange, placeholder }: { label: string, value: string, onChange: (v: string) => void, placeholder: string }) => {
+    const handlePick = async () => {
+        const path = await window.api.pickFile();
+        if (path) onChange(path);
+    };
+
+    return (
+        <div className="flex flex-col gap-2">
+            <label className="text-[9px] font-bold text-wv-gray uppercase tracking-widest">
+                {label}
+            </label>
+            <div className="flex gap-3">
+                <input
+                    type="text"
+                    className="flex-1 bg-wv-bg border border-white/5 rounded-lg px-3 py-2 text-xs text-wv-gray outline-none focus:border-white/10"
+                    value={value}
+                    onChange={e => onChange(e.target.value)}
+                    placeholder={placeholder}
+                />
+                <button
+                    className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/5 rounded-lg text-xs font-bold uppercase tracking-widest transition-colors"
+                    onClick={handlePick}
+                >
+                    Buscar
+                </button>
+            </div>
+        </div>
+    );
+};
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
     format, setFormat, bitrate, setBitrate, sampleRate, setSampleRate,
     normalize, setNormalize, outDir, onPickDir,
-    logs, onClearLogs, debugMode
+    logs, onClearLogs, debugMode,
+    pythonPath, setPythonPath, ffmpegPath, setFfmpegPath, ffprobePath, setFfprobePath
 }) => {
+
     const isBitrateApplicable = !["wav", "flac", "aiff"].includes(format);
 
     return (
@@ -141,6 +179,35 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         </div>
                     </div>
                 </section>
+
+                <section className="bg-wv-sidebar border border-white/5 rounded-2xl p-6">
+                    <div className="flex items-center gap-2.5 mb-6 border-b border-white/5 pb-4">
+                        <Settings className="text-wv-gray" size={16} />
+                        <h3 className="text-sm font-bold tracking-tight uppercase tracking-wider">Avanzado</h3>
+                    </div>
+
+                    <div className="space-y-6">
+                        <AdvancedPathInput
+                            label="Ruta de Python 3"
+                            value={pythonPath}
+                            onChange={setPythonPath}
+                            placeholder="Autodetectar (python3)"
+                        />
+                        <AdvancedPathInput
+                            label="Ruta de FFmpeg"
+                            value={ffmpegPath}
+                            onChange={setFfmpegPath}
+                            placeholder="Binario Integrado"
+                        />
+                        <AdvancedPathInput
+                            label="Ruta de FFprobe"
+                            value={ffprobePath}
+                            onChange={setFfprobePath}
+                            placeholder="Binario Integrado"
+                        />
+                    </div>
+                </section>
+
 
                 <section className="bg-black/20 border border-white/5 rounded-2xl p-6">
                     <div className="flex justify-between items-center mb-6 border-b border-white/5 pb-4">

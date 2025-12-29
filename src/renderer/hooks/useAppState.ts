@@ -23,6 +23,10 @@ export const useSettings = () => {
     });
 
     const [outDir, setOutDir] = useState<string | undefined>(undefined);
+    const [pythonPath, setPythonPath] = useState<string>(localStorage.getItem('pythonPath') || "");
+    const [ffmpegPath, setFfmpegPath] = useState<string>(localStorage.getItem('ffmpegPath') || "");
+    const [ffprobePath, setFfprobePath] = useState<string>(localStorage.getItem('ffprobePath') || "");
+
 
     useEffect(() => {
         const storedDir = localStorage.getItem('outDir');
@@ -49,6 +53,22 @@ export const useSettings = () => {
         if (outDir) localStorage.setItem('outDir', outDir);
     }, [outDir]);
 
+    useEffect(() => {
+        localStorage.setItem('pythonPath', pythonPath);
+        window.api.updateConfig({ pythonPath: pythonPath || null });
+    }, [pythonPath]);
+
+    useEffect(() => {
+        localStorage.setItem('ffmpegPath', ffmpegPath);
+        window.api.updateConfig({ ffmpegPath: ffmpegPath || null });
+    }, [ffmpegPath]);
+
+    useEffect(() => {
+        localStorage.setItem('ffprobePath', ffprobePath);
+        window.api.updateConfig({ ffprobePath: ffprobePath || null });
+    }, [ffprobePath]);
+
+
     const [volume, setVolume] = useState<number>(() => {
         const stored = localStorage.getItem('volume');
         return stored ? parseFloat(stored) : 0.8;
@@ -64,8 +84,12 @@ export const useSettings = () => {
         sampleRate, setSampleRate,
         normalize, setNormalize,
         outDir, setOutDir,
+        pythonPath, setPythonPath,
+        ffmpegPath, setFfmpegPath,
+        ffprobePath, setFfprobePath,
         volume, setVolume
     };
+
 };
 
 export const useHistory = () => {

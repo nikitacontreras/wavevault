@@ -7,7 +7,7 @@ import { SettingsView } from "./components/SettingsView";
 import { TitleBar } from "./components/TitleBar";
 import { useSettings, useHistory, useDebugMode, useLogs, useItemStates } from "./hooks/useAppState";
 import { SearchResult, HistoryItem } from "./types";
-import { Play, Pause, Volume2, X, Music2 } from "lucide-react";
+import { Play, Pause, Volume2, X, Music2, Loader2 } from "lucide-react";
 import "./App.css";
 
 declare global {
@@ -27,13 +27,22 @@ declare global {
             onStatus: (callback: (payload: { ok: boolean, message: string }) => void) => void;
             openItem: (path: string) => void;
             pickDir: () => Promise<string | null>;
+            pickFile: () => Promise<string | null>;
+            updateConfig: (config: any) => Promise<boolean>;
+            checkDependencies: (manualPaths?: { python?: string, ffmpeg?: string, ffprobe?: string }) => Promise<{ python: boolean, ffmpeg: boolean, ffprobe: boolean }>;
         }
     }
 }
 
+
+
+import { DependencyChecker } from "./components/DependencyChecker";
+
 export const App: React.FC = () => {
     const [view, setView] = useState("search");
+    const [dependencies, setDependencies] = useState<{ python: boolean, ffmpeg: boolean, ffprobe: boolean } | null>(null);
     const [query, setQuery] = useState("");
+
     const [results, setResults] = useState<SearchResult[]>([]);
     const [isSearching, setIsSearching] = useState(false);
     const [playingUrl, setPlayingUrl] = useState<string | null>(null);
@@ -50,8 +59,12 @@ export const App: React.FC = () => {
         sampleRate, setSampleRate,
         normalize, setNormalize,
         outDir, setOutDir,
+        pythonPath, setPythonPath,
+        ffmpegPath, setFfmpegPath,
+        ffprobePath, setFfprobePath,
         volume, setVolume
     } = useSettings();
+
 
     const { history, clearHistory, addToHistory, updateHistoryItem } = useHistory();
     const { debugMode, setDebugMode } = useDebugMode();
@@ -210,11 +223,49 @@ export const App: React.FC = () => {
         if (path) setOutDir(path);
     };
 
+    useEffect(() => {
+        window.api.checkDependencies({
+            python: pythonPath || undefined,
+            ffmpeg: ffmpegPath || undefined,
+            ffprobe: ffprobePath || undefined
+        }).then(setDependencies);
+    }, [pythonPath, ffmpegPath, ffprobePath]);
+
+
+    if (!dependencies) {
+        return (
+            <div className="h-screen w-screen bg-wv-bg flex items-center justify-center">
+                <Loader2 className="animate-spin text-wv-gray" size={32} />
+            </div>
+        );
+    }
+
+    const hasAllDeps = dependencies.python && dependencies.ffmpeg && dependencies.ffprobe;
+
     return (
         <div id="app-root" className="flex flex-col h-screen w-screen bg-wv-bg text-white overflow-hidden font-sans">
             <TitleBar />
 
+            {!hasAllDeps && (
+                <DependencyChecker
+                    dependencies={dependencies}
+                    onRetry={() => window.api.checkDependencies({
+                        python: pythonPath || undefined,
+                        ffmpeg: ffmpegPath || undefined,
+                        ffprobe: ffprobePath || undefined
+                    }).then(setDependencies)}
+                    pythonPath={pythonPath}
+                    setPythonPath={setPythonPath}
+                    ffmpegPath={ffmpegPath}
+                    setFfmpegPath={setFfmpegPath}
+                    ffprobePath={ffprobePath}
+                    setFfprobePath={setFfprobePath}
+                />
+            )}
+
+
             <div className="flex-1 flex overflow-hidden">
+
                 <Sidebar currentView={view} onViewChange={setView} />
 
                 <main className="flex-1 flex flex-col min-w-0">
@@ -270,6 +321,10 @@ export const App: React.FC = () => {
                                 logs={logs}
                                 onClearLogs={clearLogs}
                                 debugMode={debugMode}
+                                pythonPath={pythonPath} setPythonPath={setPythonPath}
+                                ffmpegPath={ffmpegPath} setFfmpegPath={setFfmpegPath}
+                                ffprobePath={ffprobePath} setFfprobePath={setFfprobePath}
+
                             />
                         )}
                     </div>

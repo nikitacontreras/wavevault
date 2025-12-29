@@ -8,6 +8,8 @@ import ff from "./ffmpeg";
 import { DownloadJob, VideoMeta, TargetFormat, Bitrate, SearchResult } from "./types";
 import ytDlp from "yt-dlp-exec";
 import { analyzeBPM, analyzeKey, getDuration } from "./audio-analysis";
+import { getPythonPath, getFFmpegPath } from "./config";
+
 
 const YT_REGEX = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\//i;
 const YT_ID_REGEX = /^[a-zA-Z0-9_-]{11}$/;
@@ -54,9 +56,31 @@ function normalizeUrl(input: any): string {
 }
 
 
-const PYTHON_PATH = '/opt/homebrew/bin/python3.11';
+// Dynamic Python Detection
+let CACHED_PYTHON: string | null = null;
+async function getPythonCommand(): Promise<string> {
+    const manual = getPythonPath();
+    if (manual && manual !== "python3") return manual;
+
+    if (CACHED_PYTHON) return CACHED_PYTHON;
+    try {
+        await execa("python3", ["--version"]);
+        CACHED_PYTHON = "python3";
+    } catch {
+        try {
+            await execa("python", ["--version"]);
+            CACHED_PYTHON = "python";
+        } catch {
+            throw new Error("Python no encontrado en el sistema.");
+        }
+    }
+    return CACHED_PYTHON;
+}
+
 
 export async function fetchMeta(url: string): Promise<VideoMeta> {
+    const pythonCmd = await getPythonCommand();
+
     // Determine path based on environment similar to searchYoutube
     const isProd = __dirname.includes('dist');
     const ytDlpPath = isProd
@@ -64,8 +88,9 @@ export async function fetchMeta(url: string): Promise<VideoMeta> {
         : path.resolve(__dirname, "../../node_modules/yt-dlp-exec/bin/yt-dlp");
 
     try {
-        const { stdout } = await execa(PYTHON_PATH, [ytDlpPath, url, '--dump-single-json']);
+        const { stdout } = await execa(pythonCmd, [ytDlpPath, url, '--dump-single-json']);
         const out = JSON.parse(stdout);
+
         return {
             id: out.id,
             title: out.title,
@@ -95,9 +120,11 @@ const ytDlpPath = isProd
 
 export async function getStreamUrl(url: string): Promise<string> {
     try {
+        const pythonCmd = await getPythonCommand();
         const normalized = normalizeUrl(url);
-        const { stdout } = await execa(PYTHON_PATH, [
+        const { stdout } = await execa(pythonCmd, [
             ytDlpPath,
+
             normalized,
             '-f', 'bestaudio',
             '--get-url',
@@ -113,8 +140,10 @@ export async function getStreamUrl(url: string): Promise<string> {
 
 export async function searchYoutube(query: string): Promise<SearchResult[]> {
     try {
-        const { stdout } = await execa(PYTHON_PATH, [ytDlpPath, `ytsearch10:${query}`, '--dump-single-json', '--default-search', 'ytsearch', '--flat-playlist']);
+        const pythonCmd = await getPythonCommand();
+        const { stdout } = await execa(pythonCmd, [ytDlpPath, `ytsearch10:${query}`, '--dump-single-json', '--default-search', 'ytsearch', '--flat-playlist']);
         const out = JSON.parse(stdout);
+
 
         if (!out.entries) return [];
 
@@ -139,8 +168,10 @@ async function downloadBestAudio(url: string, outDir: string): Promise<string> {
     // Output template: outDir/%(id)s.%(ext)s
     const outputTemplate = path.join(outDir, "%(id)s.%(ext)s");
 
-    await execa(PYTHON_PATH, [
+    const pythonCmd = await getPythonCommand();
+    await execa(pythonCmd, [
         ytDlpPath,
+
         url,
         '--extract-audio', // actually we want original container first then convert, but bestaudio is usually enough
         '-f', 'bestaudio/best',

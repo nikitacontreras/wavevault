@@ -1,11 +1,17 @@
 import execa from "execa";
 import MusicTempo from "music-tempo";
+
 import path from "node:path";
+import { getFFmpegPath, getFFprobePath } from "./config";
+
+
 
 export async function analyzeBPM(filePath: string): Promise<number | undefined> {
     try {
-        const { stdout } = await execa('ffmpeg', [
+        const { stdout } = await execa(getFFmpegPath(), [
             '-i', filePath,
+
+
             '-f', 's16le',
             '-ac', '1',
             '-ar', '44100',
@@ -28,13 +34,10 @@ export async function analyzeBPM(filePath: string): Promise<number | undefined> 
 }
 
 export async function analyzeKey(filePath: string): Promise<string | undefined> {
-    // Note: Accurate key detection requires more advanced chroma analysis.
-    // For now, let's try to detect if it's in the filename as a improvement.
     const fileName = path.basename(filePath).toLowerCase();
     const keys = ["c", "c#", "db", "d", "d#", "eb", "e", "f", "f#", "gb", "g", "g#", "ab", "a", "a#", "bb", "b"];
     const modes = ["major", "minor", "maj", "min", "m"];
 
-    // Simple regex to find things like "Am", "C#major", "Db_min"
     for (const k of keys) {
         for (const m of modes) {
             const regex = new RegExp(`\\b${k.replace('#', '\\#')}${m}\\b`, 'i');
@@ -42,7 +45,6 @@ export async function analyzeKey(filePath: string): Promise<string | undefined> 
                 return k.toUpperCase() + (m.startsWith('mi') || m === 'm' ? ' Minor' : ' Major');
             }
         }
-        // Just the key alone if it's uppercase and follows a space or underscore
         const loneKeyRegex = new RegExp(`[\\s_]${k.toUpperCase()}[\\s_\\.]`);
         if (loneKeyRegex.test(path.basename(filePath))) {
             return k.toUpperCase() + " Major";
@@ -54,8 +56,10 @@ export async function analyzeKey(filePath: string): Promise<string | undefined> 
 
 export async function getDuration(filePath: string): Promise<string | undefined> {
     try {
-        const { stdout } = await execa('ffprobe', [
+        const { stdout } = await execa(getFFprobePath(), [
             '-v', 'error',
+
+
             '-show_entries', 'format=duration',
             '-of', 'default=noprint_wrappers=1:nokey=1',
             filePath

@@ -75,6 +75,9 @@ Menu.setApplicationMenu(isMac ? menu : null);
 
 import path from "node:path";
 import { processJob, searchYoutube, fetchMeta, getStreamUrl } from "./downloader";
+import { checkDependencies } from "./dependencies";
+import { config } from "./config";
+
 
 // ...
 
@@ -205,7 +208,23 @@ ipcMain.handle("pick-dir", async () => {
     return r.canceled ? null : r.filePaths[0];
 });
 
+// Diálogo para elegir archivo (ejecutable)
+ipcMain.handle("pick-file", async () => {
+    const r = await dialog.showOpenDialog({ properties: ["openFile"] });
+    return r.canceled ? null : r.filePaths[0];
+});
+
+ipcMain.handle("update-config", async (_evt, newConfig: Partial<typeof config>) => {
+    Object.assign(config, newConfig);
+    return true;
+});
+
+
 ipcMain.handle("trim-audio", async (_evt, src: string, start: number, end: number) => {
     const { trimAudio } = require("./downloader");
     return await trimAudio(src, start, end);
+});
+
+ipcMain.handle("check-dependencies", async (_evt, manualPaths?: any) => {
+    return await checkDependencies(manualPaths);
 });

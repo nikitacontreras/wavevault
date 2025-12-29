@@ -9,5 +9,10 @@ contextBridge.exposeInMainWorld("api", {
     pickDir: () => ipcRenderer.invoke("pick-dir"),
     openItem: (path: string) => ipcRenderer.invoke("show-item", path),
     trimAudio: (src: string, start: number, end: number) => ipcRenderer.invoke("trim-audio", src, start, end),
+    checkDependencies: (manualPaths?: any) => ipcRenderer.invoke("check-dependencies", manualPaths),
+    pickFile: () => ipcRenderer.invoke("pick-file"),
+    updateConfig: (config: any) => ipcRenderer.invoke("update-config", config),
     onStatus: (cb: (val: any) => void) => ipcRenderer.on("status", (_evt: any, value: any) => cb(value))
+
+
 });

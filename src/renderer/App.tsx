@@ -52,6 +52,10 @@ declare global {
             checkDependencies: (manualPaths?: { python?: string, ffmpeg?: string, ffprobe?: string }) => Promise<{ python: boolean, ffmpeg: boolean, ffprobe: boolean }>;
             closeSpotlight: () => Promise<void>;
             resizeSpotlight: (height: number) => Promise<void>;
+            checkForUpdates: () => Promise<any>;
+            getAppVersion: () => Promise<string>;
+            openExternal: (url: string) => Promise<void>;
+            getPlatformInfo: () => Promise<string>;
         }
     }
 }

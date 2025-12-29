@@ -24,7 +24,8 @@
     "publish": {
       "provider": "github",
       "owner": "nikitacontreras",
-      "repo": "wavevault"
+      "repo": "wavevault",
+      "releaseType": "release"
     },
     "mac": {
       "category": "public.app-category.music",

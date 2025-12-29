@@ -12,6 +12,8 @@ jobs:
     strategy:
       matrix:
         os: [macos-latest, windows-latest, ubuntu-latest]
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout Code
@@ -23,6 +25,12 @@ jobs:
           node-version: 20
           cache: 'npm'
 
+      - name: Setup Python (Windows)
+        if: runner.os == 'Windows'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
       - name: Install System Dependencies (Linux)
         if: runner.os == 'Linux'
         run: |
@@ -30,18 +38,20 @@ jobs:
           sudo apt-get install -y libasound2-dev
 
       - name: Install Dependencies
-        run: npm install
+        run: |
+          if [ "${{ runner.os }}" == "Windows" ]; then
+            npm install -g node-gyp
+          fi
+          npm install
+        shell: bash
 
       - name: Build Application
         run: npm run build
 
       - name: Build and Publish
-        uses: samuelmeuli/action-electron-builder@v1
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          release: true
-          max_attempts: 3
+        run: npx electron-builder --publish always
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # macOS code signing (ignored if secrets not set)
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}

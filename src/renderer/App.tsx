@@ -115,6 +115,11 @@ export const App: React.FC = () => {
     const { logs, addLog, clearLogs } = useLogs();
     const { itemStates, updateItemState, resetItemStates } = useItemStates();
     const { activeDownloads, addSpotlightDownload, updateSpotlightDownload, removeSpotlightDownload, clearSpotlightDownloads } = useActiveDownloads();
+    const [version, setVersion] = useState("...");
+
+    useEffect(() => {
+        window.api.getAppVersion().then(setVersion);
+    }, []);
 
     useEffect(() => {
         if (theme === 'dark') {
@@ -300,6 +305,12 @@ export const App: React.FC = () => {
     }, [pythonPath, ffmpegPath, ffprobePath]);
 
     useEffect(() => {
+        window.api.onStatus(({ ok, message }) => {
+            addLog(message);
+        });
+    }, []);
+
+    useEffect(() => {
         window.api.onCommand((command) => {
             if (command === 'playPause') {
                 if (audioRef.current && audioRef.current.src) {
@@ -376,7 +387,7 @@ export const App: React.FC = () => {
 
         <div id="app-root" className="flex flex-col h-screen w-screen transition-colors duration-300 overflow-hidden font-sans bg-wv-bg text-wv-text">
 
-            <TitleBar theme={theme} />
+            <TitleBar theme={theme} version={version} />
 
 
             {!hasAllDeps && (
@@ -408,6 +419,7 @@ export const App: React.FC = () => {
                     onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
                     theme={theme}
                     onThemeToggle={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+                    version={version}
                 />
 
 

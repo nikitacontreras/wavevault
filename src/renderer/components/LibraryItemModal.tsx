@@ -1,0 +1,230 @@
+import React, { useState, useRef } from "react";
+import { HistoryItem } from "../types";
+import { X, FolderOpen, Tag, Info, Calendar, Database, Activity, Scissors, Check, Loader2, ZoomIn, ZoomOut } from "lucide-react";
+import { Waveform } from "./Waveform";
+
+interface LibraryItemModalProps {
+    item: HistoryItem;
+    onClose: () => void;
+    onOpenItem: (path: string) => void;
+    onUpdateItem: (id: string, updates: Partial<HistoryItem>) => void;
+}
+
+export const LibraryItemModal: React.FC<LibraryItemModalProps> = ({ item, onClose, onOpenItem, onUpdateItem }) => {
+    const [tagInput, setTagInput] = useState("");
+    const [isChopping, setIsChopping] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false);
+    const [startTime, setStartTime] = useState(0);
+    const [endTime, setEndTime] = useState(0);
+    const [duration, setDuration] = useState(0);
+    const [zoom, setZoom] = useState(0);
+    const wavesurferRef = useRef<any>(null);
+
+    const categories = ["Drums", "Bass", "Synth", "Keys", "Vocals", "Loop", "FX", "Other"];
+
+    const addTag = () => {
+        if (!tagInput.trim()) return;
+        const newTags = [...(item.tags || [])];
+        if (!newTags.includes(tagInput.trim())) {
+            newTags.push(tagInput.trim());
+            onUpdateItem(item.id, { tags: newTags });
+        }
+        setTagInput("");
+    };
+
+    const removeTag = (tag: string) => {
+        const newTags = item.tags.filter(t => t !== tag);
+        onUpdateItem(item.id, { tags: newTags });
+    };
+
+    const handleCategoryChange = (cat: string) => {
+        onUpdateItem(item.id, { category: cat });
+    };
+
+    const handleTrim = async () => {
+        if (startTime >= endTime) return;
+        setIsProcessing(true);
+        try {
+            const newPath = await window.api.trimAudio(item.path, startTime, endTime);
+            window.api.openItem(newPath);
+            setIsChopping(false);
+        } catch (e) {
+            console.error("Trimming failed", e);
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    const handleRegionChange = (start: number, end: number) => {
+        setStartTime(start);
+        setEndTime(end);
+    };
+
+    return (
+        <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md" onClick={onClose}>
+            <div className="bg-wv-sidebar border border-white/5 rounded-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
+
+                <div className="px-6 py-4 border-b border-white/5 flex justify-between items-center bg-white/[0.01]">
+                    <div className="flex items-center gap-2">
+                        <Info size={14} className="text-wv-gray" />
+                        <h2 className="text-xs font-bold uppercase tracking-widest">Información del Sample</h2>
+                    </div>
+                    <div className="flex items-center gap-4">
+                        <button
+                            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${isChopping ? 'bg-wv-accent text-black' : 'bg-white/5 hover:bg-white/10 text-white/60'}`}
+                            onClick={() => setIsChopping(!isChopping)}
+                        >
+                            <Scissors size={12} /> {isChopping ? 'Cancelar Chop' : 'Chop Sample'}
+                        </button>
+                        <button className="p-1 hover:bg-white/5 rounded-md transition-colors group" onClick={onClose}>
+                            <X size={18} className="text-wv-gray group-hover:text-white" />
+                        </button>
+                    </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto px-6 py-8 custom-scrollbar space-y-8">
+                    {/* Real Waveform Section with Visual Regions */}
+                    <div className="bg-black/20 rounded-xl p-4 border border-white/5">
+                        <div className="flex justify-between items-center mb-4">
+                            <span className="text-[9px] font-bold text-wv-gray uppercase tracking-[0.2em] shrink-0">{isChopping ? 'Selección Visual (Drag & Resize)' : 'Señal de Audio'}</span>
+
+                            <div className="flex items-center gap-6 flex-1 justify-end">
+                                {isChopping && (
+                                    <div className="flex items-center gap-2 bg-white/5 px-3 py-1 rounded-lg border border-white/5">
+                                        <ZoomOut size={12} className="text-wv-gray" />
+                                        <input
+                                            type="range"
+                                            min="0"
+                                            max="200"
+                                            value={zoom}
+                                            onChange={(e) => setZoom(parseInt(e.target.value))}
+                                            className="w-24 h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-white hover:accent-wv-accent transition-all"
+                                        />
+                                        <ZoomIn size={12} className="text-wv-gray" />
+                                    </div>
+                                )}
+                                <div className="text-[9px] font-bold text-wv-accent uppercase bg-wv-accent/10 px-2 py-0.5 rounded tracking-widest whitespace-nowrap">
+                                    {startTime.toFixed(2)}s - {endTime.toFixed(2)}s ({(endTime - startTime).toFixed(2)}s)
+                                </div>
+                            </div>
+                        </div>
+                        <div className="relative border border-white/5 rounded-lg overflow-hidden bg-black/40">
+                            <div className="overflow-x-auto custom-scrollbar no-drag">
+                                <Waveform
+                                    url={item.path}
+                                    height={100}
+                                    waveColor="rgba(255,255,255,0.08)"
+                                    progressColor="#ffffff"
+                                    showControls={true}
+                                    useRegions={true}
+                                    onRegionChange={handleRegionChange}
+                                    zoom={zoom}
+                                    onReady={(ws) => {
+                                        wavesurferRef.current = ws;
+                                        setDuration(ws.getDuration());
+                                    }}
+                                />
+                            </div>
+                        </div>
+                        {isChopping && (
+                            <div className="mt-8 animate-in slide-in-from-top-2">
+                                <button
+                                    className="w-full py-3 bg-white text-black rounded-lg text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-gray-200 transition-colors disabled:opacity-50 shadow-xl"
+                                    onClick={handleTrim}
+                                    disabled={isProcessing || startTime >= endTime}
+                                >
+                                    {isProcessing ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                                    Finalizar Chop y Guardar
+                                </button>
+                                <p className="text-center text-[9px] text-wv-gray mt-3 uppercase tracking-wider opacity-50">El audio se guardará como un nuevo archivo en tu carpeta de música</p>
+                            </div>
+                        )}
+                    </div>
+
+                    {!isChopping && (
+                        <>
+                            <div className="flex flex-col sm:flex-row gap-6 items-start">
+                                <div className="w-full sm:w-32 aspect-square rounded-xl overflow-hidden border border-white/10 shrink-0">
+                                    <img src={item.thumbnail} alt="" className="w-full h-full object-cover" />
+                                </div>
+                                <div className="flex-1 space-y-3">
+                                    <div>
+                                        <h3 className="text-xl font-bold tracking-tight mb-0.5">{item.title}</h3>
+                                        <p className="text-wv-gray text-sm font-medium">{item.channel}</p>
+                                    </div>
+                                    <div className="flex flex-wrap gap-1.5">
+                                        <span className="bg-white text-black text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">{item.format}</span>
+                                        {item.bpm && <span className="bg-white/5 border border-white/5 text-white/60 text-[9px] font-bold px-2 py-0.5 rounded">{item.bpm} BPM</span>}
+                                        {item.key && <span className="bg-white/5 border border-white/5 text-white/80 text-[9px] font-bold px-2 py-0.5 rounded">{item.key}</span>}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 pt-4 border-t border-white/5">
+                                <MetaItem icon={<Calendar size={12} />} label="Agregado" value={new Date(item.date).toLocaleDateString()} />
+                                <div className="flex flex-col gap-1.5">
+                                    <label className="text-[9px] font-bold text-wv-gray uppercase tracking-widest flex items-center gap-1.5">
+                                        <Tag size={12} /> Categoría
+                                    </label>
+                                    <select
+                                        className="bg-wv-bg border border-white/5 rounded-lg py-1 px-2 text-[10px] outline-none focus:border-white/10"
+                                        value={item.category || ""}
+                                        onChange={e => handleCategoryChange(e.target.value)}
+                                    >
+                                        <option value="">Sin categoría</option>
+                                        {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                                    </select>
+                                </div>
+                                <MetaItem icon={<Database size={12} />} label="Origen" value={item.source || "YouTube"} />
+                                <MetaItem icon={<Activity size={12} />} label="Sample Rate" value={`${item.sampleRate || "44100"} Hz`} />
+                            </div>
+
+                            <div className="space-y-3">
+                                <label className="text-[9px] font-bold text-wv-gray uppercase tracking-widest flex items-center gap-1.5">
+                                    <Tag size={12} /> Etiquetas
+                                </label>
+                                <div className="flex flex-wrap gap-2 items-center">
+                                    {(item.tags || []).map(t => (
+                                        <span key={t} className="bg-white/5 border border-white/5 text-white/70 text-[10px] font-medium flex items-center gap-1.5 py-1 px-2.5 rounded-lg group hover:border-white/20 transition-all">
+                                            {t}
+                                            <X size={10} className="cursor-pointer text-wv-gray hover:text-red-400 mt-0.5" onClick={() => removeTag(t)} />
+                                        </span>
+                                    ))}
+                                    <div className="flex bg-wv-bg border border-white/10 rounded-lg overflow-hidden focus-within:border-white/20">
+                                        <input
+                                            type="text"
+                                            placeholder="Add tag..."
+                                            className="bg-transparent border-none py-1 px-3 text-[10px] outline-none w-24"
+                                            value={tagInput}
+                                            onChange={e => setTagInput(e.target.value)}
+                                            onKeyPress={e => e.key === 'Enter' && addTag()}
+                                        />
+                                        <button onClick={addTag} className="px-2 bg-white/5 hover:bg-white/10 border-l border-white/10 text-[10px] font-bold">+</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </div>
+
+                <div className="px-6 py-5 border-t border-white/5 bg-white/[0.01] flex justify-end">
+                    <button
+                        className="py-2 px-6 bg-white text-black hover:bg-gray-200 rounded-lg text-xs font-bold uppercase tracking-widest transition-colors flex items-center gap-2"
+                        onClick={() => onOpenItem(item.path)}
+                    >
+                        <FolderOpen size={14} /> Localizar archivo
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const MetaItem = ({ icon, label, value }: { icon: React.ReactNode, label: string, value: string }) => (
+    <div className="flex flex-col gap-1.5">
+        <label className="text-[9px] font-bold text-wv-gray uppercase tracking-widest flex items-center gap-1.5">
+            {icon} {label}
+        </label>
+        <span className="text-xs font-bold text-white/90">{value}</span>
+    </div>
+);

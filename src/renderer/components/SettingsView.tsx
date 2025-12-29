@@ -1,0 +1,177 @@
+import React from "react";
+import { TargetFormat, Bitrate, SampleRate } from "../types";
+import { Settings, FileAudio, BarChart3, Waves, FolderSync, Trash2, Cpu, Activity, Info } from "lucide-react";
+
+interface SettingsViewProps {
+    format: TargetFormat;
+    setFormat: (format: TargetFormat) => void;
+    bitrate: Bitrate;
+    setBitrate: (bitrate: Bitrate) => void;
+    sampleRate: SampleRate;
+    setSampleRate: (sampleRate: SampleRate) => void;
+    normalize: boolean;
+    setNormalize: (val: boolean) => void;
+    outDir?: string;
+    onPickDir: () => void;
+    logs: string[];
+    onClearLogs: () => void;
+    debugMode: boolean;
+}
+
+export const SettingsView: React.FC<SettingsViewProps> = ({
+    format, setFormat, bitrate, setBitrate, sampleRate, setSampleRate,
+    normalize, setNormalize, outDir, onPickDir,
+    logs, onClearLogs, debugMode
+}) => {
+    const isBitrateApplicable = !["wav", "flac", "aiff"].includes(format);
+
+    return (
+        <div className="flex-1 overflow-y-auto px-8 py-8 custom-scrollbar">
+            <div className="mb-8">
+                <div className="flex items-center gap-2 text-wv-gray mb-1">
+                    <Settings size={14} />
+                    <span className="text-[10px] font-bold uppercase tracking-widest">Sistema</span>
+                </div>
+                <h2 className="text-2xl font-bold tracking-tight">Preferencias</h2>
+            </div>
+
+            <div className="max-w-3xl space-y-8 pb-10">
+                <section className="bg-wv-sidebar border border-white/5 rounded-2xl p-6">
+                    <div className="flex items-center gap-2.5 mb-6 border-b border-white/5 pb-4">
+                        <Cpu className="text-wv-gray" size={16} />
+                        <h3 className="text-sm font-bold tracking-tight uppercase tracking-wider">Motor de Audio</h3>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="flex flex-col gap-2">
+                            <label className="text-[9px] font-bold text-wv-gray uppercase tracking-widest flex items-center gap-2">
+                                <FileAudio size={12} /> Formato de Salida
+                            </label>
+                            <select
+                                className="bg-wv-bg border border-white/5 rounded-lg px-3 py-2 text-xs outline-none focus:border-white/10"
+                                value={format}
+                                onChange={e => setFormat(e.target.value as TargetFormat)}
+                            >
+                                <optgroup label="Comprimidos">
+                                    <option value="mp3">MP3</option>
+                                    <option value="m4a">M4A</option>
+                                    <option value="ogg">OGG</option>
+                                </optgroup>
+                                <optgroup label="Lossless">
+                                    <option value="wav">WAV</option>
+                                    <option value="flac">FLAC</option>
+                                    <option value="aiff">AIFF</option>
+                                </optgroup>
+                            </select>
+                        </div>
+
+                        <div className="flex flex-col gap-2">
+                            <label className="text-[9px] font-bold text-wv-gray uppercase tracking-widest flex items-center gap-2">
+                                <BarChart3 size={12} /> {isBitrateApplicable ? "Bitrate" : "Resolución"}
+                            </label>
+                            {isBitrateApplicable ? (
+                                <select
+                                    className="bg-wv-bg border border-white/5 rounded-lg px-3 py-2 text-xs outline-none focus:border-white/10"
+                                    value={bitrate}
+                                    onChange={e => setBitrate(e.target.value as Bitrate)}
+                                >
+                                    <option value="128k">128 kbps</option>
+                                    <option value="192k">192 kbps</option>
+                                    <option value="256k">256 kbps</option>
+                                    <option value="320k">320 kbps</option>
+                                </select>
+                            ) : (
+                                <div className="bg-wv-bg border border-white/5 rounded-lg px-3 py-2 text-xs text-wv-gray border-dashed">
+                                    Fixed 24-bit Lossless
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="flex flex-col gap-2">
+                            <label className="text-[9px] font-bold text-wv-gray uppercase tracking-widest flex items-center gap-2">
+                                <Waves size={12} /> Sample Rate
+                            </label>
+                            <select
+                                className="bg-wv-bg border border-white/5 rounded-lg px-3 py-2 text-xs outline-none focus:border-white/10"
+                                value={sampleRate}
+                                onChange={e => setSampleRate(e.target.value as SampleRate)}
+                            >
+                                <option value="44100">44.1 kHz</option>
+                                <option value="48000">48.0 kHz</option>
+                                <option value="96000">96.0 kHz</option>
+                            </select>
+                        </div>
+
+                        <div className="flex flex-col justify-end">
+                            <label className="flex items-center gap-3 bg-wv-bg border border-white/10 p-2.5 rounded-lg cursor-pointer hover:bg-white/5 transition-colors">
+                                <input
+                                    type="checkbox"
+                                    className="w-4 h-4 rounded border-white/20 bg-wv-sidebar checked:bg-white checked:border-transparent"
+                                    checked={normalize}
+                                    onChange={e => setNormalize(e.target.checked)}
+                                />
+                                <div className="flex flex-col">
+                                    <span className="text-[10px] font-bold uppercase tracking-tight">Normalizar Audio</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                </section>
+
+                <section className="bg-wv-sidebar border border-white/5 rounded-2xl p-6">
+                    <div className="flex items-center gap-2.5 mb-6 border-b border-white/5 pb-4">
+                        <FolderSync className="text-wv-gray" size={16} />
+                        <h3 className="text-sm font-bold tracking-tight uppercase tracking-wider">Descargas</h3>
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                        <label className="text-[9px] font-bold text-wv-gray uppercase tracking-widest flex items-center gap-2">
+                            Directorio Destino
+                        </label>
+                        <div className="flex gap-3">
+                            <div className="flex-1 bg-wv-bg border border-white/5 rounded-lg px-3 py-2 text-xs text-wv-gray truncate">
+                                {outDir || "Música del Sistema"}
+                            </div>
+                            <button
+                                className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/5 rounded-lg text-xs font-bold uppercase tracking-widest transition-colors"
+                                onClick={onPickDir}
+                            >
+                                Cambiar
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <section className="bg-black/20 border border-white/5 rounded-2xl p-6">
+                    <div className="flex justify-between items-center mb-6 border-b border-white/5 pb-4">
+                        <div className="flex items-center gap-2 text-wv-gray">
+                            <Activity size={16} />
+                            <h3 className="text-sm font-bold tracking-tight uppercase tracking-wider text-white/50">Actividad</h3>
+                        </div>
+                        <button
+                            className="text-[9px] font-bold uppercase tracking-widest text-wv-gray hover:text-red-400 transition-colors"
+                            onClick={onClearLogs}
+                        >
+                            <Trash2 size={12} /> Limpiar
+                        </button>
+                    </div>
+
+                    <div className="bg-black/40 rounded-xl p-4 font-mono text-[10px] leading-relaxed border border-white/5 max-h-40 overflow-y-auto custom-scrollbar">
+                        {logs.length === 0 ? (
+                            <div className="text-center py-4 text-wv-gray italic opacity-30">
+                                Sin eventos
+                            </div>
+                        ) : (
+                            logs.map((log, i) => (
+                                <div key={i} className="mb-2 flex gap-3 text-white/60">
+                                    <span className="text-white/20 select-none">[{new Date().toLocaleTimeString()}]</span>
+                                    <span>{log}</span>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </section>
+            </div>
+        </div>
+    );
+};

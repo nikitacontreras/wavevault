@@ -1,4 +1,6 @@
 import { app, BrowserWindow, globalShortcut, ipcMain, clipboard, dialog, shell, Menu, Notification } from "electron";
+import { autoUpdater } from "electron-updater";
+import path from "node:path";
 
 
 process.title = "WaveVault";
@@ -7,10 +9,13 @@ if (app.setName) app.setName("WaveVault");
 
 const isMac = process.platform === 'darwin';
 
+// Read version from package.json
+const pkg = require(path.join(__dirname, "../../package.json"));
+
 if (isMac) {
     app.setAboutPanelOptions({
         applicationName: "WaveVault",
-        applicationVersion: "1.0.0"
+        applicationVersion: pkg.version
     });
 }
 
@@ -75,7 +80,6 @@ const template = [
 const menu = Menu.buildFromTemplate(template as any);
 Menu.setApplicationMenu(isMac ? menu : null);
 
-import path from "node:path";
 import { processJob, searchYoutube, fetchMeta, getStreamUrl } from "./downloader";
 import { checkDependencies } from "./dependencies";
 import { config } from "./config";
@@ -319,10 +323,32 @@ function createSpotlightWindow() {
     });
 }
 
+function setupAutoUpdater() {
+    if (!app.isPackaged) {
+        autoUpdater.forceDevUpdateConfig = true;
+    }
+
+    autoUpdater.checkForUpdatesAndNotify();
+
+    autoUpdater.on('update-available', () => {
+        broadcastStatus(true, "Nueva versión encontrada. Descargando...");
+    });
+
+    autoUpdater.on('update-downloaded', () => {
+        broadcastStatus(true, "Actualización lista. Reinicia para aplicar.");
+    });
+
+    autoUpdater.on('error', (err) => {
+        console.error("Auto-updater error:", err);
+        broadcastStatus(false, "Error al buscar actualizaciones.");
+    });
+}
+
 
 app.whenReady().then(() => {
     createWindow();
     registerShortcuts();
+    setupAutoUpdater();
 
     app.on("activate", () => {
         if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -455,4 +481,20 @@ ipcMain.handle("reset-keybinds", () => {
     const newKeybinds = resetKeybinds();
     registerShortcuts();
     return newKeybinds;
+});
+
+ipcMain.handle("check-for-updates", async () => {
+    return await autoUpdater.checkForUpdatesAndNotify();
+});
+
+ipcMain.handle("get-app-version", () => {
+    return pkg.version;
+});
+
+ipcMain.handle("open-external", async (_evt, url) => {
+    shell.openExternal(url);
+});
+
+ipcMain.handle("get-platform-info", () => {
+    return `${process.platform}-${process.arch}`;
 });

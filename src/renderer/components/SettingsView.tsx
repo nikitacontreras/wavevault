@@ -85,13 +85,25 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 }) => {
     const isDark = theme === 'dark';
     const [devices, setDevices] = React.useState<MediaDeviceInfo[]>([]);
+    const [appVersion, setAppVersion] = React.useState("...");
+    const [platformInfo, setPlatformInfo] = React.useState("...");
 
     React.useEffect(() => {
         const fetchDevices = async () => {
             const allDevices = await navigator.mediaDevices.enumerateDevices();
             setDevices(allDevices.filter(d => d.kind === 'audiooutput'));
         };
+        const fetchVersion = async () => {
+            const version = await window.api.getAppVersion();
+            setAppVersion(version);
+        };
+        const fetchPlatform = async () => {
+            const info = await window.api.getPlatformInfo();
+            setPlatformInfo(info);
+        };
         fetchDevices();
+        fetchVersion();
+        fetchPlatform();
         navigator.mediaDevices.addEventListener('devicechange', fetchDevices);
         return () => navigator.mediaDevices.removeEventListener('devicechange', fetchDevices);
     }, []);
@@ -323,8 +335,52 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             ))
                         )}
                     </div>
-
                 </section>
+
+                <section className={`border rounded-2xl p-6 overflow-hidden relative ${isDark ? "bg-wv-sidebar border-white/5" : "bg-white border-black/5 shadow-sm"}`}>
+                    <div className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-4">
+                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${isDark ? "bg-white text-black" : "bg-black text-white"}`}>
+                                <Info size={24} />
+                            </div>
+                            <div className="flex flex-col">
+                                <h3 className={`text-sm font-bold tracking-tight uppercase tracking-wider ${isDark ? "text-white" : "text-black"}`}>
+                                    Acerca de WaveVault
+                                </h3>
+                                <p className="text-[10px] font-medium text-wv-gray uppercase tracking-widest">
+                                    Versión {appVersion}
+                                </p>
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={() => window.api.checkForUpdates()}
+                            className={`px-6 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-[0.1em] transition-all hover:scale-[1.02] active:scale-[0.98] ${isDark ? "bg-white text-black hover:bg-white/90" : "bg-black text-white hover:bg-black/90 shadow-md"
+                                }`}
+                        >
+                            Buscar Actualizaciones
+                        </button>
+                    </div>
+
+                    <div className="mt-6 flex gap-6">
+                        <div className="flex flex-col">
+                            <span className="text-[8px] font-bold text-wv-gray uppercase tracking-widest mb-1 opacity-50">Desarrollado por</span>
+                            <button
+                                onClick={() => window.api.openExternal('https://strikemedia.xyz/wavevault')}
+                                className={`text-[10px] font-bold text-left hover:underline transition-all ${isDark ? "text-white/60 hover:text-white" : "text-black/60 hover:text-black"}`}
+                            >
+                                STRIKEMEDIA
+                            </button>
+                        </div>
+                        <div className="flex flex-col">
+                            <span className="text-[8px] font-bold text-wv-gray uppercase tracking-widest mb-1 opacity-50">Plataforma</span>
+                            <span className={`text-[10px] font-bold ${isDark ? "text-white/60" : "text-black/60"}`}>
+                                {platformInfo}
+                            </span>
+                        </div>
+                    </div>
+                </section>
+
             </div>
         </div>
 

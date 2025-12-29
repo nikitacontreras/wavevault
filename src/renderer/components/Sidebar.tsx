@@ -8,6 +8,7 @@ interface SidebarProps {
     onToggle: () => void;
     theme: 'light' | 'dark';
     onThemeToggle: () => void;
+    version: string;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -16,7 +17,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     isCollapsed,
     onToggle,
     theme,
-    onThemeToggle
+    onThemeToggle,
+    version
 }) => {
     const isDark = theme === 'dark';
 
@@ -99,7 +101,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
                 {!isCollapsed ? (
                     <div className={`text-[9px] font-bold tracking-widest uppercase text-center ${isDark ? "text-white/10" : "text-black/10"}`}>
-                        v1.0.0
+                        v{version}
                     </div>
                 ) : (
                     <div className={`w-2 h-2 rounded-full mx-auto ${isDark ? "bg-white/5" : "bg-black/5"}`} />
@@ -108,6 +110,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </aside>
     );
 };
+
 
 interface NavItemProps {
     icon: React.ReactNode;

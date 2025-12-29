@@ -13,6 +13,37 @@
   src: url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 }
 
+:root {
+  --wv-bg: #ffffff;
+  --wv-sidebar: #fcfcfc;
+  --wv-surface: #f9f9fb;
+  --wv-text: #000000;
+  --wv-text-muted: #666666;
+  --wv-border: rgba(0, 0, 0, 0.06);
+  --wv-accent: #000000;
+
+  --wv-scrollbar-thumb: rgba(0, 0, 0, 0.1);
+  --wv-scrollbar-hover: rgba(0, 0, 0, 0.2);
+  --wv-slider-bg: rgba(0, 0, 0, 0.1);
+  --wv-slider-thumb: #000000;
+}
+
+.dark {
+  --wv-bg: #0c0c0c;
+  --wv-sidebar: #050505;
+  --wv-surface: #141414;
+  --wv-text: #ffffff;
+  --wv-text-muted: #999999;
+  --wv-border: rgba(255, 255, 255, 0.08);
+  --wv-accent: #ffffff;
+
+  --wv-scrollbar-thumb: rgba(255, 255, 255, 0.1);
+  --wv-scrollbar-hover: rgba(255, 255, 255, 0.2);
+  --wv-slider-bg: rgba(255, 255, 255, 0.1);
+  --wv-slider-thumb: #ffffff;
+}
+
+
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
 }
@@ -22,18 +53,19 @@
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--wv-scrollbar-thumb);
   border-radius: 20px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--wv-scrollbar-hover);
 }
 
 /* Fix for volume slider to look consistent across OS */
 input[type="range"].volume-slider {
   -webkit-appearance: none;
-  background: rgba(255, 255, 255, 0.1);
+  appearance: none;
+  background: var(--wv-slider-bg);
   height: 4px;
   border-radius: 2px;
   outline: none;
@@ -41,15 +73,18 @@ input[type="range"].volume-slider {
 
 input[type="range"].volume-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 12px;
-  height: 12px;
-  background: white;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+
+  background: var(--wv-slider-thumb);
   border-radius: 50%;
   cursor: pointer;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-  transition: transform 0.2s;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s, background 0.2s;
+  border: 2px solid var(--wv-slider-thumb);
 }
 
 input[type="range"].volume-slider::-webkit-slider-thumb:hover {
-  transform: scale(1.2);
+  transform: scale(1.15);
 }

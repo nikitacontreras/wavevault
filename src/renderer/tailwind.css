@@ -4,7 +4,8 @@
 
 @layer base {
     body {
-        @apply bg-wv-bg text-white overflow-hidden;
+        @apply bg-wv-bg text-black overflow-hidden;
+
         font-family: 'Inter', sans-serif;
     }
 }
@@ -15,24 +16,25 @@
     }
 
     .wv-btn-primary {
-        @apply bg-white text-black hover:bg-gray-200 hover:-translate-y-0.5 shadow-lg active:translate-y-0;
+        @apply bg-black text-white hover:bg-black/80 hover:-translate-y-0.5 shadow-lg shadow-black/5 active:translate-y-0 disabled:bg-black/20;
     }
 
     .wv-btn-secondary {
-        @apply bg-wv-tertiary text-white border border-white/10 hover:bg-white/5;
+        @apply bg-wv-tertiary text-black border border-black/5 hover:bg-black/5;
     }
 
     .wv-card {
-        @apply bg-wv-sidebar border border-white/10 rounded-3xl overflow-hidden transition-all duration-500 hover:border-white/30 hover:-translate-y-2;
+        @apply bg-wv-surface border border-black/5 rounded-3xl overflow-hidden transition-all duration-500 hover:border-black/10 hover:-translate-y-1;
     }
 
     .wv-input {
-        @apply bg-wv-tertiary border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-white/30 outline-none transition-all;
+        @apply bg-wv-surface border border-black/5 rounded-xl px-4 py-3 text-sm focus:border-black/10 focus:bg-white outline-none transition-all;
     }
 
     .wv-badge {
-        @apply bg-white/5 border border-white/10 px-2.5 py-1 rounded-lg text-[11px] font-bold uppercase tracking-wider;
+        @apply bg-black/5 border border-black/5 px-2.5 py-1 rounded-lg text-[11px] font-bold uppercase tracking-wider text-black/60;
     }
+
 }
 
 /* Custom animations that tailwind doesn't handle natively as easily */

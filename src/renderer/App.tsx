@@ -6,11 +6,13 @@ import { HistoryView } from "./components/HistoryView";
 import { SettingsView } from "./components/SettingsView";
 import { TitleBar } from "./components/TitleBar";
 import { useSettings, useHistory, useDebugMode, useLogs, useItemStates, useActiveDownloads } from "./hooks/useAppState";
+import "./App.css";
 import { SearchResult, HistoryItem } from "./types";
-import { Play, Pause, Volume2, X, Music2, Loader2 } from "lucide-react";
+import { Play, Pause, Volume2, X, Music2, Loader2, Music } from "lucide-react";
 import { SpotlightView } from "./components/SpotlightView";
 import { ActiveDownloads } from "./components/ActiveDownloads";
-import "./App.css";
+
+
 
 
 declare global {
@@ -18,7 +20,12 @@ declare global {
         api: {
             download: (url: string, format: string, bitrate: string, sampleRate: string, normalize: boolean, outDir?: string) => Promise<{
                 path: string,
+                id: string,
+                title: string,
+                thumbnail?: string,
+                channel?: string,
                 bpm?: number,
+
                 key?: string,
                 source?: string,
                 description?: string,
@@ -27,6 +34,8 @@ declare global {
             search: (query: string) => Promise<SearchResult[]>;
             getMeta: (url: string) => Promise<SearchResult>;
             getStreamUrl: (url: string) => Promise<string>;
+            trimAudio: (src: string, start: number, end: number) => Promise<string>;
+
             onStatus: (callback: (payload: { ok: boolean, message: string }) => void) => void;
             onCommand: (callback: (command: string) => void) => void;
             onDownloadStarted: (callback: (payload: { url: string, title: string }) => void) => void;
@@ -86,8 +95,13 @@ export const App: React.FC = () => {
         clipboardShortcut, setClipboardShortcut,
         volume, setVolume,
         sidebarCollapsed, setSidebarCollapsed,
-        audioDeviceId, setAudioDeviceId
+        audioDeviceId, setAudioDeviceId,
+        theme, setTheme
     } = settings;
+
+    const isDark = theme === 'dark';
+
+
 
     const { resetKeybinds } = settings;
 
@@ -102,7 +116,17 @@ export const App: React.FC = () => {
     const { itemStates, updateItemState, resetItemStates } = useItemStates();
     const { activeDownloads, addSpotlightDownload, updateSpotlightDownload, removeSpotlightDownload, clearSpotlightDownloads } = useActiveDownloads();
 
+    useEffect(() => {
+        if (theme === 'dark') {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    }, [theme]);
+
+
     const handleTogglePreview = async (url: string) => {
+
         const trackInfo = history.find(h => h.path === url) || results.find(r => r.url === url);
 
         if (playingUrl === url) {
@@ -350,8 +374,10 @@ export const App: React.FC = () => {
 
     return (
 
-        <div id="app-root" className="flex flex-col h-screen w-screen bg-wv-bg text-white overflow-hidden font-sans">
-            <TitleBar />
+        <div id="app-root" className="flex flex-col h-screen w-screen transition-colors duration-300 overflow-hidden font-sans bg-wv-bg text-wv-text">
+
+            <TitleBar theme={theme} />
+
 
             {!hasAllDeps && (
                 <DependencyChecker
@@ -367,6 +393,7 @@ export const App: React.FC = () => {
                     setFfmpegPath={setFfmpegPath}
                     ffprobePath={ffprobePath}
                     setFfprobePath={setFfprobePath}
+                    theme={theme}
                 />
 
             )}
@@ -379,11 +406,16 @@ export const App: React.FC = () => {
                     onViewChange={setView}
                     isCollapsed={sidebarCollapsed}
                     onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+                    theme={theme}
+                    onThemeToggle={() => setTheme(theme === 'light' ? 'dark' : 'light')}
                 />
 
 
-                <main className="flex-1 flex flex-col min-w-0">
-                    <header className="px-8 py-4 border-b border-white/5 flex justify-between items-center bg-black/40 backdrop-blur-md z-20">
+
+                <main className="flex-1 flex flex-col min-w-0 transition-colors duration-300 bg-wv-bg">
+                    <header className={`px-8 py-4 border-b flex justify-between items-center backdrop-blur-md z-20 transition-all ${isDark ? "bg-wv-bg/80 border-white/5" : "bg-white/80 border-black/5"}`}>
+
+
                         <div className="flex flex-col">
                             <h1 className="text-lg font-bold tracking-tight">
                                 {view === 'search' && "Buscador de Sonidos"}
@@ -399,7 +431,9 @@ export const App: React.FC = () => {
                         </div>
                     </header>
 
-                    <div className="flex-1 flex flex-col min-h-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.02),transparent_35%)]">
+                    <div className={`flex-1 flex flex-col min-h-0 ${isDark ? "bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.02),transparent_35%)]" : "bg-[radial-gradient(circle_at_top_right,rgba(0,0,0,0.02),transparent_35%)]"}`}>
+
+
                         {view === 'search' && (
                             <SearchView
                                 query={query}
@@ -414,6 +448,7 @@ export const App: React.FC = () => {
                                 onTogglePreview={handleTogglePreview}
                                 playingUrl={playingUrl}
                                 isPreviewLoading={isPreviewLoading}
+                                theme={theme}
                             />
 
                         )}
@@ -428,6 +463,7 @@ export const App: React.FC = () => {
 
                                 playingUrl={playingUrl}
                                 isPreviewLoading={isPreviewLoading}
+                                theme={theme}
                             />
 
                         )}
@@ -454,17 +490,18 @@ export const App: React.FC = () => {
                                 resetKeybinds={resetKeybinds}
                                 audioDeviceId={audioDeviceId}
                                 setAudioDeviceId={setAudioDeviceId}
+                                theme={theme}
                             />
-
 
                         )}
                     </div>
 
-                    <footer className="h-20 bg-wv-sidebar border-t border-white/5 flex items-center px-8 gap-10 z-[100]">
+                    <footer className={`h-20 border-t flex items-center px-8 gap-10 z-[100] shadow-[0_-4px_20px_rgba(0,0,0,0.03)] transition-all duration-300 ${isDark ? "bg-wv-sidebar border-white/5" : "bg-white border-black/10"}`}>
+
                         <div className="w-1/3 flex items-center gap-4">
                             {activeTrack ? (
                                 <>
-                                    <div className="h-12 w-12 rounded-lg overflow-hidden border border-white/10 shrink-0">
+                                    <div className={`h-12 w-12 rounded-lg overflow-hidden border shrink-0 ${isDark ? "border-white/10" : "border-black/5"}`}>
                                         <img src={activeTrack.thumbnail} className="w-full h-full object-cover" alt="" />
                                     </div>
                                     <div className="flex flex-col min-w-0">
@@ -474,10 +511,11 @@ export const App: React.FC = () => {
                                 </>
                             ) : (
                                 <div className="flex items-center gap-3 opacity-30">
-                                    <div className="h-10 w-10 rounded-lg border border-dashed border-white/20 flex items-center justify-center">
+                                    <div className={`h-10 w-10 rounded-lg border border-dashed flex items-center justify-center text-wv-gray ${isDark ? "border-white/10" : "border-black/10"}`}>
                                         <Music2 size={16} />
                                     </div>
-                                    <span className="text-[10px] font-bold uppercase tracking-widest">Selecciona un archivo</span>
+                                    <span className="text-[10px] font-bold uppercase tracking-widest text-wv-gray">Selecciona un archivo</span>
+
                                 </div>
                             )}
                         </div>
@@ -485,11 +523,12 @@ export const App: React.FC = () => {
                         <div className="flex-1 flex justify-center">
                             <button
                                 type="button"
-                                className="h-10 w-10 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 transition-transform disabled:opacity-20"
+                                className={`h-10 w-10 rounded-full flex items-center justify-center hover:scale-105 transition-all disabled:opacity-50 ${isDark ? "bg-white text-black shadow-lg shadow-white/5" : "bg-black text-white shadow-lg shadow-black/10"}`}
                                 onClick={() => playingUrl && handleTogglePreview(playingUrl)}
                                 disabled={!playingUrl}
                             >
                                 {isPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={20} className="ml-0.5" fill="currentColor" />}
+
                             </button>
                         </div>
 
@@ -507,11 +546,12 @@ export const App: React.FC = () => {
                             {playingUrl && (
                                 <button
                                     type="button"
-                                    className="p-1.5 hover:bg-white/5 rounded-md text-wv-gray hover:text-white transition-colors"
+                                    className={`p-1.5 rounded-md text-wv-gray transition-colors ${isDark ? "hover:bg-white/5 hover:text-white" : "hover:bg-black/5 hover:text-black"}`}
                                     onClick={() => { setPlayingUrl(null); setStreamUrl(null); setIsPlaying(false); setActiveTrack(null); }}
                                 >
                                     <X size={16} />
                                 </button>
+
                             )}
                         </div>
 
@@ -537,8 +577,11 @@ export const App: React.FC = () => {
                 <ActiveDownloads
                     activeDownloads={activeDownloads}
                     onClearDownload={removeSpotlightDownload}
+                    theme={theme}
                 />
             )}
+
+
         </div>
     );
 };

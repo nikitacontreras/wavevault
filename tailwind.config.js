@@ -6,16 +6,19 @@ module.exports = {
     theme: {
         extend: {
             colors: {
-                'wv-bg': '#0a0a0a',
-                'wv-sidebar': '#141414',
-                'wv-tertiary': '#1e1e1e',
-                'wv-accent': '#ffffff',
+                'wv-bg': 'var(--wv-bg)',
+                'wv-sidebar': 'var(--wv-sidebar)',
+                'wv-surface': 'var(--wv-surface)',
+                'wv-accent': 'var(--wv-accent)',
+                'wv-text': 'var(--wv-text)',
+                'wv-border': 'var(--wv-border)',
                 'wv-gray': {
-                    DEFAULT: '#999999',
-                    dark: '#1e1e1e',
-                    light: '#333333'
+                    DEFAULT: 'var(--wv-text-muted)',
+                    dark: '#222222',
+                    light: '#e1e1e6'
                 }
             },
+
         },
     },
     plugins: [],

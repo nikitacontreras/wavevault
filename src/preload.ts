@@ -22,7 +22,11 @@ contextBridge.exposeInMainWorld("api", {
     closeSpotlight: () => ipcRenderer.invoke("close-spotlight"),
 
 
-    resizeSpotlight: (height: number) => ipcRenderer.invoke("resize-spotlight", height)
+    resizeSpotlight: (height: number) => ipcRenderer.invoke("resize-spotlight", height),
+    checkForUpdates: () => ipcRenderer.invoke("check-for-updates"),
+    getAppVersion: () => ipcRenderer.invoke("get-app-version"),
+    openExternal: (url: string) => ipcRenderer.invoke("open-external", url),
+    getPlatformInfo: () => ipcRenderer.invoke("get-platform-info")
 
 
 

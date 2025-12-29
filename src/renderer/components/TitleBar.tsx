@@ -3,9 +3,10 @@ import { AudioWaveform as WaveIcon } from 'lucide-react';
 
 interface TitleBarProps {
     theme: 'light' | 'dark';
+    version: string;
 }
 
-export const TitleBar: React.FC<TitleBarProps> = ({ theme }) => {
+export const TitleBar: React.FC<TitleBarProps> = ({ theme, version }) => {
     const isDark = theme === 'dark';
 
     return (
@@ -20,10 +21,11 @@ export const TitleBar: React.FC<TitleBarProps> = ({ theme }) => {
 
             <div className="w-20 flex justify-end">
                 <div className={`text-[9px] font-bold uppercase tracking-widest border px-2 py-0.5 rounded ${isDark ? "text-white/20 border-white/5" : "text-black/20 border-black/5"}`}>
-                    v1.0.0
+                    v{version}
                 </div>
             </div>
         </div>
     );
 };
+
 

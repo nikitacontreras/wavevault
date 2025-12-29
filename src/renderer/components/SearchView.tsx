@@ -16,6 +16,7 @@ interface SearchViewProps {
     onTogglePreview: (url: string) => void;
     playingUrl: string | null;
     isPreviewLoading: boolean;
+    theme: 'light' | 'dark';
 }
 
 
@@ -31,18 +32,25 @@ export const SearchView: React.FC<SearchViewProps> = ({
     onOpenItem,
     onTogglePreview,
     playingUrl,
-    isPreviewLoading
+    isPreviewLoading,
+    theme
 }) => {
+    const isDark = theme === 'dark';
 
     return (
-        <div className="flex-1 overflow-y-auto px-8 py-8 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto px-8 py-8 custom-scrollbar bg-wv-bg">
             <form onSubmit={onSearch} className="relative mb-10">
-                <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none text-wv-gray">
+                <div className={`absolute inset-y-0 left-5 flex items-center pointer-events-none ${isDark ? "text-wv-gray" : "text-black/30"}`}>
                     <Search size={18} />
                 </div>
                 <input
                     type="text"
-                    className="w-full bg-wv-sidebar border border-white/5 rounded-2xl py-4 pl-12 pr-32 text-base outline-none transition-all focus:border-white/10 focus:bg-white/[0.02]"
+                    className={`
+                        w-full rounded-2xl py-4 pl-12 pr-32 text-base outline-none transition-all
+                        ${isDark
+                            ? "bg-wv-surface border-white/5 text-white focus:border-white/10"
+                            : "bg-white border-black/5 text-black placeholder:text-black/20 focus:border-black/10 shadow-[0_2px_10px_rgba(0,0,0,0.02)]"}
+                    `}
                     placeholder="Busca por género, artista o link..."
                     value={query}
                     autoFocus
@@ -51,7 +59,10 @@ export const SearchView: React.FC<SearchViewProps> = ({
                 <div className="absolute inset-y-1.5 right-1.5">
                     <button
                         type="submit"
-                        className="wv-btn wv-btn-primary h-full px-8 rounded-xl text-sm disabled:opacity-50"
+                        className={`
+                            h-full px-8 rounded-xl text-sm disabled:opacity-50 transition-all font-bold tracking-widest uppercase
+                            ${isDark ? "bg-white text-black hover:bg-white/90" : "bg-black text-white hover:bg-black/90 shadow-lg"}
+                        `}
                         disabled={isSearching}
                     >
                         {isSearching ? <Loader2 className="animate-spin" size={18} /> : "Buscar"}
@@ -61,9 +72,9 @@ export const SearchView: React.FC<SearchViewProps> = ({
 
             <div className="min-h-[300px]">
                 {results.length === 0 && !isSearching ? (
-                    <div className="flex flex-col items-center justify-center py-20 opacity-20">
-                        <Music size={60} strokeWidth={1.5} />
-                        <p className="mt-4 text-sm font-medium max-w-xs text-center">
+                    <div className={`flex flex-col items-center justify-center py-20 ${isDark ? "opacity-20" : "opacity-10"}`}>
+                        <Music size={60} strokeWidth={1.5} className="text-wv-text" />
+                        <p className="mt-4 text-sm font-medium max-w-xs text-center text-wv-text">
                             Encuentra nuevos sonidos para tu producción musical
                         </p>
                     </div>
@@ -84,7 +95,9 @@ export const SearchView: React.FC<SearchViewProps> = ({
                                     onTogglePreview={onTogglePreview}
                                     isPlaying={playingUrl === r.url}
                                     isPreviewLoading={isPreviewLoading}
+                                    theme={theme}
                                 />
+
                             );
                         })}
                     </div>
@@ -92,8 +105,8 @@ export const SearchView: React.FC<SearchViewProps> = ({
 
                 {isSearching && results.length === 0 && (
                     <div className="flex flex-col items-center justify-center py-20">
-                        <Loader2 className="animate-spin text-white/10" size={40} />
-                        <p className="mt-4 text-wv-gray font-bold uppercase tracking-widest text-[10px]">Escaneando archivos...</p>
+                        <Loader2 className="animate-spin text-wv-gray opacity-30" size={40} />
+                        <p className="mt-4 font-bold uppercase tracking-widest text-[10px] text-wv-gray">Escaneando archivos...</p>
                     </div>
                 )}
             </div>

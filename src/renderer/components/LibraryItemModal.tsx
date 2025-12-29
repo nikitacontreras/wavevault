@@ -8,9 +8,11 @@ interface LibraryItemModalProps {
     onClose: () => void;
     onOpenItem: (path: string) => void;
     onUpdateItem: (id: string, updates: Partial<HistoryItem>) => void;
+    theme: 'light' | 'dark';
 }
 
-export const LibraryItemModal: React.FC<LibraryItemModalProps> = ({ item, onClose, onOpenItem, onUpdateItem }) => {
+export const LibraryItemModal: React.FC<LibraryItemModalProps> = ({ item, onClose, onOpenItem, onUpdateItem, theme }) => {
+    const isDark = theme === 'dark';
     const [tagInput, setTagInput] = useState("");
     const [isChopping, setIsChopping] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
@@ -72,35 +74,36 @@ export const LibraryItemModal: React.FC<LibraryItemModalProps> = ({ item, onClos
 
     return (
         <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md" onClick={onClose}>
-            <div className="bg-wv-sidebar border border-white/5 rounded-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className={`border rounded-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col shadow-2xl transition-all ${isDark ? "bg-wv-bg border-white/10 text-white" : "bg-white border-black/10 text-black"}`} onClick={e => e.stopPropagation()}>
 
-                <div className="px-6 py-4 border-b border-white/5 flex justify-between items-center bg-white/[0.01]">
+
+                <div className={`px-6 py-4 border-b flex justify-between items-center ${isDark ? "bg-white/[0.02] border-white/[0.08]" : "bg-black/[0.02] border-black/[0.08]"}`}>
                     <div className="flex items-center gap-2">
                         <Info size={14} className="text-wv-gray" />
-                        <h2 className="text-xs font-bold uppercase tracking-widest">Información del Sample</h2>
+                        <h2 className={`text-xs font-bold uppercase tracking-widest ${isDark ? "text-white/80" : "text-black/80"}`}>Información del Sample</h2>
                     </div>
                     <div className="flex items-center gap-4">
                         <button
-                            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${isChopping ? 'bg-wv-accent text-black' : 'bg-white/5 hover:bg-white/10 text-white/60'}`}
+                            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${isChopping ? (isDark ? 'bg-white text-black' : 'bg-black text-white') : (isDark ? 'bg-white/5 hover:bg-white/10 text-white/60' : 'bg-black/5 hover:bg-black/10 text-black/60')}`}
                             onClick={() => setIsChopping(!isChopping)}
                         >
                             <Scissors size={12} /> {isChopping ? 'Cancelar Chop' : 'Chop Sample'}
                         </button>
-                        <button className="p-1 hover:bg-white/5 rounded-md transition-colors group" onClick={onClose}>
-                            <X size={18} className="text-wv-gray group-hover:text-white" />
+                        <button className={`p-1 rounded-md transition-colors group ${isDark ? "hover:bg-white/5" : "hover:bg-black/5"}`} onClick={onClose}>
+                            <X size={18} className={`text-wv-gray ${isDark ? "group-hover:text-white" : "group-hover:text-black"}`} />
                         </button>
                     </div>
                 </div>
 
+
                 <div className="flex-1 overflow-y-auto px-6 py-8 custom-scrollbar space-y-8">
-                    {/* Real Waveform Section with Visual Regions */}
-                    <div className="bg-black/20 rounded-xl p-4 border border-white/5">
+                    <div className={`rounded-xl p-4 border transition-all ${isDark ? "bg-wv-surface border-white/[0.05]" : "bg-wv-surface border-black/[0.08]"}`}>
                         <div className="flex justify-between items-center mb-4">
                             <span className="text-[9px] font-bold text-wv-gray uppercase tracking-[0.2em] shrink-0">{isChopping ? 'Selección Visual (Drag & Resize)' : 'Señal de Audio'}</span>
 
                             <div className="flex items-center gap-6 flex-1 justify-end">
                                 {isChopping && (
-                                    <div className="flex items-center gap-2 bg-white/5 px-3 py-1 rounded-lg border border-white/5">
+                                    <div className={`flex items-center gap-2 px-3 py-1 rounded-lg border ${isDark ? "bg-white/5 border-white/[0.08]" : "bg-black/5 border-black/[0.08]"}`}>
                                         <ZoomOut size={12} className="text-wv-gray" />
                                         <input
                                             type="range"
@@ -108,23 +111,22 @@ export const LibraryItemModal: React.FC<LibraryItemModalProps> = ({ item, onClos
                                             max="200"
                                             value={zoom}
                                             onChange={(e) => setZoom(parseInt(e.target.value))}
-                                            className="w-24 h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-white hover:accent-wv-accent transition-all"
+                                            className={`w-24 h-1 rounded-lg appearance-none cursor-pointer transition-all ${isDark ? "bg-white/10 accent-white" : "bg-black/10 accent-black"}`}
                                         />
                                         <ZoomIn size={12} className="text-wv-gray" />
                                     </div>
                                 )}
-                                <div className="text-[9px] font-bold text-wv-accent uppercase bg-wv-accent/10 px-2 py-0.5 rounded tracking-widest whitespace-nowrap">
+                                <div className={`text-[9px] font-bold px-2 py-0.5 rounded tracking-widest whitespace-nowrap border ${isDark ? "bg-white/5 border-white/[0.05] text-white" : "bg-black/5 border-black/[0.05] text-black"}`}>
                                     {startTime.toFixed(2)}s - {endTime.toFixed(2)}s ({(endTime - startTime).toFixed(2)}s)
                                 </div>
                             </div>
                         </div>
-                        <div className="relative border border-white/5 rounded-lg overflow-hidden bg-black/40">
+                        <div className={`relative border rounded-lg overflow-hidden transition-all ${isDark ? "bg-wv-bg border-white/[0.08]" : "bg-white border-black/[0.08]"}`}>
                             <div className="overflow-x-auto custom-scrollbar no-drag">
                                 <Waveform
                                     url={item.path}
                                     height={120}
-                                    waveColor="rgba(255,255,255,0.12)"
-                                    progressColor="#ffffff"
+                                    theme={theme}
                                     showControls={true}
                                     useRegions={true}
                                     onRegionChange={handleRegionChange}
@@ -140,13 +142,15 @@ export const LibraryItemModal: React.FC<LibraryItemModalProps> = ({ item, onClos
 
                             </div>
                         </div>
+
                         {isChopping && (
                             <div className="mt-8 animate-in slide-in-from-top-2">
                                 <button
-                                    className="w-full py-3 bg-white text-black rounded-lg text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-gray-200 transition-colors disabled:opacity-50 shadow-xl"
+                                    className={`w-full py-3 rounded-lg text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 transition-colors disabled:opacity-50 shadow-xl ${isDark ? "bg-white text-black hover:bg-gray-200" : "bg-black text-white hover:bg-black/80"}`}
                                     onClick={handleTrim}
                                     disabled={isProcessing || startTime >= endTime}
                                 >
+
                                     {isProcessing ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
                                     Finalizar Chop y Guardar
                                 </button>
@@ -158,39 +162,42 @@ export const LibraryItemModal: React.FC<LibraryItemModalProps> = ({ item, onClos
                     {!isChopping && (
                         <>
                             <div className="flex flex-col sm:flex-row gap-6 items-start">
-                                <div className="w-full sm:w-32 aspect-square rounded-xl overflow-hidden border border-white/10 shrink-0">
+                                <div className={`w-full sm:w-32 aspect-square rounded-xl overflow-hidden border shrink-0 ${isDark ? "border-white/10" : "border-black/5"}`}>
                                     <img src={item.thumbnail} alt="" className="w-full h-full object-cover" />
                                 </div>
                                 <div className="flex-1 space-y-3">
                                     <div>
-                                        <h3 className="text-xl font-bold tracking-tight mb-0.5">{item.title}</h3>
+                                        <h3 className={`text-xl font-bold tracking-tight mb-0.5 ${isDark ? "text-white" : "text-black"}`}>{item.title}</h3>
                                         <p className="text-wv-gray text-sm font-medium">{item.channel}</p>
                                     </div>
                                     <div className="flex flex-wrap gap-1.5">
-                                        <span className="bg-white text-black text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">{item.format}</span>
-                                        {item.bpm && <span className="bg-white/5 border border-white/5 text-white/60 text-[9px] font-bold px-2 py-0.5 rounded">{item.bpm} BPM</span>}
-                                        {item.key && <span className="bg-white/5 border border-white/5 text-white/80 text-[9px] font-bold px-2 py-0.5 rounded">{item.key}</span>}
+                                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${isDark ? "bg-white text-black" : "bg-black text-white"}`}>{item.format}</span>
+                                        {item.bpm && <span className={`border text-[9px] font-bold px-2 py-0.5 rounded ${isDark ? "bg-white/5 border-white/[0.05] text-wv-gray" : "bg-black/5 border-black/[0.05] text-black/60"}`}>{item.bpm} BPM</span>}
+                                        {item.key && <span className={`border text-[9px] font-bold px-2 py-0.5 rounded ${isDark ? "bg-white/5 border-white/[0.05] text-wv-text" : "bg-black/5 border-black/[0.05] text-black/80"}`}>{item.key}</span>}
                                     </div>
+
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 pt-4 border-t border-white/5">
-                                <MetaItem icon={<Calendar size={12} />} label="Agregado" value={new Date(item.date).toLocaleDateString()} />
+                            <div className={`grid grid-cols-2 lg:grid-cols-4 gap-6 pt-4 border-t transition-colors ${isDark ? "border-white/[0.08]" : "border-black/[0.08]"}`}>
+
+                                <MetaItem icon={<Calendar size={12} />} label="Agregado" value={new Date(item.date).toLocaleDateString()} theme={theme} />
                                 <div className="flex flex-col gap-1.5">
                                     <label className="text-[9px] font-bold text-wv-gray uppercase tracking-widest flex items-center gap-1.5">
                                         <Tag size={12} /> Categoría
                                     </label>
                                     <select
-                                        className="bg-wv-bg border border-white/5 rounded-lg py-1 px-2 text-[10px] outline-none focus:border-white/10"
+                                        className={`border rounded-lg py-1 px-2 text-[10px] outline-none transition-all ${isDark ? "bg-wv-surface border-white/[0.08] text-white focus:border-white/20" : "bg-wv-surface border-black/[0.08] text-black focus:border-black/20"}`}
                                         value={item.category || ""}
                                         onChange={e => handleCategoryChange(e.target.value)}
                                     >
+
                                         <option value="">Sin categoría</option>
                                         {categories.map(c => <option key={c} value={c}>{c}</option>)}
                                     </select>
                                 </div>
-                                <MetaItem icon={<Database size={12} />} label="Origen" value={item.source || "YouTube"} />
-                                <MetaItem icon={<Activity size={12} />} label="Sample Rate" value={`${item.sampleRate || "44100"} Hz`} />
+                                <MetaItem icon={<Database size={12} />} label="Origen" value={item.source || "YouTube"} theme={theme} />
+                                <MetaItem icon={<Activity size={12} />} label="Sample Rate" value={`${item.sampleRate || "44100"} Hz`} theme={theme} />
                             </div>
 
                             <div className="space-y-3">
@@ -199,31 +206,32 @@ export const LibraryItemModal: React.FC<LibraryItemModalProps> = ({ item, onClos
                                 </label>
                                 <div className="flex flex-wrap gap-2 items-center">
                                     {(item.tags || []).map(t => (
-                                        <span key={t} className="bg-white/5 border border-white/5 text-white/70 text-[10px] font-medium flex items-center gap-1.5 py-1 px-2.5 rounded-lg group hover:border-white/20 transition-all">
+                                        <span key={t} className={`border text-[10px] font-medium flex items-center gap-1.5 py-1 px-2.5 rounded-lg group transition-all ${isDark ? "bg-white/5 border-white/[0.08] text-white/70 hover:border-white/20" : "bg-black/5 border-black/[0.08] text-black/70 hover:border-black/20"}`}>
                                             {t}
-                                            <X size={10} className="cursor-pointer text-wv-gray hover:text-red-400 mt-0.5" onClick={() => removeTag(t)} />
+                                            <X size={10} className="cursor-pointer text-wv-gray hover:text-red-500 mt-0.5" onClick={() => removeTag(t)} />
                                         </span>
                                     ))}
-                                    <div className="flex bg-wv-bg border border-white/10 rounded-lg overflow-hidden focus-within:border-white/20">
+                                    <div className={`flex border rounded-lg overflow-hidden transition-all ${isDark ? "bg-wv-surface border-white/[0.08] focus-within:border-white/20" : "bg-wv-surface border-black/[0.08] focus-within:border-black/20"}`}>
                                         <input
                                             type="text"
                                             placeholder="Add tag..."
-                                            className="bg-transparent border-none py-1 px-3 text-[10px] outline-none w-24"
+                                            className={`bg-transparent border-none py-1 px-3 text-[10px] outline-none w-24 ${isDark ? "text-white placeholder:text-white/30" : "text-black placeholder:text-black/30"}`}
                                             value={tagInput}
                                             onChange={e => setTagInput(e.target.value)}
                                             onKeyPress={e => e.key === 'Enter' && addTag()}
                                         />
-                                        <button onClick={addTag} className="px-2 bg-white/5 hover:bg-white/10 border-l border-white/10 text-[10px] font-bold">+</button>
+                                        <button onClick={addTag} className={`px-2 border-l text-[10px] font-bold transition-colors ${isDark ? "bg-white/5 hover:bg-white/10 border-white/[0.08] text-white" : "bg-black/5 hover:bg-black/10 border-black/[0.08] text-black"}`}>+</button>
                                     </div>
+
                                 </div>
                             </div>
                         </>
                     )}
                 </div>
 
-                <div className="px-6 py-5 border-t border-white/5 bg-white/[0.01] flex justify-end">
+                <div className={`px-6 py-5 border-t flex justify-end transition-colors ${isDark ? "border-white/[0.08] bg-white/[0.02]" : "border-black/[0.08] bg-black/[0.02]"}`}>
                     <button
-                        className="py-2 px-6 bg-white text-black hover:bg-gray-200 rounded-lg text-xs font-bold uppercase tracking-widest transition-colors flex items-center gap-2"
+                        className={`py-2 px-6 rounded-lg text-xs font-bold uppercase tracking-widest transition-colors flex items-center gap-2 shadow-lg ${isDark ? "bg-white text-black hover:bg-gray-200" : "bg-black text-white hover:bg-black/80"}`}
                         onClick={() => onOpenItem(item.path)}
                     >
                         <FolderOpen size={14} /> Localizar archivo
@@ -234,11 +242,12 @@ export const LibraryItemModal: React.FC<LibraryItemModalProps> = ({ item, onClos
     );
 };
 
-const MetaItem = ({ icon, label, value }: { icon: React.ReactNode, label: string, value: string }) => (
+const MetaItem = ({ icon, label, value, theme }: { icon: React.ReactNode, label: string, value: string, theme: 'light' | 'dark' }) => (
     <div className="flex flex-col gap-1.5">
         <label className="text-[9px] font-bold text-wv-gray uppercase tracking-widest flex items-center gap-1.5">
             {icon} {label}
         </label>
-        <span className="text-xs font-bold text-white/90">{value}</span>
+        <span className={`text-xs font-bold uppercase tracking-tight ${theme === 'dark' ? "text-white" : "text-black"}`}>{value}</span>
     </div>
+
 );

@@ -33,12 +33,14 @@ interface SettingsViewProps {
     resetKeybinds: () => Promise<void>;
     audioDeviceId: string;
     setAudioDeviceId: (id: string) => void;
+    theme: 'light' | 'dark';
 }
 
 
 
 
-const AdvancedPathInput = ({ label, value, onChange, placeholder }: { label: string, value: string, onChange: (v: string) => void, placeholder: string }) => {
+const AdvancedPathInput = ({ label, value, onChange, placeholder, theme }: { label: string, value: string, onChange: (v: string) => void, placeholder: string, theme: 'light' | 'dark' }) => {
+    const isDark = theme === 'dark';
     const handlePick = async () => {
         const path = await window.api.pickFile();
         if (path) onChange(path);
@@ -52,17 +54,18 @@ const AdvancedPathInput = ({ label, value, onChange, placeholder }: { label: str
             <div className="flex gap-3">
                 <input
                     type="text"
-                    className="flex-1 bg-wv-bg border border-white/5 rounded-lg px-3 py-2 text-xs text-wv-gray outline-none focus:border-white/10"
+                    className={`flex-1 border rounded-lg px-3 py-2 text-xs outline-none transition-all ${isDark ? "bg-wv-bg border-white/5 text-white focus:border-white/20" : "bg-white border-black/[0.08] text-black focus:border-black/20"}`}
                     value={value}
                     onChange={e => onChange(e.target.value)}
                     placeholder={placeholder}
                 />
                 <button
-                    className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/5 rounded-lg text-xs font-bold uppercase tracking-widest transition-colors"
+                    className={`px-4 py-2 border rounded-lg text-xs font-bold uppercase tracking-widest transition-colors ${isDark ? "bg-white/5 hover:bg-white/10 border-white/5 text-white" : "bg-black/5 hover:bg-black/10 border-black/[0.08] text-black"}`}
                     onClick={handlePick}
                 >
                     Buscar
                 </button>
+
             </div>
         </div>
     );
@@ -77,9 +80,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     pythonPath, setPythonPath, ffmpegPath, setFfmpegPath, ffprobePath, setFfprobePath,
     spotlightShortcut, setSpotlightShortcut, clipboardShortcut, setClipboardShortcut,
     keybinds, updateKeybind, resetKeybinds,
-    audioDeviceId, setAudioDeviceId
+    audioDeviceId, setAudioDeviceId,
+    theme
 }) => {
-
+    const isDark = theme === 'dark';
     const [devices, setDevices] = React.useState<MediaDeviceInfo[]>([]);
 
     React.useEffect(() => {
@@ -105,15 +109,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <Settings size={14} />
                     <span className="text-[10px] font-bold uppercase tracking-widest">Sistema</span>
                 </div>
-                <h2 className="text-2xl font-bold tracking-tight">Preferencias</h2>
+                <h2 className={`text-2xl font-bold tracking-tight ${isDark ? "text-white" : "text-black"}`}>Preferencias</h2>
             </div>
 
             <div className="max-w-3xl space-y-8 pb-10">
-                <section className="bg-wv-sidebar border border-white/5 rounded-2xl p-6">
-                    <div className="flex items-center gap-2.5 mb-6 border-b border-white/5 pb-4">
+                <section className={`border rounded-2xl p-6 ${isDark ? "bg-wv-surface border-white/[0.05]" : "bg-wv-surface border-black/[0.08]"}`}>
+                    <div className={`flex items-center gap-2.5 mb-6 border-b pb-4 ${isDark ? "border-white/[0.05]" : "border-black/[0.08]"}`}>
                         <Cpu className="text-wv-gray" size={16} />
-                        <h3 className="text-sm font-bold tracking-tight uppercase tracking-wider">Motor de Audio</h3>
+                        <h3 className={`text-sm font-bold tracking-tight uppercase tracking-wider ${isDark ? "text-white" : "text-black"}`}>Motor de Audio</h3>
                     </div>
+
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="flex flex-col gap-2">
@@ -121,10 +126,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                 <FileAudio size={12} /> Formato de Salida
                             </label>
                             <select
-                                className="bg-wv-bg border border-white/5 rounded-lg px-3 py-2 text-xs outline-none focus:border-white/10"
+                                className={`border rounded-lg px-3 py-2 text-xs outline-none transition-all ${isDark ? "bg-wv-bg border-white/5 text-white focus:border-white/20" : "bg-white border-black/[0.08] text-black focus:border-black/20"}`}
                                 value={format}
                                 onChange={e => setFormat(e.target.value as TargetFormat)}
                             >
+
                                 <optgroup label="Comprimidos">
                                     <option value="mp3">MP3</option>
                                     <option value="m4a">M4A</option>
@@ -144,19 +150,21 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             </label>
                             {isBitrateApplicable ? (
                                 <select
-                                    className="bg-wv-bg border border-white/5 rounded-lg px-3 py-2 text-xs outline-none focus:border-white/10"
+                                    className={`border rounded-lg px-3 py-2 text-xs outline-none transition-all ${isDark ? "bg-wv-bg border-white/5 text-white focus:border-white/20" : "bg-white border-black/[0.08] text-black focus:border-black/20"}`}
                                     value={bitrate}
                                     onChange={e => setBitrate(e.target.value as Bitrate)}
                                 >
+
                                     <option value="128k">128 kbps</option>
                                     <option value="192k">192 kbps</option>
                                     <option value="256k">256 kbps</option>
                                     <option value="320k">320 kbps</option>
                                 </select>
                             ) : (
-                                <div className="bg-wv-bg border border-white/5 rounded-lg px-3 py-2 text-xs text-wv-gray border-dashed">
+                                <div className={`border rounded-lg px-3 py-2 text-xs border-dashed font-medium ${isDark ? "bg-white/5 border-white/10 text-wv-gray" : "bg-black/5 border-black/[0.08] text-wv-gray"}`}>
                                     Fixed 24-bit Lossless
                                 </div>
+
                             )}
                         </div>
 
@@ -165,10 +173,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                 <Waves size={12} /> Sample Rate
                             </label>
                             <select
-                                className="bg-wv-bg border border-white/5 rounded-lg px-3 py-2 text-xs outline-none focus:border-white/10"
+                                className={`border rounded-lg px-3 py-2 text-xs outline-none transition-all ${isDark ? "bg-wv-bg border-white/5 text-white focus:border-white/20" : "bg-white border-black/[0.08] text-black focus:border-black/20"}`}
                                 value={sampleRate}
                                 onChange={e => setSampleRate(e.target.value as SampleRate)}
                             >
+
                                 <option value="44100">44.1 kHz</option>
                                 <option value="48000">48.0 kHz</option>
                                 <option value="96000">96.0 kHz</option>
@@ -176,31 +185,34 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         </div>
 
                         <div className="flex flex-col justify-end">
-                            <label className="flex items-center gap-3 bg-wv-bg border border-white/10 p-2.5 rounded-lg cursor-pointer hover:bg-white/5 transition-colors">
+                            <label className={`flex items-center gap-3 border p-2.5 rounded-lg cursor-pointer transition-all ${isDark ? "bg-white/5 border-white/5 hover:bg-white/10" : "bg-white border-black/[0.08] hover:bg-black/[0.02]"}`}>
                                 <input
                                     type="checkbox"
-                                    className="w-4 h-4 rounded border-white/20 bg-wv-sidebar checked:bg-white checked:border-transparent"
+                                    className={`w-4 h-4 rounded border transition-all ${isDark ? "border-white/20 bg-wv-sidebar checked:bg-white" : "border-black/20 bg-white checked:bg-black"}`}
                                     checked={normalize}
                                     onChange={e => setNormalize(e.target.checked)}
                                 />
+
                                 <div className="flex flex-col">
-                                    <span className="text-[10px] font-bold uppercase tracking-tight">Normalizar Audio</span>
+                                    <span className={`text-[10px] font-bold uppercase tracking-tight ${isDark ? "text-white" : "text-black"}`}>Normalizar Audio</span>
                                 </div>
                             </label>
                         </div>
                     </div>
 
-                    <div className="mt-6 pt-6 border-t border-white/5">
+                    <div className={`mt-6 pt-6 border-t ${isDark ? "border-white/[0.05]" : "border-black/[0.08]"}`}>
+
 
                         <div className="flex flex-col gap-2">
                             <label className="text-[9px] font-bold text-wv-gray uppercase tracking-widest flex items-center gap-2">
                                 Dispositivo de Salida
                             </label>
                             <select
-                                className="bg-wv-bg border border-white/5 rounded-lg px-3 py-2 text-xs outline-none focus:border-white/10"
+                                className={`border rounded-lg px-3 py-2 text-xs outline-none transition-all ${isDark ? "bg-wv-bg border-white/5 text-white focus:border-white/20" : "bg-white border-black/[0.08] text-black focus:border-black/20"}`}
                                 value={audioDeviceId}
                                 onChange={e => setAudioDeviceId(e.target.value)}
                             >
+
                                 <option value="default">Dispositivo por Defecto</option>
                                 {devices.map(device => (
                                     <option key={device.deviceId} value={device.deviceId}>
@@ -213,44 +225,48 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </section>
 
 
-                <section className="bg-wv-sidebar border border-white/5 rounded-2xl p-6">
-                    <div className="flex items-center gap-2.5 mb-6 border-b border-white/5 pb-4">
+                <section className={`border rounded-2xl p-6 ${isDark ? "bg-wv-surface border-white/[0.05]" : "bg-wv-surface border-black/[0.08]"}`}>
+                    <div className={`flex items-center gap-2.5 mb-6 border-b pb-4 ${isDark ? "border-white/[0.05]" : "border-black/[0.08]"}`}>
                         <FolderSync className="text-wv-gray" size={16} />
-                        <h3 className="text-sm font-bold tracking-tight uppercase tracking-wider">Descargas</h3>
+                        <h3 className={`text-sm font-bold tracking-tight uppercase tracking-wider ${isDark ? "text-white" : "text-black"}`}>Descargas</h3>
                     </div>
+
 
                     <div className="flex flex-col gap-2">
                         <label className="text-[9px] font-bold text-wv-gray uppercase tracking-widest flex items-center gap-2">
                             Directorio Destino
                         </label>
                         <div className="flex gap-3">
-                            <div className="flex-1 bg-wv-bg border border-white/5 rounded-lg px-3 py-2 text-xs text-wv-gray truncate">
+                            <div className={`flex-1 border rounded-lg px-3 py-2 text-xs truncate ${isDark ? "bg-wv-bg border-white/5 text-white" : "bg-white border-black/[0.08] text-black"}`}>
                                 {outDir || "Música del Sistema"}
                             </div>
                             <button
-                                className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/5 rounded-lg text-xs font-bold uppercase tracking-widest transition-colors"
+                                className={`px-4 py-2 border rounded-lg text-xs font-bold uppercase tracking-widest transition-colors ${isDark ? "bg-white/5 hover:bg-white/10 border-white/5 text-white" : "bg-black/5 hover:bg-black/10 border-black/[0.08] text-black"}`}
                                 onClick={onPickDir}
                             >
                                 Cambiar
                             </button>
                         </div>
+
                     </div>
                 </section>
 
-                <section className="bg-wv-sidebar border border-white/5 rounded-2xl p-6">
+                <section className={`border rounded-2xl p-6 ${isDark ? "bg-wv-sidebar border-white/5" : "bg-white border-black/5 shadow-sm"}`}>
                     <KeybindManager
                         keybinds={keybinds}
                         onUpdateKeybind={updateKeybind}
                         onRefresh={resetKeybinds}
+                        theme={theme}
                     />
 
                 </section>
 
-                <section className="bg-wv-sidebar border border-white/5 rounded-2xl p-6">
-                    <div className="flex items-center gap-2.5 mb-6 border-b border-white/5 pb-4">
+                <section className={`border rounded-2xl p-6 ${isDark ? "bg-wv-surface border-white/[0.05]" : "bg-wv-surface border-black/[0.08]"}`}>
+                    <div className={`flex items-center gap-2.5 mb-6 border-b pb-4 ${isDark ? "border-white/[0.05]" : "border-black/[0.08]"}`}>
                         <Settings className="text-wv-gray" size={16} />
-                        <h3 className="text-sm font-bold tracking-tight uppercase tracking-wider">Avanzado</h3>
+                        <h3 className={`text-sm font-bold tracking-tight uppercase tracking-wider ${isDark ? "text-white" : "text-black"}`}>Avanzado</h3>
                     </div>
+
 
                     <div className="space-y-6">
                         <AdvancedPathInput
@@ -258,29 +274,33 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             value={pythonPath}
                             onChange={setPythonPath}
                             placeholder="Autodetectar (python3)"
+                            theme={theme}
                         />
                         <AdvancedPathInput
                             label="Ruta de FFmpeg"
                             value={ffmpegPath}
                             onChange={setFfmpegPath}
                             placeholder="Binario Integrado"
+                            theme={theme}
                         />
                         <AdvancedPathInput
                             label="Ruta de FFprobe"
                             value={ffprobePath}
                             onChange={setFfprobePath}
                             placeholder="Binario Integrado"
+                            theme={theme}
                         />
                     </div>
                 </section>
 
 
-                <section className="bg-black/20 border border-white/5 rounded-2xl p-6">
-                    <div className="flex justify-between items-center mb-6 border-b border-white/5 pb-4">
+                <section className={`border rounded-2xl p-6 shadow-sm ${isDark ? "bg-black/20 border-white/[0.05]" : "bg-black/[0.02] border-black/[0.08]"}`}>
+                    <div className={`flex justify-between items-center mb-6 border-b pb-4 ${isDark ? "border-white/[0.05]" : "border-black/[0.08]"}`}>
                         <div className="flex items-center gap-2 text-wv-gray">
                             <Activity size={16} />
-                            <h3 className="text-sm font-bold tracking-tight uppercase tracking-wider text-white/50">Actividad</h3>
+                            <h3 className={`text-sm font-bold tracking-tight uppercase tracking-wider ${isDark ? "text-white/40" : "text-black/40"}`}>Actividad</h3>
                         </div>
+
                         <button
                             className="text-[9px] font-bold uppercase tracking-widest text-wv-gray hover:text-red-400 transition-colors"
                             onClick={onClearLogs}
@@ -289,23 +309,25 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         </button>
                     </div>
 
-                    <div className="bg-black/40 rounded-xl p-4 font-mono text-[10px] leading-relaxed border border-white/5 max-h-40 overflow-y-auto custom-scrollbar">
+                    <div className={`rounded-xl p-4 font-mono text-[10px] leading-relaxed border max-h-40 overflow-y-auto custom-scrollbar ${isDark ? "bg-black/20 border-white/[0.05]" : "bg-white border-black/[0.08]"}`}>
                         {logs.length === 0 ? (
                             <div className="text-center py-4 text-wv-gray italic opacity-30">
                                 Sin eventos
                             </div>
                         ) : (
                             logs.map((log, i) => (
-                                <div key={i} className="mb-2 flex gap-3 text-white/60">
-                                    <span className="text-white/20 select-none">[{new Date().toLocaleTimeString()}]</span>
+                                <div key={i} className={`mb-2 flex gap-3 ${isDark ? "text-wv-gray" : "text-black/60"}`}>
+                                    <span className={`select-none ${isDark ? "text-white/20" : "text-black/20"}`}>[{new Date().toLocaleTimeString()}]</span>
                                     <span>{log}</span>
                                 </div>
                             ))
                         )}
                     </div>
+
                 </section>
             </div>
         </div>
 
     );
 };
+

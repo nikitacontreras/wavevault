@@ -16,13 +16,14 @@ interface WaveformProps {
     onZoomChange?: (newZoom: number) => void;
     isLooping?: boolean;
     onLoopToggle?: () => void;
+    theme?: 'light' | 'dark';
 }
 
 export const Waveform: React.FC<WaveformProps> = ({
     url,
     height = 40,
-    waveColor = '#4a4a4a',
-    progressColor = '#ffffff',
+    waveColor,
+    progressColor,
     onReady,
     showControls = false,
     useRegions = false,
@@ -30,13 +31,19 @@ export const Waveform: React.FC<WaveformProps> = ({
     zoom = 0,
     onZoomChange,
     isLooping = false,
-    onLoopToggle
+    onLoopToggle,
+    theme = 'dark'
 }) => {
+    const isDark = theme === 'dark';
     const containerRef = useRef<HTMLDivElement>(null);
     const wavesurferRef = useRef<WaveSurfer | null>(null);
     const regionsRef = useRef<any>(null);
     const activeRegionRef = useRef<any>(null);
     const [isPlaying, setIsPlaying] = useState(false);
+
+    // Provide default based on theme if not passed
+    const activeWaveColor = waveColor || (isDark ? '#374151' : '#e5e7eb');
+    const activeProgressColor = progressColor || (isDark ? '#ffffff' : '#000000');
 
     useEffect(() => {
         if (wavesurferRef.current) {
@@ -71,9 +78,9 @@ export const Waveform: React.FC<WaveformProps> = ({
         const ws = WaveSurfer.create({
             container: containerRef.current,
             height,
-            waveColor,
-            progressColor,
-            cursorColor: '#ffffff',
+            waveColor: activeWaveColor,
+            progressColor: activeProgressColor,
+            cursorColor: isDark ? '#ffffff' : '#000000',
             cursorWidth: 2,
             barWidth: 2,
             barGap: 1,
@@ -91,10 +98,11 @@ export const Waveform: React.FC<WaveformProps> = ({
                 const region = regions.addRegion({
                     start: 0,
                     end: duration,
-                    color: 'rgba(255, 255, 255, 0.12)',
+                    color: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)',
                     drag: true,
                     resize: true,
                 });
+
                 activeRegionRef.current = region;
 
                 if (onRegionChange) {
@@ -144,7 +152,7 @@ export const Waveform: React.FC<WaveformProps> = ({
         return () => {
             ws.destroy();
         };
-    }, [url, height, waveColor, progressColor, useRegions, isLooping]);
+    }, [url, height, activeWaveColor, activeProgressColor, useRegions, isLooping, isDark]);
 
     const handleToggle = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -165,14 +173,14 @@ export const Waveform: React.FC<WaveformProps> = ({
                 <div className="flex flex-col gap-2 no-drag">
                     <button
                         onClick={handleToggle}
-                        className="w-10 h-10 flex items-center justify-center bg-white text-black rounded-full shadow-lg hover:scale-105 transition-transform"
+                        className={`w-10 h-10 flex items-center justify-center rounded-full shadow-lg hover:scale-105 transition-all ${isDark ? "bg-white text-black" : "bg-black text-white"}`}
                     >
                         {isPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} className="ml-0.5" fill="currentColor" />}
                     </button>
                     {useRegions && onLoopToggle && (
                         <button
                             onClick={(e) => { e.stopPropagation(); onLoopToggle(); }}
-                            className={`w-10 h-10 flex items-center justify-center rounded-full border transition-all ${isLooping ? 'bg-wv-accent border-wv-accent text-black' : 'bg-white/5 border-white/10 text-wv-gray hover:text-white'}`}
+                            className={`w-10 h-10 flex items-center justify-center rounded-full border transition-all ${isLooping ? (isDark ? 'bg-white border-white text-black' : 'bg-wv-accent border-wv-accent text-black') : (isDark ? 'bg-white/5 border-white/10 text-wv-gray hover:text-white' : 'bg-black/5 border-black/10 text-black/40 hover:text-black')}`}
                         >
                             <Repeat size={16} className={isLooping ? 'animate-pulse' : ''} />
                         </button>
@@ -183,4 +191,5 @@ export const Waveform: React.FC<WaveformProps> = ({
         </div>
     );
 };
+
 

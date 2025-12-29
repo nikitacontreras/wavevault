@@ -39,6 +39,12 @@ export const useSettings = () => {
         return localStorage.getItem('audioDeviceId') || 'default';
     });
 
+    const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+        const stored = localStorage.getItem('theme');
+        return (stored as 'light' | 'dark') || "light";
+    });
+
+
 
 
 
@@ -84,6 +90,11 @@ export const useSettings = () => {
     useEffect(() => {
         localStorage.setItem('audioDeviceId', audioDeviceId);
     }, [audioDeviceId]);
+
+    useEffect(() => {
+        localStorage.setItem('theme', theme);
+    }, [theme]);
+
 
 
     // Load keybinds from main process
@@ -165,8 +176,10 @@ export const useSettings = () => {
         clipboardShortcut, setClipboardShortcut,
         volume, setVolume,
         sidebarCollapsed, setSidebarCollapsed,
-        audioDeviceId, setAudioDeviceId
+        audioDeviceId, setAudioDeviceId,
+        theme, setTheme
     };
+
 };
 
 

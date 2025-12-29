@@ -123,7 +123,8 @@ export const SpotlightView: React.FC = () => {
             // Cerramos la ventana pronto para no estorbar
             setTimeout(() => {
                 window.api.closeSpotlight();
-                setStatus(null);
+                setStatus({ type: 'idle', message: "" });
+
             }, 2000);
 
         } catch (error: any) {
@@ -136,29 +137,30 @@ export const SpotlightView: React.FC = () => {
 
     return (
         <div className="h-screen w-screen flex flex-col p-2 select-none overflow-hidden" style={{ WebkitAppRegion: 'drag' } as any}>
-            <div className="bg-wv-sidebar/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-300 ease-out" style={{ WebkitAppRegion: 'no-drag' } as any}>
+            <div className="bg-white/95 backdrop-blur-xl border border-black/10 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-300 ease-out" style={{ WebkitAppRegion: 'no-drag' } as any}>
 
                 <form onSubmit={handleSubmit} className="flex items-center px-5 py-4 gap-4">
-                    <div className="text-wv-gray/60">
-                        {isLoading ? <Loader2 size={18} className="animate-spin text-white" /> : <Search size={18} />}
+                    <div className="text-black/40">
+                        {isLoading ? <Loader2 size={18} className="animate-spin text-black" /> : <Search size={18} />}
                     </div>
                     <input
                         ref={inputRef}
                         type="text"
-                        className="flex-1 bg-transparent border-none outline-none text-[15px] font-medium text-white placeholder-wv-gray/40"
+                        className="flex-1 bg-transparent border-none outline-none text-[15px] font-medium text-black placeholder-black/20"
                         placeholder="Busca o pega una URL..."
                         value={url}
                         onChange={(e) => setUrl(e.target.value)}
                         disabled={isLoading}
                     />
 
-                    <div className="text-[10px] font-bold text-wv-gray border border-white/10 px-2 py-1 rounded bg-black/20 uppercase tracking-widest leading-none">
+                    <div className="text-[10px] font-bold text-black/40 border border-black/5 px-2 py-1 rounded bg-black/5 uppercase tracking-widest leading-none">
                         Enter
                     </div>
                 </form>
 
+
                 {status.type !== 'idle' && (
-                    <div className={`px-4 py-2 text-[11px] font-medium flex items-center gap-2 border-t border-white/5 animate-in slide-in-from-top-1 ${status.type === 'success' ? 'text-green-400 bg-green-500/5' : 'text-red-400 bg-red-500/5'
+                    <div className={`px-4 py-2 text-[11px] font-medium flex items-center gap-2 border-t border-black/5 animate-in slide-in-from-top-1 ${status.type === 'success' ? 'text-green-600 bg-green-500/5' : 'text-red-600 bg-red-500/5'
                         }`}>
                         {status.type === 'success' ? <CheckCircle2 size={12} /> : <AlertCircle size={12} />}
                         {status.message}
@@ -166,38 +168,38 @@ export const SpotlightView: React.FC = () => {
                 )}
 
                 {downloads.length > 0 && (
-                    <section className="border-t border-white/5 max-h-[160px] overflow-y-auto custom-scrollbar-hidden">
-                        <div className="px-4 py-2 text-[8px] font-bold text-wv-gray uppercase tracking-[0.2em] bg-white/[0.02]">
+                    <section className="border-t border-black/5 max-h-[160px] overflow-y-auto custom-scrollbar-hidden">
+                        <div className="px-4 py-2 text-[8px] font-bold text-black/40 uppercase tracking-[0.2em] bg-black/[0.02]">
                             En curso • {downloads.length}
                         </div>
 
                         {downloads.map((download) => (
-                            <div key={download.id} className="px-4 py-2 flex items-center justify-between border-b border-white/[0.03]">
+                            <div key={download.id} className="px-4 py-2 flex items-center justify-between border-b border-black/[0.03]">
                                 <div className="flex-1 min-w-0">
-                                    <h4 className="text-xs font-medium text-white truncate mb-1">
+                                    <h4 className="text-xs font-medium text-black truncate mb-1">
                                         {download.title}
                                     </h4>
                                     <div className="flex items-center gap-2">
                                         {download.state.status === 'loading' && (
                                             <>
-                                                <Loader2 size={10} className="animate-spin text-wv-gray" />
-                                                <span className="text-[9px] text-wv-gray">
+                                                <Loader2 size={10} className="animate-spin text-black/40" />
+                                                <span className="text-[9px] text-black/40">
                                                     {download.state.msg || "Descargando..."}
                                                 </span>
                                             </>
                                         )}
                                         {download.state.status === 'success' && (
                                             <>
-                                                <CheckCircle2 size={10} className="text-green-400" />
-                                                <span className="text-[9px] text-green-400">
+                                                <CheckCircle2 size={10} className="text-green-500" />
+                                                <span className="text-[9px] text-green-500">
                                                     Completado
                                                 </span>
                                             </>
                                         )}
                                         {download.state.status === 'error' && (
                                             <>
-                                                <AlertCircle size={10} className="text-red-400" />
-                                                <span className="text-[9px] text-red-400">
+                                                <AlertCircle size={10} className="text-red-500" />
+                                                <span className="text-[9px] text-red-500">
                                                     Error
                                                 </span>
                                             </>
@@ -208,6 +210,7 @@ export const SpotlightView: React.FC = () => {
                         ))}
                     </section>
                 )}
+
 
 
             </div>

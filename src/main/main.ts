@@ -1,4 +1,5 @@
-const { app, BrowserWindow, globalShortcut, ipcMain, clipboard, dialog, shell, Menu, Notification } = require("electron");
+import { app, BrowserWindow, globalShortcut, ipcMain, clipboard, dialog, shell, Menu, Notification } from "electron";
+
 
 process.title = "WaveVault";
 app.name = "WaveVault";
@@ -83,7 +84,8 @@ import { config } from "./config";
 // ...
 
 // IPC: Show item in folder
-ipcMain.handle("show-item", async (_evt, filepath: string) => {
+ipcMain.handle("show-item", async (_evt: any, filepath: string) => {
+
     shell.showItemInFolder(filepath);
 });
 
@@ -115,7 +117,8 @@ function createWindow() {
     win = new BrowserWindow({
         width: 1000,
         height: 700,
-        backgroundColor: "#0a0a0a",
+        backgroundColor: "#ffffff",
+
         titleBarStyle: "hidden",
         trafficLightPosition: { x: 15, y: 15 },
         webPreferences: {
@@ -332,7 +335,8 @@ app.on("will-quit", () => {
 });
 
 // IPC: procesar descarga desde UI
-ipcMain.handle("download", async (_evt, url: string, format: string, bitrate: string, sampleRate: string, normalize: boolean, outDir?: string) => {
+ipcMain.handle("download", async (_evt: any, url: string, format: string, bitrate: string, sampleRate: string, normalize: boolean, outDir?: string) => {
+
     const dir = outDir || app.getPath("music");
 
     try {
@@ -362,18 +366,21 @@ ipcMain.handle("download", async (_evt, url: string, format: string, bitrate: st
 
 
 // IPC: obtener URL de stream (para preview)
-ipcMain.handle("getStreamUrl", async (_evt, url: string) => {
+ipcMain.handle("getStreamUrl", async (_evt: any, url: string) => {
     return await getStreamUrl(url);
 });
 
+
 // IPC: búsqueda
-ipcMain.handle("search", async (_evt, query: string) => {
+ipcMain.handle("search", async (_evt: any, query: string) => {
     return await searchYoutube(query);
 });
 
-ipcMain.handle("getMeta", async (_evt, url: string) => {
+
+ipcMain.handle("getMeta", async (_evt: any, url: string) => {
     return await fetchMeta(url);
 });
+
 
 // Diálogo para elegir carpeta
 ipcMain.handle("pick-dir", async () => {
@@ -416,14 +423,16 @@ ipcMain.handle("update-config", async (_evt: any, newConfig: Partial<typeof conf
 
 
 
-ipcMain.handle("trim-audio", async (_evt, src: string, start: number, end: number) => {
+ipcMain.handle("trim-audio", async (_evt: any, src: string, start: number, end: number) => {
     const { trimAudio } = require("./downloader");
     return await trimAudio(src, start, end);
 });
 
-ipcMain.handle("check-dependencies", async (_evt, manualPaths?: any) => {
+
+ipcMain.handle("check-dependencies", async (_evt: any, manualPaths?: any) => {
     return await checkDependencies(manualPaths);
 });
+
 
 ipcMain.handle("close-spotlight", () => {
     if (spotlightWin) {

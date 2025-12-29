@@ -357,8 +357,14 @@ async function convertWithFfmpeg(
 
 export async function processJob(job: DownloadJob): Promise<{
     path: string,
+    id: string,
+    title: string,
+    thumbnail?: string,
+    channel?: string,
     bpm?: number,
     key?: string,
+
+
     source?: string,
     description?: string,
     duration?: string

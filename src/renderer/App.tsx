@@ -369,7 +369,7 @@ export const App: React.FC = () => {
     const hasAllDeps = dependencies.python && dependencies.ffmpeg && dependencies.ffprobe;
 
     if (isSpotlight) {
-        return <SpotlightView />;
+        return <SpotlightView theme={theme} />;
     }
 
     return (

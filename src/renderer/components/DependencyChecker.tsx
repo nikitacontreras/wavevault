@@ -14,6 +14,7 @@ interface DependencyCheckerProps {
     setFfmpegPath: (v: string) => void;
     ffprobePath: string;
     setFfprobePath: (v: string) => void;
+    theme: 'light' | 'dark';
 }
 
 
@@ -23,13 +24,15 @@ export const DependencyChecker: React.FC<DependencyCheckerProps> = ({
     dependencies, onRetry,
     pythonPath, setPythonPath,
     ffmpegPath, setFfmpegPath,
-    ffprobePath, setFfprobePath
+    ffprobePath, setFfprobePath,
+    theme
 }) => {
+    const isDark = theme === 'dark';
     const [showConfig, setShowConfig] = useState(false);
 
     return (
-        <div className="fixed inset-0 z-[3000] bg-wv-bg/80 backdrop-blur-xl flex items-center justify-center p-6 animate-in fade-in duration-500">
-            <div className="max-w-md w-full bg-wv-sidebar border border-white/10 rounded-3xl p-8 shadow-2xl space-y-8">
+        <div className={`fixed inset-0 z-[3000] backdrop-blur-xl flex items-center justify-center p-6 animate-in fade-in duration-500 transition-all ${isDark ? "bg-wv-bg/80" : "bg-black/10"}`}>
+            <div className={`max-w-md w-full border rounded-3xl p-8 shadow-2xl space-y-8 transition-all ${isDark ? "bg-wv-sidebar border-white/10 text-white" : "bg-white border-black/10 text-black"}`}>
                 <div className="flex flex-col items-center text-center space-y-4">
                     <div className="h-16 w-16 bg-red-500/10 rounded-2xl flex items-center justify-center text-red-500 mb-2">
                         <AlertCircle size={32} />
@@ -46,18 +49,21 @@ export const DependencyChecker: React.FC<DependencyCheckerProps> = ({
                         name="Python 3"
                         status={dependencies.python}
                         desc="Necesario para el motor de descarga (yt-dlp)."
+                        theme={theme}
                     />
                     <DependencyRow
                         icon={<Download size={14} />}
                         name="FFmpeg"
                         status={dependencies.ffmpeg}
                         desc="Necesario para la conversión de audio."
+                        theme={theme}
                     />
                     <DependencyRow
                         icon={<Info size={14} />}
                         name="FFprobe"
                         status={dependencies.ffprobe}
                         desc="Necesario para el análisis técnico (BPM/Key)."
+                        theme={theme}
                     />
                 </div>
 
@@ -66,17 +72,17 @@ export const DependencyChecker: React.FC<DependencyCheckerProps> = ({
                 <div className="space-y-4">
                     <button
                         onClick={() => setShowConfig(!showConfig)}
-                        className="text-[10px] text-wv-gray font-bold uppercase tracking-widest hover:text-white transition-colors flex items-center gap-2"
+                        className={`text-[10px] font-bold uppercase tracking-widest transition-colors flex items-center gap-2 ${isDark ? "text-wv-gray hover:text-white" : "text-black/40 hover:text-black"}`}
                     >
                         <Settings size={12} />
                         {showConfig ? "Ocultar Configuración" : "Configuración Manual"}
                     </button>
 
                     {showConfig && (
-                        <div className="space-y-4 p-4 bg-black/20 rounded-2xl border border-white/5 animate-in slide-in-from-top-2 duration-300">
-                            <MiniPathInput label="Ruta Python" value={pythonPath} onChange={setPythonPath} />
-                            <MiniPathInput label="Ruta FFmpeg" value={ffmpegPath} onChange={setFfmpegPath} />
-                            <MiniPathInput label="Ruta FFprobe" value={ffprobePath} onChange={setFfprobePath} />
+                        <div className={`space-y-4 p-4 rounded-2xl border animate-in slide-in-from-top-2 duration-300 ${isDark ? "bg-black/20 border-white/5" : "bg-black/[0.02] border-black/5"}`}>
+                            <MiniPathInput label="Ruta Python" value={pythonPath} onChange={setPythonPath} theme={theme} />
+                            <MiniPathInput label="Ruta FFmpeg" value={ffmpegPath} onChange={setFfmpegPath} theme={theme} />
+                            <MiniPathInput label="Ruta FFprobe" value={ffprobePath} onChange={setFfprobePath} theme={theme} />
                         </div>
                     )}
                 </div>
@@ -85,7 +91,7 @@ export const DependencyChecker: React.FC<DependencyCheckerProps> = ({
                 <div className="pt-4 flex flex-col gap-3">
                     <button
                         onClick={onRetry}
-                        className="w-full py-3 bg-white text-black rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-gray-200 transition-all active:scale-95 shadow-lg"
+                        className={`w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg ${isDark ? "bg-white text-black hover:bg-gray-200" : "bg-black text-white hover:bg-black/90"}`}
                     >
                         <RefreshCw size={16} />
                         Reintentar Verificación
@@ -100,14 +106,14 @@ export const DependencyChecker: React.FC<DependencyCheckerProps> = ({
     );
 };
 
-const DependencyRow = ({ icon, name, status, desc }: { icon: React.ReactNode, name: string, status: boolean, desc: string }) => (
+const DependencyRow = ({ icon, name, status, desc, theme }: { icon: React.ReactNode, name: string, status: boolean, desc: string, theme: 'light' | 'dark' }) => (
     <div className={`p-4 rounded-2xl border transition-all ${status ? 'bg-green-500/5 border-green-500/10' : 'bg-red-500/5 border-red-500/10'}`}>
         <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-2">
                 <div className={status ? 'text-green-500' : 'text-wv-gray'}>
                     {icon}
                 </div>
-                <span className="text-xs font-bold uppercase tracking-wider">{name}</span>
+                <span className={`text-xs font-bold uppercase tracking-wider ${theme === 'dark' ? "text-white" : "text-black"}`}>{name}</span>
             </div>
             {status ? (
                 <CheckCircle2 size={16} className="text-green-500" />
@@ -121,7 +127,8 @@ const DependencyRow = ({ icon, name, status, desc }: { icon: React.ReactNode, na
     </div>
 );
 
-const MiniPathInput = ({ label, value, onChange }: { label: string, value: string, onChange: (v: string) => void }) => {
+const MiniPathInput = ({ label, value, onChange, theme }: { label: string, value: string, onChange: (v: string) => void, theme: 'light' | 'dark' }) => {
+    const isDark = theme === 'dark';
     const handlePick = async () => {
         const path = await (window as any).api.pickFile();
         if (path) onChange(path);
@@ -135,12 +142,12 @@ const MiniPathInput = ({ label, value, onChange }: { label: string, value: strin
                     type="text"
                     value={value}
                     onChange={e => onChange(e.target.value)}
-                    className="flex-1 bg-wv-bg border border-white/5 rounded-lg px-2 py-1.5 text-[10px] text-wv-gray outline-none focus:border-white/10"
+                    className={`flex-1 border rounded-lg px-2 py-1.5 text-[10px] outline-none transition-all ${isDark ? "bg-wv-bg border-white/5 text-white focus:border-white/10" : "bg-white border-black/10 text-black focus:border-black/20"}`}
                     placeholder="Auto"
                 />
                 <button
                     onClick={handlePick}
-                    className="px-3 py-1 bg-white/5 hover:bg-white/10 border border-white/5 rounded-lg text-[10px] font-bold uppercase"
+                    className={`px-3 py-1 border rounded-lg text-[10px] font-bold uppercase transition-colors ${isDark ? "bg-white/5 hover:bg-white/10 border-white/5 text-white" : "bg-black/5 hover:bg-black/10 border-black/10 text-black"}`}
                 >
                     ...
                 </button>
@@ -148,4 +155,5 @@ const MiniPathInput = ({ label, value, onChange }: { label: string, value: strin
         </div>
     );
 };
+
 

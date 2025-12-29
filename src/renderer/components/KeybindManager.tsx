@@ -6,6 +6,7 @@ interface KeybindManagerProps {
     keybinds: KeybindConfig[];
     onUpdateKeybind: (id: string, accelerator: string) => Promise<void>;
     onRefresh?: () => Promise<void>;
+    theme: 'light' | 'dark';
 }
 
 interface KeybindConflict {
@@ -13,11 +14,13 @@ interface KeybindConflict {
     newKeybind: KeybindConfig;
 }
 
-export const KeybindManager: React.FC<KeybindManagerProps> = ({ 
-    keybinds, 
-    onUpdateKeybind, 
-    onRefresh 
+export const KeybindManager: React.FC<KeybindManagerProps> = ({
+    keybinds,
+    onUpdateKeybind,
+    onRefresh,
+    theme
 }) => {
+    const isDark = theme === 'dark';
     const [editingKeybind, setEditingKeybind] = useState<string | null>(null);
     const [tempAccelerator, setTempAccelerator] = useState<string>("");
     const [isRecording, setIsRecording] = useState(false);
@@ -26,9 +29,9 @@ export const KeybindManager: React.FC<KeybindManagerProps> = ({
     const [pendingChanges, setPendingChanges] = useState<Map<string, string>>(new Map());
 
     const categories = {
-        global: { name: "Globales", description: "Funcionan en todo el sistema", color: "text-blue-400" },
-        app: { name: "Aplicación", description: "Dentro de la aplicación", color: "text-green-400" },
-        media: { name: "Multimedia", description: "Control de reproducción", color: "text-purple-400" }
+        global: { name: "Globales", description: "Funcionan en todo el sistema", color: isDark ? "text-blue-400" : "text-blue-600" },
+        app: { name: "Aplicación", description: "Dentro de la aplicación", color: isDark ? "text-green-400" : "text-green-600" },
+        media: { name: "Multimedia", description: "Control de reproducción", color: isDark ? "text-purple-400" : "text-purple-600" }
     };
 
     const normalizeAccelerator = (accelerator: string): string => {
@@ -78,10 +81,10 @@ export const KeybindManager: React.FC<KeybindManagerProps> = ({
         if (parts.length > 0 && !ignoredKeys.includes(e.key)) {
             const newAccelerator = parts.join("+");
             setTempAccelerator(newAccelerator);
-            
+
             const newConflicts = checkConflicts(newAccelerator, editingKeybind || undefined);
             setConflicts(newConflicts);
-            
+
             if (newConflicts.length === 0) {
                 setIsRecording(false);
             }
@@ -112,7 +115,7 @@ export const KeybindManager: React.FC<KeybindManagerProps> = ({
                 newMap.delete(id);
                 return newMap;
             });
-            
+
             if (pendingChanges.size === 1) {
                 setHasChanges(false);
             }
@@ -162,7 +165,7 @@ export const KeybindManager: React.FC<KeybindManagerProps> = ({
         <div className="space-y-6">
             <div className="flex items-center justify-between mb-6">
                 <div>
-                    <h3 className="text-sm font-bold tracking-tight uppercase tracking-wider text-white">
+                    <h3 className={`text-sm font-bold tracking-tight uppercase tracking-wider ${isDark ? "text-white" : "text-black"}`}>
                         Gestor de Atajos de Teclado
                     </h3>
                     <p className="text-[10px] text-wv-gray mt-1">
@@ -180,7 +183,7 @@ export const KeybindManager: React.FC<KeybindManagerProps> = ({
                         </button>
                     )}
                     <button
-                        className="px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center gap-1.5"
+                        className={`px-3 py-1.5 border rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center gap-1.5 ${isDark ? "bg-white/5 hover:bg-white/10 border-white/5 text-white" : "bg-black/5 hover:bg-black/10 border-black/5 text-black"}`}
                         onClick={resetToDefaults}
                     >
                         <RefreshCw size={12} />
@@ -192,22 +195,22 @@ export const KeybindManager: React.FC<KeybindManagerProps> = ({
             {conflicts.length > 0 && (
                 <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 animate-in slide-in-from-top-2">
                     <div className="flex items-start gap-3">
-                        <AlertTriangle className="text-red-400 mt-0.5" size={16} />
+                        <AlertTriangle className="text-red-500 mt-0.5" size={16} />
                         <div className="flex-1">
-                            <h4 className="text-[11px] font-bold text-red-400 uppercase tracking-wider mb-2">
+                            <h4 className="text-[11px] font-bold text-red-500 uppercase tracking-wider mb-2">
                                 Conflicto de Atajos Detectado
                             </h4>
-                            <div className="space-y-1 text-[10px] text-red-300">
+                            <div className={`space-y-1 text-[10px] ${isDark ? "text-red-300" : "text-red-600"}`}>
                                 {conflicts.map((conflict, index) => (
                                     <div key={index}>
-                                        "{displayAccelerator(conflict.newKeybind.accelerator)}" ya está siendo usado por 
-                                        <span className="font-medium text-white"> {conflict.existingKeybind.name}</span>
+                                        "{displayAccelerator(conflict.newKeybind.accelerator)}" ya está siendo usado por
+                                        <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}> {conflict.existingKeybind.name}</span>
                                     </div>
                                 ))}
                             </div>
                         </div>
                         <button
-                            className="text-red-400 hover:text-red-300 transition-colors"
+                            className="text-red-500 hover:text-red-600 transition-colors"
                             onClick={() => setConflicts([])}
                         >
                             <X size={14} />
@@ -218,11 +221,11 @@ export const KeybindManager: React.FC<KeybindManagerProps> = ({
 
             {groupedKeybinds.map(({ category, name, description, color, keybinds: categoryKeybinds }) => (
                 categoryKeybinds.length > 0 && (
-                    <div key={category} className="bg-wv-sidebar border border-white/5 rounded-2xl p-6">
-                        <div className="flex items-center gap-2.5 mb-4 border-b border-white/5 pb-3">
+                    <div key={category} className={`${isDark ? "bg-wv-sidebar border-white/5" : "bg-white border-black/5"} border rounded-2xl p-6 shadow-sm`}>
+                        <div className={`flex items-center gap-2.5 mb-4 border-b pb-3 ${isDark ? "border-white/5" : "border-black/5"}`}>
                             <Keyboard className={color} size={14} />
                             <div>
-                                <h4 className="text-xs font-bold tracking-tight uppercase tracking-wider text-white">
+                                <h4 className={`text-xs font-bold tracking-tight uppercase tracking-wider ${isDark ? "text-white" : "text-black"}`}>
                                     {name}
                                 </h4>
                                 <p className="text-[9px] text-wv-gray">
@@ -233,18 +236,18 @@ export const KeybindManager: React.FC<KeybindManagerProps> = ({
 
                         <div className="space-y-4">
                             {categoryKeybinds.map(keybind => (
-                                <div key={keybind.id} className="flex items-center justify-between py-3 border-b border-white/[0.03] last:border-0">
+                                <div key={keybind.id} className={`flex items-center justify-between py-3 border-b last:border-0 ${isDark ? "border-white/[0.03]" : "border-black/[0.03]"}`}>
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-3">
                                             <label className="flex items-center gap-2 cursor-pointer">
                                                 <input
                                                     type="checkbox"
-                                                    className="w-3.5 h-3.5 rounded border-white/20 bg-wv-sidebar checked:bg-white checked:border-transparent"
+                                                    className={`w-3.5 h-3.5 rounded border transition-all ${isDark ? "border-white/20 bg-wv-sidebar checked:bg-white" : "border-black/20 bg-white checked:bg-black"}`}
                                                     checked={keybind.enabled}
                                                     onChange={(e) => toggleKeybind(keybind.id, e.target.checked)}
                                                 />
                                                 <div className="flex flex-col min-w-0">
-                                                    <span className="text-xs font-medium text-white truncate">
+                                                    <span className={`text-xs font-medium truncate ${isDark ? "text-white" : "text-black"}`}>
                                                         {keybind.name}
                                                     </span>
                                                     <span className="text-[9px] text-wv-gray truncate">
@@ -261,27 +264,25 @@ export const KeybindManager: React.FC<KeybindManagerProps> = ({
                                                 <input
                                                     type="text"
                                                     readOnly
-                                                    className={`w-full bg-wv-bg border rounded-lg px-3 py-2 text-xs font-mono outline-none transition-all cursor-default ${
-                                                        isRecording 
-                                                            ? 'border-white/40 ring-2 ring-white/10 text-white' 
-                                                            : 'border-white/5 text-wv-gray'
-                                                    }`}
+                                                    className={`w-full border rounded-lg px-3 py-2 text-xs font-mono outline-none transition-all cursor-default ${isDark
+                                                        ? (isRecording ? 'bg-wv-bg border-white/40 ring-2 ring-white/10 text-white' : 'bg-wv-bg border-white/5 text-wv-gray')
+                                                        : (isRecording ? 'bg-wv-surface border-black/40 ring-2 ring-black/5 text-black' : 'bg-wv-surface border-black/5 text-black/40')
+                                                        }`}
                                                     value={isRecording ? "Presiona las teclas..." : displayAccelerator(tempAccelerator)}
                                                     onKeyDown={handleKeyDown}
                                                 />
                                                 <div className="absolute right-1 top-1/2 -translate-y-1/2 flex gap-1">
                                                     <button
-                                                        className={`px-2 py-1 rounded-md text-[9px] font-bold uppercase tracking-wider transition-all ${
-                                                            isRecording 
-                                                                ? 'bg-white text-black ring-4 ring-black/50' 
-                                                                : 'bg-white/5 text-wv-gray hover:bg-white/10 hover:text-white'
-                                                        }`}
+                                                        className={`px-2 py-1 rounded-md text-[9px] font-bold uppercase tracking-wider transition-all ${isDark
+                                                            ? (isRecording ? 'bg-white text-black ring-4 ring-black/50' : 'bg-white/5 text-wv-gray hover:bg-white/10 hover:text-white')
+                                                            : (isRecording ? 'bg-black text-white ring-4 ring-white/50' : 'bg-black/5 text-black/40 hover:bg-black/10 hover:text-black')
+                                                            }`}
                                                         onClick={() => setIsRecording(!isRecording)}
                                                     >
                                                         {isRecording ? "Grabando" : "Grabar"}
                                                     </button>
                                                     <button
-                                                        className="px-2 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-md text-[9px] font-bold uppercase tracking-wider transition-colors"
+                                                        className="px-2 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-500 rounded-md text-[9px] font-bold uppercase tracking-wider transition-colors"
                                                         onClick={cancelEditing}
                                                     >
                                                         Cancelar
@@ -290,11 +291,11 @@ export const KeybindManager: React.FC<KeybindManagerProps> = ({
                                             </div>
                                         ) : (
                                             <div className="flex items-center gap-3">
-                                                <code className="bg-wv-bg border border-white/5 rounded-lg px-3 py-1.5 text-xs font-mono text-wv-gray min-w-[120px] text-center">
+                                                <code className={`border rounded-lg px-3 py-1.5 text-xs font-mono min-w-[120px] text-center ${isDark ? "bg-wv-bg border-white/5 text-wv-gray" : "bg-wv-tertiary border-black/5 text-black/40"}`}>
                                                     {displayAccelerator(keybind.accelerator)}
                                                 </code>
                                                 <button
-                                                    className="px-2.5 py-1.5 bg-white/5 hover:bg-white/10 border border-white/5 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-colors"
+                                                    className={`px-2.5 py-1.5 border rounded-lg text-[9px] font-bold uppercase tracking-wider transition-colors ${isDark ? "bg-white/5 hover:bg-white/10 border-white/5 text-white" : "bg-black/5 hover:bg-black/10 border-black/5 text-black"}`}
                                                     onClick={() => startEditing(keybind)}
                                                 >
                                                     Editar
@@ -309,7 +310,7 @@ export const KeybindManager: React.FC<KeybindManagerProps> = ({
                 )
             ))}
 
-            <div className="bg-black/20 border border-white/5 rounded-2xl p-6">
+            <div className={`border rounded-2xl p-6 ${isDark ? "bg-black/20 border-white/5" : "bg-black/[0.02] border-black/5 shadow-sm"}`}>
                 <h4 className="text-xs font-bold uppercase tracking-wider text-wv-gray mb-3 flex items-center gap-2">
                     <Keyboard size={12} />
                     Atajos de Multimedia
@@ -320,16 +321,16 @@ export const KeybindManager: React.FC<KeybindManagerProps> = ({
                             <div className="flex items-center gap-3">
                                 <input
                                     type="checkbox"
-                                    className="w-3.5 h-3.5 rounded border-white/20 bg-wv-sidebar checked:bg-white checked:border-transparent"
+                                    className={`w-3.5 h-3.5 rounded border transition-all ${isDark ? "border-white/20 bg-wv-sidebar checked:bg-white" : "border-black/20 bg-white checked:bg-black"}`}
                                     checked={keybind.enabled}
                                     onChange={(e) => toggleKeybind(keybind.id, e.target.checked)}
                                 />
                                 <div>
-                                    <span className="text-xs font-medium text-white">{keybind.name}</span>
+                                    <span className={`text-xs font-medium ${isDark ? "text-white" : "text-black"}`}>{keybind.name}</span>
                                     <span className="text-[9px] text-wv-gray ml-2">{keybind.description}</span>
                                 </div>
                             </div>
-                            <code className="bg-wv-bg border border-white/5 rounded-lg px-3 py-1.5 text-xs font-mono text-wv-gray">
+                            <code className={`border rounded-lg px-3 py-1.5 text-xs font-mono ${isDark ? "bg-wv-bg border-white/5 text-wv-gray" : "bg-wv-tertiary border-black/5 text-black/40"}`}>
                                 {displayAccelerator(keybind.accelerator)}
                             </code>
                         </div>

@@ -14,6 +14,7 @@ interface HistoryViewProps {
     onRemoveItem: (id: string) => void;
     playingUrl: string | null;
     isPreviewLoading: boolean;
+    theme: 'light' | 'dark';
 }
 
 
@@ -26,9 +27,10 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
     onUpdateItem,
     onRemoveItem,
     playingUrl,
-    isPreviewLoading
+    isPreviewLoading,
+    theme
 }) => {
-
+    const isDark = theme === 'dark';
 
     const [searchTerm, setSearchTerm] = useState("");
     const [formatFilter, setFormatFilter] = useState("all");
@@ -60,7 +62,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
     }, [history, searchTerm, formatFilter, bpmMin, bpmMax, keyFilter, categoryFilter, tagSearch]);
 
     return (
-        <div className="flex-1 overflow-y-auto px-8 py-8 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto px-8 py-8 custom-scrollbar bg-wv-bg">
             <div className="flex justify-between items-end mb-8">
                 <div>
                     <div className="flex items-center gap-2 text-wv-gray mb-1">
@@ -78,7 +80,8 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                 )}
             </div>
 
-            <div className="bg-wv-sidebar border border-white/5 rounded-2xl p-6 mb-10">
+            <div className={`border rounded-2xl p-6 mb-10 transition-all ${isDark ? "bg-wv-surface border-white/[0.05]" : "bg-wv-surface border-black/[0.08]"}`}>
+
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                     <div className="space-y-4">
                         <div className="flex flex-col gap-1.5">
@@ -87,37 +90,46 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                             </label>
                             <input
                                 type="text"
-                                className="bg-wv-bg border border-white/5 rounded-lg px-3 py-2 text-xs outline-none focus:border-white/10"
+                                className={`border rounded-lg px-3 py-2 text-xs outline-none transition-all ${isDark ? "bg-wv-bg border-white/5 text-white focus:border-white/20" : "bg-white border-black/[0.08] text-black focus:border-black/20"}`}
                                 placeholder="Título o artista..."
                                 value={searchTerm}
                                 onChange={e => setSearchTerm(e.target.value)}
                             />
+
                         </div>
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-[9px] font-bold text-wv-gray uppercase tracking-widest flex items-center gap-2">
+                                <Filter size={10} /> Formato
+                            </label>
+                            <select className={`border rounded-lg px-3 py-2 text-xs outline-none transition-all h-[34px] ${isDark ? "bg-wv-bg border-white/5 text-white focus:border-white/20" : "bg-white border-black/[0.08] text-black focus:border-black/20"}`} value={formatFilter} onChange={e => setFormatFilter(e.target.value)}>
+                                <option value="all">Cualquiera</option>
+                                <option value="mp3">MP3</option>
+                                <option value="wav">WAV</option>
+                                <option value="flac">FLAC</option>
+                                <option value="aiff">AIFF</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div className="space-y-4">
                         <div className="flex flex-col gap-1.5">
                             <label className="text-[9px] font-bold text-wv-gray uppercase tracking-widest flex items-center gap-2">
                                 <Tag size={10} /> Etiquetas
                             </label>
-                            <input
-                                type="text"
-                                className="bg-wv-bg border border-white/5 rounded-lg px-3 py-2 text-xs outline-none focus:border-white/10"
-                                placeholder="Filtrar por tag..."
-                                value={tagSearch}
-                                onChange={e => setTagSearch(e.target.value)}
-                            />
+                            <input type="text" placeholder="Género, modo..." className={`border rounded-lg px-3 py-2 text-xs outline-none transition-all ${isDark ? "bg-wv-bg border-white/5 text-white focus:border-white/20" : "bg-white border-black/[0.08] text-black focus:border-black/20"}`} value={tagSearch} onChange={e => setTagSearch(e.target.value)} />
                         </div>
-                    </div>
-
-                    <div className="flex flex-col gap-1.5">
-                        <label className="text-[9px] font-bold text-wv-gray uppercase tracking-widest flex items-center gap-2">
-                            <Filter size={10} /> Formato
-                        </label>
-                        <select className="bg-wv-bg border border-white/5 rounded-lg px-3 py-2 text-xs outline-none focus:border-white/10 h-[34px]" value={formatFilter} onChange={e => setFormatFilter(e.target.value)}>
-                            <option value="all">Todos</option>
-                            <option value="mp3">MP3</option>
-                            <option value="wav">WAV</option>
-                            <option value="flac">FLAC</option>
-                            <option value="m4a">M4A</option>
-                        </select>
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-[9px] font-bold text-wv-gray uppercase tracking-widest flex items-center gap-2">
+                                <Folder size={10} /> Categoría
+                            </label>
+                            <select className={`border rounded-lg px-3 py-2 text-xs outline-none transition-all h-[34px] ${isDark ? "bg-wv-bg border-white/5 text-white focus:border-white/20" : "bg-white border-black/[0.08] text-black focus:border-black/20"}`} value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}>
+                                <option value="all">Todas</option>
+                                <option value="Loops">Loops</option>
+                                <option value="One-shote">One-shots</option>
+                                <option value="Vocals">Vocals</option>
+                                <option value="Presets">Presets</option>
+                            </select>
+                        </div>
                     </div>
 
                     <div className="flex flex-col gap-1.5">
@@ -125,9 +137,10 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                             <Music size={10} /> BPM
                         </label>
                         <div className="flex gap-2">
-                            <input type="number" placeholder="Min" className="w-1/2 bg-wv-bg border border-white/5 rounded-lg px-3 py-2 text-xs outline-none focus:border-white/10" value={bpmMin} onChange={e => setBpmMin(e.target.value)} />
-                            <input type="number" placeholder="Max" className="w-1/2 bg-wv-bg border border-white/5 rounded-lg px-3 py-2 text-xs outline-none focus:border-white/10" value={bpmMax} onChange={e => setBpmMax(e.target.value)} />
+                            <input type="number" placeholder="Min" className={`w-1/2 border rounded-lg px-3 py-2 text-xs outline-none transition-all ${isDark ? "bg-wv-bg border-white/5 text-white focus:border-white/20" : "bg-white border-black/[0.08] text-black focus:border-black/20"}`} value={bpmMin} onChange={e => setBpmMin(e.target.value)} />
+                            <input type="number" placeholder="Max" className={`w-1/2 border rounded-lg px-3 py-2 text-xs outline-none transition-all ${isDark ? "bg-wv-bg border-white/5 text-white focus:border-white/20" : "bg-white border-black/[0.08] text-black focus:border-black/20"}`} value={bpmMax} onChange={e => setBpmMax(e.target.value)} />
                         </div>
+
                     </div>
 
                     <div className="space-y-4">
@@ -135,13 +148,14 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                             <label className="text-[9px] font-bold text-wv-gray uppercase tracking-widest flex items-center gap-2">
                                 <Music size={10} /> Tonalidad
                             </label>
-                            <select className="bg-wv-bg border border-white/5 rounded-lg px-3 py-2 text-xs outline-none focus:border-white/10 h-[34px]" value={keyFilter} onChange={e => setKeyFilter(e.target.value)}>
+                            <select className={`border rounded-lg px-3 py-2 text-xs outline-none transition-all h-[34px] ${isDark ? "bg-wv-bg border-white/5 text-white focus:border-white/20" : "bg-white border-black/[0.08] text-black focus:border-black/20"}`} value={keyFilter} onChange={e => setKeyFilter(e.target.value)}>
                                 <option value="all">Cualquiera</option>
                                 {["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"].flatMap(k => [
                                     <option key={`${k}maj`} value={`${k} Major`}>{k} Major</option>,
                                     <option key={`${k}min`} value={`${k} Minor`}>{k} Minor</option>
                                 ])}
                             </select>
+
                         </div>
                     </div>
                 </div>
@@ -149,8 +163,8 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
 
             {filteredHistory.length === 0 ? (
                 <div className="py-20 flex flex-col items-center justify-center opacity-20">
-                    <Music size={50} strokeWidth={1.5} />
-                    <p className="mt-4 text-xs font-medium">No hay coincidencias en tu librería</p>
+                    <Music size={50} strokeWidth={1.5} className="text-wv-text" />
+                    <p className="mt-4 text-xs font-medium text-wv-text">No hay coincidencias en tu librería</p>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-8">
@@ -159,10 +173,10 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                         return (
                             <div
                                 key={item.id + i}
-                                className="bg-wv-sidebar border border-white/5 rounded-2xl overflow-hidden hover:border-white/10 transition-all group cursor-pointer"
+                                className={`border rounded-2xl overflow-hidden transition-all group cursor-pointer shadow-sm hover:shadow-md ${isDark ? "bg-wv-sidebar border-white/5 hover:border-white/10" : "bg-white border-black/5 hover:border-black/10"}`}
                                 onClick={() => setSelectedId(item.id)}
-
                             >
+
                                 <div className="relative aspect-video overflow-hidden" onClick={(e) => { e.stopPropagation(); onTogglePreview(item.path); }}>
                                     <img src={item.thumbnail} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" alt="" />
                                     <div className={`absolute inset-0 bg-black/30 backdrop-blur-[2px] flex items-center justify-center transition-opacity duration-200 opacity-0 group-hover:opacity-100 ${isPlaying ? 'opacity-100' : ''}`}>
@@ -179,46 +193,50 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                                 </div>
 
                                 <div className="p-4">
-                                    <h4 className="font-bold text-sm mb-0.5 truncate leading-tight transition-colors group-hover:text-white">{item.title}</h4>
-                                    <p className="text-wv-gray text-[10px] font-medium mb-3 uppercase tracking-wider">{item.channel}</p>
+                                    <h4 className={`font-bold text-sm mb-0.5 truncate leading-tight transition-colors ${isDark ? "text-white" : "text-black"}`}>{item.title}</h4>
+                                    <p className="text-wv-text opacity-40 text-[10px] font-medium mb-3 uppercase tracking-wider">{item.channel}</p>
+
 
                                     <div className="flex flex-wrap gap-1.5 mb-4">
-                                        {item.bpm && <span className="text-[9px] font-bold bg-white/5 border border-white/5 px-1.5 py-0.5 rounded text-white/60">{item.bpm} BPM</span>}
-                                        {item.key && <span className="text-[9px] font-bold bg-white text-black px-1.5 py-0.5 rounded shadow-sm">{item.key}</span>}
-                                        <span className="text-[9px] font-bold bg-white/5 border border-white/5 px-1.5 py-0.5 rounded text-white/40">{item.format.toUpperCase()}</span>
+                                        {item.bpm && <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${isDark ? "bg-white/5 border border-white/5 text-wv-gray" : "bg-black/[0.03] border border-black/[0.05] text-black/60"}`}>{item.bpm} BPM</span>}
+                                        {item.key && <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm ${isDark ? "bg-white text-black" : "bg-black text-white"}`}>{item.key}</span>}
+                                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${isDark ? "bg-white/5 border border-white/5 text-wv-gray/60" : "bg-black/[0.03] border border-black/[0.05] text-black/40"}`}>{item.format.toUpperCase()}</span>
                                     </div>
+
 
                                     {isPlaying && (
                                         <div className="mt-2 mb-4 px-2">
                                             <Waveform
                                                 url={item.path}
                                                 height={24}
-                                                waveColor="rgba(255,255,255,0.2)"
-                                                progressColor="#ffffff"
+                                                theme={theme}
                                             />
+
+
                                         </div>
                                     )}
 
-                                    <div className="pt-3 border-t border-white/5 flex justify-between items-center mt-auto">
+                                    <div className={`pt-3 border-t flex justify-between items-center mt-auto ${isDark ? "border-white/5" : "border-black/5"}`}>
                                         <div className="flex items-center gap-1.5 text-wv-gray text-[9px] font-bold uppercase tracking-widest">
                                             <Clock size={10} />
                                             {item.duration || "N/A"}
                                         </div>
                                         <div className="flex items-center gap-1">
                                             <button
-                                                className="p-1 px-1.5 hover:bg-white/10 rounded-md text-white/20 hover:text-white transition-colors"
+                                                className={`p-1 px-1.5 rounded-md transition-colors ${isDark ? "hover:bg-white/5 text-wv-gray hover:text-white" : "hover:bg-black/5 text-black/10 hover:text-black"}`}
                                                 onClick={(e) => { e.stopPropagation(); onOpenItem(item.path); }}
                                                 title="Abrir Carpeta"
                                             >
                                                 <ExternalLink size={14} />
                                             </button>
                                             <button
-                                                className="p-1 px-1.5 hover:bg-red-500/10 rounded-md text-white/20 hover:text-red-400 transition-colors"
+                                                className={`p-1 px-1.5 rounded-md transition-colors ${isDark ? "hover:bg-red-500/10 text-wv-gray hover:text-red-400" : "hover:bg-red-500/10 text-black/10 hover:text-red-500"}`}
                                                 onClick={(e) => { e.stopPropagation(); onRemoveItem(item.id); }}
                                                 title="Eliminar de la Librería"
                                             >
                                                 <Trash2 size={14} />
                                             </button>
+
                                         </div>
 
                                     </div>
@@ -235,7 +253,9 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                     onClose={() => setSelectedId(null)}
                     onOpenItem={onOpenItem}
                     onUpdateItem={onUpdateItem}
+                    theme={theme}
                 />
+
 
             )}
         </div>

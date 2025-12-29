@@ -6,6 +6,9 @@ on:
       - main
       - feat/update
 
+permissions:
+  contents: write
+
 jobs:
   bump-version:
     name: Bump Version
@@ -46,8 +49,6 @@ jobs:
     strategy:
       matrix:
         os: [macos-latest, windows-latest, ubuntu-latest]
-    permissions:
-      contents: write
 
     steps:
       - name: Checkout Code

@@ -10,7 +10,9 @@ interface ResultCardProps {
     onOpenItem: (path?: string) => void;
     onTogglePreview: (url: string) => void;
     isPlaying: boolean;
+    isPreviewLoading: boolean;
 }
+
 
 export const ResultCard: React.FC<ResultCardProps> = ({
     result,
@@ -19,8 +21,10 @@ export const ResultCard: React.FC<ResultCardProps> = ({
     onDownload,
     onOpenItem,
     onTogglePreview,
-    isPlaying
+    isPlaying,
+    isPreviewLoading
 }) => {
+
     const isDownloading = state.status === 'loading';
     const isSuccess = state.status === 'success' || inHistory;
 
@@ -30,9 +34,16 @@ export const ResultCard: React.FC<ResultCardProps> = ({
                 <img src={result.thumbnail} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" alt="" />
                 <div className={`absolute inset-0 bg-black/30 backdrop-blur-[2px] flex items-center justify-center transition-opacity duration-200 opacity-0 group-hover:opacity-100 ${isPlaying ? 'opacity-100' : ''}`}>
                     <div className="bg-white text-black p-3 rounded-full shadow-lg">
-                        {isPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} className="ml-0.5" fill="currentColor" />}
+                        {isPlaying && isPreviewLoading ? (
+                            <Loader2 size={18} className="animate-spin" />
+                        ) : isPlaying ? (
+                            <Pause size={18} fill="currentColor" />
+                        ) : (
+                            <Play size={18} className="ml-0.5" fill="currentColor" />
+                        )}
                     </div>
                 </div>
+
             </div>
 
             <div className="p-4">

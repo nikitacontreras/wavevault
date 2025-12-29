@@ -45,7 +45,9 @@ export const App: React.FC = () => {
 
     const [results, setResults] = useState<SearchResult[]>([]);
     const [isSearching, setIsSearching] = useState(false);
+    const [isPreviewLoading, setIsPreviewLoading] = useState(false);
     const [playingUrl, setPlayingUrl] = useState<string | null>(null);
+
     const [streamUrl, setStreamUrl] = useState<string | null>(null);
     const [isPlaying, setIsPlaying] = useState(false);
 
@@ -86,12 +88,14 @@ export const App: React.FC = () => {
             }
         } else {
             try {
-                let finalUrl = url;
+                let finalUrl = "";
                 if (url.startsWith('/') || url.includes(':\\')) {
                     finalUrl = `file://${url}`;
                 } else {
                     addLog("Obteniendo stream para preview...");
+                    setIsPreviewLoading(true);
                     finalUrl = await window.api.getStreamUrl(url);
+                    setIsPreviewLoading(false);
                 }
 
                 setPlayingUrl(url);
@@ -105,10 +109,13 @@ export const App: React.FC = () => {
                     });
                 }
             } catch (e: any) {
+                setIsPreviewLoading(false);
                 addLog("Error al obtener preview: " + e.message);
             }
+
         }
     };
+
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -299,7 +306,9 @@ export const App: React.FC = () => {
                                 onOpenItem={handleOpenItem}
                                 onTogglePreview={handleTogglePreview}
                                 playingUrl={playingUrl}
+                                isPreviewLoading={isPreviewLoading}
                             />
+
                         )}
                         {view === 'library' && (
                             <HistoryView
@@ -309,7 +318,9 @@ export const App: React.FC = () => {
                                 onTogglePreview={handleTogglePreview}
                                 onUpdateItem={updateHistoryItem}
                                 playingUrl={playingUrl}
+                                isPreviewLoading={isPreviewLoading}
                             />
+
                         )}
                         {view === 'settings' && (
                             <SettingsView

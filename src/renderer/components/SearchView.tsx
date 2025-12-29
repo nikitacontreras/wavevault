@@ -15,7 +15,9 @@ interface SearchViewProps {
     onOpenItem: (path?: string) => void;
     onTogglePreview: (url: string) => void;
     playingUrl: string | null;
+    isPreviewLoading: boolean;
 }
+
 
 export const SearchView: React.FC<SearchViewProps> = ({
     query,
@@ -28,8 +30,10 @@ export const SearchView: React.FC<SearchViewProps> = ({
     onDownload,
     onOpenItem,
     onTogglePreview,
-    playingUrl
+    playingUrl,
+    isPreviewLoading
 }) => {
+
     return (
         <div className="flex-1 overflow-y-auto px-8 py-8 custom-scrollbar">
             <form onSubmit={onSearch} className="relative mb-10">
@@ -79,6 +83,7 @@ export const SearchView: React.FC<SearchViewProps> = ({
                                     onOpenItem={onOpenItem}
                                     onTogglePreview={onTogglePreview}
                                     isPlaying={playingUrl === r.url}
+                                    isPreviewLoading={isPreviewLoading}
                                 />
                             );
                         })}

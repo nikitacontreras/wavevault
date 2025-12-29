@@ -11,7 +11,9 @@ interface HistoryViewProps {
     onTogglePreview: (url: string) => void;
     onUpdateItem: (id: string, updates: Partial<HistoryItem>) => void;
     playingUrl: string | null;
+    isPreviewLoading: boolean;
 }
+
 
 export const HistoryView: React.FC<HistoryViewProps> = ({
     history,
@@ -19,8 +21,10 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
     onOpenItem,
     onTogglePreview,
     onUpdateItem,
-    playingUrl
+    playingUrl,
+    isPreviewLoading
 }) => {
+
     const [searchTerm, setSearchTerm] = useState("");
     const [formatFilter, setFormatFilter] = useState("all");
     const [bpmMin, setBpmMin] = useState("");
@@ -152,10 +156,17 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                                     <img src={item.thumbnail} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" alt="" />
                                     <div className={`absolute inset-0 bg-black/30 backdrop-blur-[2px] flex items-center justify-center transition-opacity duration-200 opacity-0 group-hover:opacity-100 ${isPlaying ? 'opacity-100' : ''}`}>
                                         <div className="bg-white text-black p-3 rounded-full shadow-lg">
-                                            {isPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} className="ml-0.5" fill="currentColor" />}
+                                            {isPlaying && isPreviewLoading ? (
+                                                <Loader2 size={18} className="animate-spin" />
+                                            ) : isPlaying ? (
+                                                <Pause size={18} fill="currentColor" />
+                                            ) : (
+                                                <Play size={18} className="ml-0.5" fill="currentColor" />
+                                            )}
                                         </div>
                                     </div>
                                 </div>
+
                                 <div className="p-4">
                                     <h4 className="font-bold text-sm mb-0.5 truncate leading-tight transition-colors group-hover:text-white">{item.title}</h4>
                                     <p className="text-wv-gray text-[10px] font-medium mb-3 uppercase tracking-wider">{item.channel}</p>

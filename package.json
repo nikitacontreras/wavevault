@@ -14,7 +14,6 @@
   },
   "build": {
     "appId": "com.strikemedia.wavevault",
-    "executableName": "wavevault",
     "files": [
       "dist/main/**/*",
       "dist/renderer/**/*",
@@ -30,6 +29,7 @@
     "mac": {
       "category": "public.app-category.music",
       "icon": "build/icon.png",
+      "identity": null,
       "target": [
         "dmg",
         "zip"

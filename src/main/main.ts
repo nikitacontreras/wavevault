@@ -1,4 +1,5 @@
-const { app, BrowserWindow, globalShortcut, ipcMain, clipboard, dialog, shell, Menu } = require("electron");
+const { app, BrowserWindow, globalShortcut, ipcMain, clipboard, dialog, shell, Menu, Notification } = require("electron");
+
 process.title = "WaveVault";
 app.name = "WaveVault";
 if (app.setName) app.setName("WaveVault");
@@ -86,22 +87,13 @@ ipcMain.handle("show-item", async (_evt, filepath: string) => {
     shell.showItemInFolder(filepath);
 });
 
-// In CJS, __dirname is available.
-// If needed, we can use path.resolve() if __dirname is tricky, but usually it works.
-// const _dirname = path.resolve();
-
-// Actually, in Electron main process with CJS, __dirname is safe.
-// Let's just use __dirname directly in the code and rely
 import { TargetFormat, Bitrate } from "./types";
 
 let win: BrowserWindow;
+let spotlightWin: BrowserWindow | null = null;
+
 
 function createWindow() {
-    // Determine if we are running from source (dev) or built (prod)
-    // In dev: __dirname is .../src/main (running via ts-node/tsx)
-    // In prod: __dirname is .../resources/app.asar/dist/main (bundled) or .../dist/main
-
-    // Check if we are in 'dist' folder
     const inDist = __dirname.includes(path.sep + 'dist' + path.sep) || __dirname.endsWith(path.sep + 'dist');
     const isDev = !inDist;
 
@@ -109,11 +101,9 @@ function createWindow() {
     let rendererPath = "";
 
     if (isDev) {
-        // Dev: project root is two levels up from src/main
         preloadPath = path.resolve(__dirname, "../../dist/preload.js");
         rendererPath = path.resolve(__dirname, "../../dist/renderer/index.html");
     } else {
-        // Prod: project root is one level up from dist/main
         preloadPath = path.resolve(__dirname, "../preload.js");
         rendererPath = path.resolve(__dirname, "../renderer/index.html");
     }
@@ -142,33 +132,200 @@ function createWindow() {
     // win.webContents.openDevTools(); // Optional: debug
 }
 
-app.whenReady().then(() => {
-    createWindow();
+function registerShortcuts() {
+    globalShortcut.unregisterAll();
 
-    // Atajo global: Ctrl/Cmd+Shift+Y → toma URL del portapapeles y procesa
-    globalShortcut.register("CommandOrControl+Shift+Y", async () => {
+    // Register global keybinds
+    const globalKeybinds = config.keybinds.filter(k => k.category === 'global' && k.enabled);
+
+    globalKeybinds.forEach(keybind => {
         try {
-            const text = clipboard.readText().trim();
-            if (!text) return;
-            const outDir = app.getPath("music"); // destino por defecto
-            const dest = await processJob({
-                url: text,
-                outDir,
-                format: "m4a",
-                bitrate: "192k",
-                sampleRate: "44100",
-                normalize: false
-            }); // default
-            win.webContents.send("status", { ok: true, message: dest });
-        } catch (e: any) {
-            win.webContents.send("status", { ok: false, message: e?.message ?? String(e) });
+            globalShortcut.register(keybind.accelerator, () => {
+                handleKeybindAction(keybind.id);
+            });
+            console.log(`Registered keybind: ${keybind.name} (${keybind.accelerator})`);
+        } catch (e) {
+            console.error(`Failed to register keybind ${keybind.name}:`, e);
         }
     });
+}
+
+
+
+function broadcastStatus(ok: boolean, message: string) {
+    const windows = BrowserWindow.getAllWindows();
+    const emoji = ok ? "✅ " : "❌ Error: ";
+    // Don't double-add emoji
+    const fullMessage = message.includes("✅") || message.includes("❌") ? message : `${emoji}${message}`;
+
+    windows.forEach(w => {
+        if (!w.isDestroyed()) {
+            w.webContents.send("status", { ok, message: fullMessage });
+        }
+    });
+}
+
+function broadcastDownloadStarted(url: string, title: string) {
+    const windows = BrowserWindow.getAllWindows();
+    windows.forEach(w => {
+        if (!w.isDestroyed()) {
+            w.webContents.send("download-started", { url, title });
+        }
+    });
+}
+
+function broadcastDownloadSuccess(url: string, result: any) {
+    const windows = BrowserWindow.getAllWindows();
+    windows.forEach(w => {
+        if (!w.isDestroyed()) {
+            w.webContents.send("download-success", { url, result });
+        }
+    });
+
+    // Send native OS notification
+    if (Notification.isSupported()) {
+        new Notification({
+            title: "WaveVault - Descarga Finalizada",
+            body: `Se ha descargado correctamente: ${result.title || path.basename(result.path)}`,
+            silent: false,
+            icon: path.join(__dirname, "../../assets/icon.png") // Optional: check if icon exists
+        }).show();
+    }
+}
+
+
+
+function handleKeybindAction(keybindId: string) {
+    switch (keybindId) {
+        case 'spotlight':
+            if (spotlightWin && !spotlightWin.isDestroyed()) {
+                if (spotlightWin.isVisible()) {
+                    spotlightWin.hide();
+                } else {
+                    spotlightWin.show();
+                    spotlightWin.focus();
+                }
+            } else {
+                createSpotlightWindow();
+            }
+            break;
+
+        case 'clipboard':
+            clipboardProcess();
+            break;
+
+        case 'playPause':
+            broadcastStatus(true, "Comando: Reproducir/Pausar");
+            const activeWin = BrowserWindow.getFocusedWindow() || win;
+            if (activeWin) activeWin.webContents.send("command", "playPause");
+            break;
+
+        case 'stop':
+            broadcastStatus(true, "Comando: Detener");
+            const stopWin = BrowserWindow.getFocusedWindow() || win;
+            if (stopWin) stopWin.webContents.send("command", "stop");
+            break;
+    }
+}
+
+
+async function clipboardProcess() {
+    try {
+        const text = clipboard.readText().trim();
+        if (!text) return;
+
+        const { processJob, fetchMeta } = require("./downloader");
+
+        // Broadcast starting info
+        const meta = await fetchMeta(text).catch(() => ({ title: text, id: text }));
+        broadcastDownloadStarted(text, meta.title);
+        broadcastStatus(true, `Portapapeles: Iniciando ${meta.title}`);
+
+        const dir = app.getPath("music");
+        const result = await processJob({
+            url: text,
+            outDir: dir,
+            format: "m4a",
+            bitrate: "192k",
+            sampleRate: "44100",
+            normalize: false
+        });
+
+        broadcastDownloadSuccess(text, result);
+        broadcastStatus(true, `Descarga completada: ${path.basename(result.path)}`);
+    } catch (e: any) {
+        broadcastStatus(false, e?.message ?? String(e));
+    }
+}
+
+
+
+
+function createSpotlightWindow() {
+    if (spotlightWin) {
+        spotlightWin.focus();
+        return;
+    }
+
+    const inDist = __dirname.includes(path.sep + 'dist' + path.sep) || __dirname.endsWith(path.sep + 'dist');
+    const isDev = !inDist;
+
+    let preloadPath = "";
+    let rendererPath = "";
+
+    if (isDev) {
+        preloadPath = path.resolve(__dirname, "../../dist/preload.js");
+        rendererPath = path.resolve(__dirname, "../../dist/renderer/index.html");
+    } else {
+        preloadPath = path.resolve(__dirname, "../preload.js");
+        rendererPath = path.resolve(__dirname, "../renderer/index.html");
+    }
+
+    spotlightWin = new BrowserWindow({
+        width: 600,
+        height: 80,
+        frame: false,
+        transparent: true,
+        alwaysOnTop: true,
+        skipTaskbar: true,
+        resizable: false,
+        movable: true,
+        center: true,
+        backgroundColor: "#00000000",
+        vibrancy: "under-window",
+        visualEffectState: "active",
+        webPreferences: {
+            preload: preloadPath,
+            nodeIntegration: false,
+            contextIsolation: true,
+            sandbox: false,
+            webSecurity: false
+        }
+    });
+
+    spotlightWin.loadURL(`file://${rendererPath}#/spotlight`);
+
+    spotlightWin.on("blur", () => {
+        if (spotlightWin) {
+            spotlightWin.hide();
+        }
+    });
+
+    spotlightWin.on("closed", () => {
+        spotlightWin = null;
+    });
+}
+
+
+app.whenReady().then(() => {
+    createWindow();
+    registerShortcuts();
 
     app.on("activate", () => {
         if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });
 });
+
 
 app.on("will-quit", () => {
     globalShortcut.unregisterAll();
@@ -177,16 +334,32 @@ app.on("will-quit", () => {
 // IPC: procesar descarga desde UI
 ipcMain.handle("download", async (_evt, url: string, format: string, bitrate: string, sampleRate: string, normalize: boolean, outDir?: string) => {
     const dir = outDir || app.getPath("music");
-    const dest = await processJob({
-        url,
-        outDir: dir,
-        format: format as any,
-        bitrate: bitrate as any,
-        sampleRate: sampleRate as any,
-        normalize
-    });
-    return dest;
+
+    try {
+        // Try to get meta first to broadcast a nice title
+        const meta = await fetchMeta(url);
+        broadcastDownloadStarted(url, meta.title);
+        broadcastStatus(true, `Iniciando descarga: ${meta.title}`);
+
+        const result = await processJob({
+            url,
+            outDir: dir,
+            format: format as any,
+            bitrate: bitrate as any,
+            sampleRate: sampleRate as any,
+            normalize
+        });
+
+        broadcastDownloadSuccess(url, result);
+        broadcastStatus(true, `Descarga completada: ${path.basename(result.path)}`);
+
+        return result;
+    } catch (e: any) {
+        broadcastStatus(false, e.message);
+        throw e;
+    }
 });
+
 
 // IPC: obtener URL de stream (para preview)
 ipcMain.handle("getStreamUrl", async (_evt, url: string) => {
@@ -214,10 +387,33 @@ ipcMain.handle("pick-file", async () => {
     return r.canceled ? null : r.filePaths[0];
 });
 
-ipcMain.handle("update-config", async (_evt, newConfig: Partial<typeof config>) => {
+ipcMain.handle("update-config", async (_evt: any, newConfig: Partial<typeof config>) => {
+    // Handle keybinds updates
+    if (newConfig.keybinds) {
+        config.keybinds = newConfig.keybinds;
+        delete newConfig.keybinds;
+        registerShortcuts();
+    }
+
+    // Handle legacy shortcuts for backward compatibility
+    if ((newConfig as any).shortcuts) {
+        const legacyShortcuts = (newConfig as any).shortcuts;
+        if (legacyShortcuts.spotlight) {
+            const spotlightKeybind = config.keybinds.find(k => k.id === 'spotlight');
+            if (spotlightKeybind) spotlightKeybind.accelerator = legacyShortcuts.spotlight;
+        }
+        if (legacyShortcuts.clipboard) {
+            const clipboardKeybind = config.keybinds.find(k => k.id === 'clipboard');
+            if (clipboardKeybind) clipboardKeybind.accelerator = legacyShortcuts.clipboard;
+        }
+        delete (newConfig as any).shortcuts;
+        registerShortcuts();
+    }
+
     Object.assign(config, newConfig);
     return true;
 });
+
 
 
 ipcMain.handle("trim-audio", async (_evt, src: string, start: number, end: number) => {
@@ -227,4 +423,27 @@ ipcMain.handle("trim-audio", async (_evt, src: string, start: number, end: numbe
 
 ipcMain.handle("check-dependencies", async (_evt, manualPaths?: any) => {
     return await checkDependencies(manualPaths);
+});
+
+ipcMain.handle("close-spotlight", () => {
+    if (spotlightWin) {
+        spotlightWin.hide();
+    }
+});
+
+ipcMain.handle("resize-spotlight", (_evt: any, height: number) => {
+    if (spotlightWin) {
+        spotlightWin.setBounds({ height: Math.round(height) });
+    }
+});
+
+ipcMain.handle("get-keybinds", () => {
+    return config.keybinds;
+});
+
+ipcMain.handle("reset-keybinds", () => {
+    const { resetKeybinds } = require("./config");
+    const newKeybinds = resetKeybinds();
+    registerShortcuts();
+    return newKeybinds;
 });

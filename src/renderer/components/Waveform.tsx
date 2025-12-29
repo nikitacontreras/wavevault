@@ -1,7 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import WaveSurfer from 'wavesurfer.js';
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.js';
-import { Play, Pause } from 'lucide-react';
+import { Play, Pause, Repeat } from 'lucide-react';
 
 interface WaveformProps {
     url: string;
@@ -13,6 +13,9 @@ interface WaveformProps {
     useRegions?: boolean;
     onRegionChange?: (start: number, end: number) => void;
     zoom?: number;
+    onZoomChange?: (newZoom: number) => void;
+    isLooping?: boolean;
+    onLoopToggle?: () => void;
 }
 
 export const Waveform: React.FC<WaveformProps> = ({
@@ -24,11 +27,15 @@ export const Waveform: React.FC<WaveformProps> = ({
     showControls = false,
     useRegions = false,
     onRegionChange,
-    zoom = 0
+    zoom = 0,
+    onZoomChange,
+    isLooping = false,
+    onLoopToggle
 }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const wavesurferRef = useRef<WaveSurfer | null>(null);
     const regionsRef = useRef<any>(null);
+    const activeRegionRef = useRef<any>(null);
     const [isPlaying, setIsPlaying] = useState(false);
 
     useEffect(() => {
@@ -36,6 +43,27 @@ export const Waveform: React.FC<WaveformProps> = ({
             wavesurferRef.current.zoom(zoom);
         }
     }, [zoom]);
+
+    const handleWheel = useCallback((e: WheelEvent) => {
+        if (!useRegions || !onZoomChange) return;
+        if (e.ctrlKey || e.metaKey) {
+            e.preventDefault();
+            const delta = e.deltaY > 0 ? -10 : 10;
+            onZoomChange(Math.max(0, Math.min(500, zoom + delta)));
+        }
+    }, [zoom, onZoomChange, useRegions]);
+
+    useEffect(() => {
+        const container = containerRef.current;
+        if (container) {
+            container.addEventListener('wheel', handleWheel, { passive: false });
+        }
+        return () => {
+            if (container) {
+                container.removeEventListener('wheel', handleWheel);
+            }
+        };
+    }, [handleWheel]);
 
     useEffect(() => {
         if (!containerRef.current) return;
@@ -45,36 +73,55 @@ export const Waveform: React.FC<WaveformProps> = ({
             height,
             waveColor,
             progressColor,
-            cursorColor: 'transparent',
+            cursorColor: '#ffffff',
+            cursorWidth: 2,
             barWidth: 2,
             barGap: 1,
             barRadius: 2,
             url: url.startsWith('/') || url.includes(':\\') ? `file://${url}` : url,
+            normalize: true,
         });
 
-        // Initialize regions if requested
         if (useRegions) {
             const regions = ws.registerPlugin(RegionsPlugin.create());
             regionsRef.current = regions;
 
             ws.on('ready', () => {
                 const duration = ws.getDuration();
-                // Create an initial region covering the first 25% if it's long, or the whole thing
-                const initialRegion = regions.addRegion({
+                const region = regions.addRegion({
                     start: 0,
                     end: duration,
-                    color: 'rgba(255, 255, 255, 0.15)',
+                    color: 'rgba(255, 255, 255, 0.12)',
                     drag: true,
                     resize: true,
                 });
+                activeRegionRef.current = region;
 
                 if (onRegionChange) {
-                    onRegionChange(initialRegion.start, initialRegion.end);
+                    onRegionChange(region.start, region.end);
                 }
 
-                regions.on('region-updated', (region) => {
+                regions.on('region-updated', (r) => {
+                    activeRegionRef.current = r;
                     if (onRegionChange) {
-                        onRegionChange(region.start, region.end);
+                        onRegionChange(r.start, r.end);
+                    }
+                });
+
+                // Play only region 
+                ws.on('audioprocess', () => {
+                    if (ws.isPlaying()) {
+                        const currentTime = ws.getCurrentTime();
+                        if (activeRegionRef.current) {
+                            if (currentTime >= activeRegionRef.current.end) {
+                                if (isLooping) {
+                                    ws.setTime(activeRegionRef.current.start);
+                                } else {
+                                    ws.pause();
+                                    ws.setTime(activeRegionRef.current.start);
+                                }
+                            }
+                        }
                     }
                 });
             });
@@ -87,16 +134,27 @@ export const Waveform: React.FC<WaveformProps> = ({
 
         ws.on('play', () => setIsPlaying(true));
         ws.on('pause', () => setIsPlaying(false));
-        ws.on('finish', () => setIsPlaying(false));
+        ws.on('finish', () => {
+            setIsPlaying(false);
+            if (useRegions && activeRegionRef.current) {
+                ws.setTime(activeRegionRef.current.start);
+            }
+        });
 
         return () => {
             ws.destroy();
         };
-    }, [url, height, waveColor, progressColor, useRegions]);
+    }, [url, height, waveColor, progressColor, useRegions, isLooping]);
 
     const handleToggle = (e: React.MouseEvent) => {
         e.stopPropagation();
         if (wavesurferRef.current) {
+            if (useRegions && activeRegionRef.current && !isPlaying) {
+                const currentTime = wavesurferRef.current.getCurrentTime();
+                if (currentTime < activeRegionRef.current.start || currentTime >= activeRegionRef.current.end) {
+                    wavesurferRef.current.setTime(activeRegionRef.current.start);
+                }
+            }
             wavesurferRef.current.playPause();
         }
     };
@@ -104,14 +162,25 @@ export const Waveform: React.FC<WaveformProps> = ({
     return (
         <div className="flex items-center gap-3 w-full group">
             {showControls && (
-                <button
-                    onClick={handleToggle}
-                    className="w-8 h-8 flex items-center justify-center bg-white text-black rounded-full shadow-lg hover:scale-105 transition-transform no-drag"
-                >
-                    {isPlaying ? <Pause size={14} fill="currentColor" /> : <Play size={14} className="ml-0.5" fill="currentColor" />}
-                </button>
+                <div className="flex flex-col gap-2 no-drag">
+                    <button
+                        onClick={handleToggle}
+                        className="w-10 h-10 flex items-center justify-center bg-white text-black rounded-full shadow-lg hover:scale-105 transition-transform"
+                    >
+                        {isPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} className="ml-0.5" fill="currentColor" />}
+                    </button>
+                    {useRegions && onLoopToggle && (
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onLoopToggle(); }}
+                            className={`w-10 h-10 flex items-center justify-center rounded-full border transition-all ${isLooping ? 'bg-wv-accent border-wv-accent text-black' : 'bg-white/5 border-white/10 text-wv-gray hover:text-white'}`}
+                        >
+                            <Repeat size={16} className={isLooping ? 'animate-pulse' : ''} />
+                        </button>
+                    )}
+                </div>
             )}
             <div ref={containerRef} className="flex-1 min-w-0 no-drag" />
         </div>
     );
 };
+

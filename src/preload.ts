@@ -12,7 +12,18 @@ contextBridge.exposeInMainWorld("api", {
     checkDependencies: (manualPaths?: any) => ipcRenderer.invoke("check-dependencies", manualPaths),
     pickFile: () => ipcRenderer.invoke("pick-file"),
     updateConfig: (config: any) => ipcRenderer.invoke("update-config", config),
-    onStatus: (cb: (val: any) => void) => ipcRenderer.on("status", (_evt: any, value: any) => cb(value))
+    getKeybinds: () => ipcRenderer.invoke("get-keybinds"),
+    resetKeybinds: () => ipcRenderer.invoke("reset-keybinds"),
+
+    onStatus: (cb: (val: any) => void) => ipcRenderer.on("status", (_evt: any, value: any) => cb(value)),
+    onCommand: (cb: (val: string) => void) => ipcRenderer.on("command", (_evt: any, value: string) => cb(value)),
+    onDownloadStarted: (cb: (val: any) => void) => ipcRenderer.on("download-started", (_evt: any, value: any) => cb(value)),
+    onDownloadSuccess: (cb: (val: any) => void) => ipcRenderer.on("download-success", (_evt: any, value: any) => cb(value)),
+    closeSpotlight: () => ipcRenderer.invoke("close-spotlight"),
+
+
+    resizeSpotlight: (height: number) => ipcRenderer.invoke("resize-spotlight", height)
+
 
 
 });

@@ -5,10 +5,13 @@ import { SearchView } from "./components/SearchView";
 import { HistoryView } from "./components/HistoryView";
 import { SettingsView } from "./components/SettingsView";
 import { TitleBar } from "./components/TitleBar";
-import { useSettings, useHistory, useDebugMode, useLogs, useItemStates } from "./hooks/useAppState";
+import { useSettings, useHistory, useDebugMode, useLogs, useItemStates, useActiveDownloads } from "./hooks/useAppState";
 import { SearchResult, HistoryItem } from "./types";
 import { Play, Pause, Volume2, X, Music2, Loader2 } from "lucide-react";
+import { SpotlightView } from "./components/SpotlightView";
+import { ActiveDownloads } from "./components/ActiveDownloads";
 import "./App.css";
+
 
 declare global {
     interface Window {
@@ -25,21 +28,34 @@ declare global {
             getMeta: (url: string) => Promise<SearchResult>;
             getStreamUrl: (url: string) => Promise<string>;
             onStatus: (callback: (payload: { ok: boolean, message: string }) => void) => void;
+            onCommand: (callback: (command: string) => void) => void;
+            onDownloadStarted: (callback: (payload: { url: string, title: string }) => void) => void;
+            onDownloadSuccess: (callback: (payload: { url: string, result: any }) => void) => void;
+
+
             openItem: (path: string) => void;
             pickDir: () => Promise<string | null>;
             pickFile: () => Promise<string | null>;
             updateConfig: (config: any) => Promise<boolean>;
+            getKeybinds: () => Promise<any[]>;
+            resetKeybinds: () => Promise<any[]>;
+
             checkDependencies: (manualPaths?: { python?: string, ffmpeg?: string, ffprobe?: string }) => Promise<{ python: boolean, ffmpeg: boolean, ffprobe: boolean }>;
+            closeSpotlight: () => Promise<void>;
+            resizeSpotlight: (height: number) => Promise<void>;
         }
     }
 }
 
 
 
+
 import { DependencyChecker } from "./components/DependencyChecker";
 
 export const App: React.FC = () => {
+    const isSpotlight = window.location.hash === '#/spotlight';
     const [view, setView] = useState("search");
+
     const [dependencies, setDependencies] = useState<{ python: boolean, ffmpeg: boolean, ffprobe: boolean } | null>(null);
     const [query, setQuery] = useState("");
 
@@ -55,6 +71,7 @@ export const App: React.FC = () => {
 
     const audioRef = useRef<HTMLAudioElement | null>(null);
 
+    const settings = useSettings();
     const {
         format, setFormat,
         bitrate, setBitrate,
@@ -64,14 +81,26 @@ export const App: React.FC = () => {
         pythonPath, setPythonPath,
         ffmpegPath, setFfmpegPath,
         ffprobePath, setFfprobePath,
-        volume, setVolume
-    } = useSettings();
+        keybinds, setKeybinds, updateKeybind,
+        spotlightShortcut, setSpotlightShortcut,
+        clipboardShortcut, setClipboardShortcut,
+        volume, setVolume,
+        sidebarCollapsed, setSidebarCollapsed,
+        audioDeviceId, setAudioDeviceId
+    } = settings;
+
+    const { resetKeybinds } = settings;
 
 
-    const { history, clearHistory, addToHistory, updateHistoryItem } = useHistory();
+
+
+
+    const { history, clearHistory, addToHistory, updateHistoryItem, removeFromHistory } = useHistory();
+
     const { debugMode, setDebugMode } = useDebugMode();
     const { logs, addLog, clearLogs } = useLogs();
     const { itemStates, updateItemState, resetItemStates } = useItemStates();
+    const { activeDownloads, addSpotlightDownload, updateSpotlightDownload, removeSpotlightDownload, clearSpotlightDownloads } = useActiveDownloads();
 
     const handleTogglePreview = async (url: string) => {
         const trackInfo = history.find(h => h.path === url) || results.find(r => r.url === url);
@@ -146,13 +175,21 @@ export const App: React.FC = () => {
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [playingUrl, isSearching, isPlaying]);
+    }, [playingUrl, isPlaying]);
 
     useEffect(() => {
         if (audioRef.current) {
             audioRef.current.volume = volume;
         }
-    }, [volume, playingUrl]);
+    }, [volume]);
+
+    useEffect(() => {
+        if (audioRef.current && (audioRef.current as any).setSinkId) {
+            (audioRef.current as any).setSinkId(audioDeviceId)
+                .catch((err: any) => console.error("Error setting audio output device:", err));
+        }
+    }, [audioDeviceId]);
+
 
     const handleSearch = async (e?: React.FormEvent) => {
         if (e) e.preventDefault();
@@ -221,8 +258,8 @@ export const App: React.FC = () => {
         }
     };
 
-    const handleOpenItem = (path: string) => {
-        window.api.openItem(path);
+    const handleOpenItem = (path?: string) => {
+        if (path) window.api.openItem(path);
     };
 
     const handlePickDir = async () => {
@@ -238,6 +275,64 @@ export const App: React.FC = () => {
         }).then(setDependencies);
     }, [pythonPath, ffmpegPath, ffprobePath]);
 
+    useEffect(() => {
+        window.api.onCommand((command) => {
+            if (command === 'playPause') {
+                if (audioRef.current && audioRef.current.src) {
+                    if (audioRef.current.paused) {
+                        audioRef.current.play().catch(console.error);
+                        setIsPlaying(true);
+                    } else {
+                        audioRef.current.pause();
+                        setIsPlaying(false);
+                    }
+                }
+            } else if (command === 'stop') {
+                setPlayingUrl(null);
+                setStreamUrl(null);
+                setIsPlaying(false);
+                setActiveTrack(null);
+                if (audioRef.current) {
+                    audioRef.current.pause();
+                    audioRef.current.src = "";
+                }
+            }
+        });
+    }, []);
+
+    useEffect(() => {
+        window.api.onDownloadStarted(({ url, title }) => {
+            addSpotlightDownload(url, title, url);
+            addLog(`⏳ Descarga iniciada externamente: ${title}`);
+        });
+
+        window.api.onDownloadSuccess(({ url, result }) => {
+            updateSpotlightDownload(url, { status: 'success', msg: 'Completado' });
+
+            // Reconstruct history item
+            const newItem: HistoryItem = {
+                id: result.id || Math.random().toString(36).substring(7),
+                title: result.title || "Unknown",
+                channel: result.channel || result.source || "Unknown",
+                thumbnail: result.thumbnail || "",
+                path: result.path,
+                date: new Date().toISOString(),
+                format: format,
+                sampleRate: sampleRate,
+                bpm: result.bpm,
+                key: result.key,
+                source: result.source || "YouTube",
+                description: result.description,
+                tags: [],
+                duration: result.duration
+            };
+            addToHistory(newItem);
+            addLog(`✅ Descarga completada: ${newItem.title}`);
+        });
+    }, [format, sampleRate]);
+
+
+
 
     if (!dependencies) {
         return (
@@ -249,7 +344,12 @@ export const App: React.FC = () => {
 
     const hasAllDeps = dependencies.python && dependencies.ffmpeg && dependencies.ffprobe;
 
+    if (isSpotlight) {
+        return <SpotlightView />;
+    }
+
     return (
+
         <div id="app-root" className="flex flex-col h-screen w-screen bg-wv-bg text-white overflow-hidden font-sans">
             <TitleBar />
 
@@ -268,12 +368,19 @@ export const App: React.FC = () => {
                     ffprobePath={ffprobePath}
                     setFfprobePath={setFfprobePath}
                 />
+
             )}
 
 
             <div className="flex-1 flex overflow-hidden">
 
-                <Sidebar currentView={view} onViewChange={setView} />
+                <Sidebar
+                    currentView={view}
+                    onViewChange={setView}
+                    isCollapsed={sidebarCollapsed}
+                    onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+                />
+
 
                 <main className="flex-1 flex flex-col min-w-0">
                     <header className="px-8 py-4 border-b border-white/5 flex justify-between items-center bg-black/40 backdrop-blur-md z-20">
@@ -317,6 +424,8 @@ export const App: React.FC = () => {
                                 onOpenItem={handleOpenItem}
                                 onTogglePreview={handleTogglePreview}
                                 onUpdateItem={updateHistoryItem}
+                                onRemoveItem={removeFromHistory}
+
                                 playingUrl={playingUrl}
                                 isPreviewLoading={isPreviewLoading}
                             />
@@ -334,9 +443,20 @@ export const App: React.FC = () => {
                                 debugMode={debugMode}
                                 pythonPath={pythonPath} setPythonPath={setPythonPath}
                                 ffmpegPath={ffmpegPath} setFfmpegPath={setFfmpegPath}
-                                ffprobePath={ffprobePath} setFfprobePath={setFfprobePath}
-
+                                ffprobePath={ffprobePath}
+                                setFfprobePath={setFfprobePath}
+                                spotlightShortcut={spotlightShortcut}
+                                setSpotlightShortcut={setSpotlightShortcut}
+                                clipboardShortcut={clipboardShortcut}
+                                setClipboardShortcut={setClipboardShortcut}
+                                keybinds={keybinds}
+                                updateKeybind={updateKeybind}
+                                resetKeybinds={resetKeybinds}
+                                audioDeviceId={audioDeviceId}
+                                setAudioDeviceId={setAudioDeviceId}
                             />
+
+
                         )}
                     </div>
 
@@ -364,6 +484,7 @@ export const App: React.FC = () => {
 
                         <div className="flex-1 flex justify-center">
                             <button
+                                type="button"
                                 className="h-10 w-10 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 transition-transform disabled:opacity-20"
                                 onClick={() => playingUrl && handleTogglePreview(playingUrl)}
                                 disabled={!playingUrl}
@@ -385,6 +506,7 @@ export const App: React.FC = () => {
                             />
                             {playingUrl && (
                                 <button
+                                    type="button"
                                     className="p-1.5 hover:bg-white/5 rounded-md text-wv-gray hover:text-white transition-colors"
                                     onClick={() => { setPlayingUrl(null); setStreamUrl(null); setIsPlaying(false); setActiveTrack(null); }}
                                 >
@@ -402,11 +524,21 @@ export const App: React.FC = () => {
                                 onPlay={() => setIsPlaying(true)}
                                 onPause={() => setIsPlaying(false)}
                                 style={{ display: 'none' }}
-                            />
+                            >
+                                <track kind="captions" />
+                            </audio>
                         )}
                     </footer>
                 </main>
             </div>
+
+            {/* Active Downloads Panel */}
+            {activeDownloads.length > 0 && (
+                <ActiveDownloads
+                    activeDownloads={activeDownloads}
+                    onClearDownload={removeSpotlightDownload}
+                />
+            )}
         </div>
     );
 };

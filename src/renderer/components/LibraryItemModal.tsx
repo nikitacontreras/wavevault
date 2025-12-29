@@ -18,19 +18,29 @@ export const LibraryItemModal: React.FC<LibraryItemModalProps> = ({ item, onClos
     const [endTime, setEndTime] = useState(0);
     const [duration, setDuration] = useState(0);
     const [zoom, setZoom] = useState(0);
+    const [isLooping, setIsLooping] = useState(false);
     const wavesurferRef = useRef<any>(null);
+
 
     const categories = ["Drums", "Bass", "Synth", "Keys", "Vocals", "Loop", "FX", "Other"];
 
     const addTag = () => {
         if (!tagInput.trim()) return;
+        const inputTags = tagInput.split(',').map(t => t.trim()).filter(t => t !== "");
         const newTags = [...(item.tags || [])];
-        if (!newTags.includes(tagInput.trim())) {
-            newTags.push(tagInput.trim());
+        let changed = false;
+        inputTags.forEach(t => {
+            if (!newTags.includes(t)) {
+                newTags.push(t);
+                changed = true;
+            }
+        });
+        if (changed) {
             onUpdateItem(item.id, { tags: newTags });
         }
         setTagInput("");
     };
+
 
     const removeTag = (tag: string) => {
         const newTags = item.tags.filter(t => t !== tag);
@@ -112,18 +122,22 @@ export const LibraryItemModal: React.FC<LibraryItemModalProps> = ({ item, onClos
                             <div className="overflow-x-auto custom-scrollbar no-drag">
                                 <Waveform
                                     url={item.path}
-                                    height={100}
-                                    waveColor="rgba(255,255,255,0.08)"
+                                    height={120}
+                                    waveColor="rgba(255,255,255,0.12)"
                                     progressColor="#ffffff"
                                     showControls={true}
                                     useRegions={true}
                                     onRegionChange={handleRegionChange}
                                     zoom={zoom}
+                                    onZoomChange={setZoom}
+                                    isLooping={isLooping}
+                                    onLoopToggle={() => setIsLooping(!isLooping)}
                                     onReady={(ws) => {
                                         wavesurferRef.current = ws;
                                         setDuration(ws.getDuration());
                                     }}
                                 />
+
                             </div>
                         </div>
                         {isChopping && (

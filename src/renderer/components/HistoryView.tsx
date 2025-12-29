@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from "react";
 import { HistoryItem } from "../types";
 import { LibraryItemModal } from "./LibraryItemModal";
-import { Search, Filter, Folder, Music, Play, Pause, ExternalLink, Tag, Clock } from "lucide-react";
+import { Search, Filter, Folder, Music, Play, Pause, ExternalLink, Tag, Clock, Loader2, Trash2 } from "lucide-react";
+
 import { Waveform } from "./Waveform";
 
 interface HistoryViewProps {
@@ -10,9 +11,11 @@ interface HistoryViewProps {
     onOpenItem: (path: string) => void;
     onTogglePreview: (url: string) => void;
     onUpdateItem: (id: string, updates: Partial<HistoryItem>) => void;
+    onRemoveItem: (id: string) => void;
     playingUrl: string | null;
     isPreviewLoading: boolean;
 }
+
 
 
 export const HistoryView: React.FC<HistoryViewProps> = ({
@@ -21,9 +24,11 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
     onOpenItem,
     onTogglePreview,
     onUpdateItem,
+    onRemoveItem,
     playingUrl,
     isPreviewLoading
 }) => {
+
 
     const [searchTerm, setSearchTerm] = useState("");
     const [formatFilter, setFormatFilter] = useState("all");
@@ -32,7 +37,12 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
     const [keyFilter, setKeyFilter] = useState("all");
     const [categoryFilter, setCategoryFilter] = useState("all");
     const [tagSearch, setTagSearch] = useState("");
-    const [selectedItem, setSelectedItem] = useState<HistoryItem | null>(null);
+    const [selectedId, setSelectedId] = useState<string | null>(null);
+
+    const selectedItem = useMemo(() => {
+        return history.find(item => item.id === selectedId) || null;
+    }, [history, selectedId]);
+
 
     const filteredHistory = useMemo(() => {
         return [...history].reverse().filter(item => {
@@ -150,7 +160,8 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                             <div
                                 key={item.id + i}
                                 className="bg-wv-sidebar border border-white/5 rounded-2xl overflow-hidden hover:border-white/10 transition-all group cursor-pointer"
-                                onClick={() => setSelectedItem(item)}
+                                onClick={() => setSelectedId(item.id)}
+
                             >
                                 <div className="relative aspect-video overflow-hidden" onClick={(e) => { e.stopPropagation(); onTogglePreview(item.path); }}>
                                     <img src={item.thumbnail} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" alt="" />
@@ -193,12 +204,23 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                                             <Clock size={10} />
                                             {item.duration || "N/A"}
                                         </div>
-                                        <button
-                                            className="p-1 px-1.5 hover:bg-white/10 rounded-md text-white/20 hover:text-white transition-colors"
-                                            onClick={(e) => { e.stopPropagation(); onOpenItem(item.path); }}
-                                        >
-                                            <ExternalLink size={14} />
-                                        </button>
+                                        <div className="flex items-center gap-1">
+                                            <button
+                                                className="p-1 px-1.5 hover:bg-white/10 rounded-md text-white/20 hover:text-white transition-colors"
+                                                onClick={(e) => { e.stopPropagation(); onOpenItem(item.path); }}
+                                                title="Abrir Carpeta"
+                                            >
+                                                <ExternalLink size={14} />
+                                            </button>
+                                            <button
+                                                className="p-1 px-1.5 hover:bg-red-500/10 rounded-md text-white/20 hover:text-red-400 transition-colors"
+                                                onClick={(e) => { e.stopPropagation(); onRemoveItem(item.id); }}
+                                                title="Eliminar de la Librería"
+                                            >
+                                                <Trash2 size={14} />
+                                            </button>
+                                        </div>
+
                                     </div>
                                 </div>
                             </div>
@@ -210,10 +232,11 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
             {selectedItem && (
                 <LibraryItemModal
                     item={selectedItem}
-                    onClose={() => setSelectedItem(null)}
+                    onClose={() => setSelectedId(null)}
                     onOpenItem={onOpenItem}
                     onUpdateItem={onUpdateItem}
                 />
+
             )}
         </div>
     );

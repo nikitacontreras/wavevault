@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { TargetFormat, Bitrate, SampleRate, SearchResult, ItemState, HistoryItem } from "../types";
+import { TargetFormat, Bitrate, SampleRate, SearchResult, ItemState, HistoryItem, KeybindConfig } from "../types";
 
 export const useSettings = () => {
     const [format, setFormat] = useState<TargetFormat>(() => {
@@ -26,6 +26,20 @@ export const useSettings = () => {
     const [pythonPath, setPythonPath] = useState<string>(localStorage.getItem('pythonPath') || "");
     const [ffmpegPath, setFfmpegPath] = useState<string>(localStorage.getItem('ffmpegPath') || "");
     const [ffprobePath, setFfprobePath] = useState<string>(localStorage.getItem('ffprobePath') || "");
+
+    const [keybinds, setKeybinds] = useState<KeybindConfig[]>([]);
+    const [spotlightShortcut, setSpotlightShortcut] = useState<string>("");
+    const [clipboardShortcut, setClipboardShortcut] = useState<string>("");
+
+    const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
+        return localStorage.getItem('sidebarCollapsed') === 'true';
+    });
+
+    const [audioDeviceId, setAudioDeviceId] = useState<string>(() => {
+        return localStorage.getItem('audioDeviceId') || 'default';
+    });
+
+
 
 
     useEffect(() => {
@@ -64,9 +78,67 @@ export const useSettings = () => {
     }, [ffmpegPath]);
 
     useEffect(() => {
-        localStorage.setItem('ffprobePath', ffprobePath);
-        window.api.updateConfig({ ffprobePath: ffprobePath || null });
-    }, [ffprobePath]);
+        localStorage.setItem('sidebarCollapsed', sidebarCollapsed.toString());
+    }, [sidebarCollapsed]);
+
+    useEffect(() => {
+        localStorage.setItem('audioDeviceId', audioDeviceId);
+    }, [audioDeviceId]);
+
+
+    // Load keybinds from main process
+    useEffect(() => {
+        const loadKeybinds = async () => {
+            try {
+                const keybindsData = await window.api.getKeybinds();
+                setKeybinds(keybindsData);
+
+                // Set legacy shortcuts for backward compatibility
+                const spotlightKeybind = keybindsData.find((k: any) => k.id === 'spotlight');
+                const clipboardKeybind = keybindsData.find((k: any) => k.id === 'clipboard');
+
+                if (spotlightKeybind) setSpotlightShortcut(spotlightKeybind.accelerator);
+                if (clipboardKeybind) setClipboardShortcut(clipboardKeybind.accelerator);
+            } catch (error) {
+                console.error('Failed to load keybinds:', error);
+            }
+        };
+
+        loadKeybinds();
+    }, []);
+
+    const updateKeybind = async (id: string, accelerator: string) => {
+        try {
+            const updatedKeybinds = keybinds.map((k: any) =>
+                k.id === id ? { ...k, accelerator } : k
+            );
+            setKeybinds(updatedKeybinds);
+
+            // Update legacy shortcuts for backward compatibility
+            if (id === 'spotlight') setSpotlightShortcut(accelerator);
+            if (id === 'clipboard') setClipboardShortcut(accelerator);
+
+            await window.api.updateConfig({ keybinds: updatedKeybinds });
+        } catch (error) {
+            console.error('Failed to update keybind:', error);
+        }
+    };
+
+    const resetKeybinds = async () => {
+        try {
+            const defaults = await window.api.resetKeybinds();
+            setKeybinds(defaults);
+
+            const spotlight = defaults.find((k: any) => k.id === 'spotlight');
+            const clipboard = defaults.find((k: any) => k.id === 'clipboard');
+            if (spotlight) setSpotlightShortcut(spotlight.accelerator);
+            if (clipboard) setClipboardShortcut(clipboard.accelerator);
+        } catch (error) {
+            console.error('Failed to reset keybinds:', error);
+        }
+    };
+
+
 
 
     const [volume, setVolume] = useState<number>(() => {
@@ -87,10 +159,16 @@ export const useSettings = () => {
         pythonPath, setPythonPath,
         ffmpegPath, setFfmpegPath,
         ffprobePath, setFfprobePath,
-        volume, setVolume
-    };
+        keybinds, setKeybinds, updateKeybind, resetKeybinds,
 
+        spotlightShortcut, setSpotlightShortcut,
+        clipboardShortcut, setClipboardShortcut,
+        volume, setVolume,
+        sidebarCollapsed, setSidebarCollapsed,
+        audioDeviceId, setAudioDeviceId
+    };
 };
+
 
 export const useHistory = () => {
     const [history, setHistory] = useState<HistoryItem[]>(() => {
@@ -110,15 +188,27 @@ export const useHistory = () => {
     };
 
     const addToHistory = (item: HistoryItem) => {
-        setHistory(prev => [item, ...prev]);
+        setHistory(prev => {
+            if (prev.some(i => i.id === item.id)) return prev;
+            return [item, ...prev];
+        });
+    };
+
+
+    const removeFromHistory = (id: string) => {
+        if (confirm("¿Eliminar este sample de la librería?")) {
+            setHistory(prev => prev.filter(item => item.id !== id));
+        }
     };
 
     const updateHistoryItem = (id: string, updates: Partial<HistoryItem>) => {
         setHistory(prev => prev.map(item => item.id === id ? { ...item, ...updates } : item));
     };
 
-    return { history, clearHistory, addToHistory, updateHistoryItem };
+
+    return { history, clearHistory, addToHistory, updateHistoryItem, removeFromHistory };
 };
+
 
 export const useDebugMode = () => {
     const [debugMode, setDebugMode] = useState(false);
@@ -146,17 +236,17 @@ export const useDebugMode = () => {
 export const useLogs = () => {
     const [logs, setLogs] = useState<string[]>([]);
 
+    useEffect(() => {
+        window.api.onStatus((p) => {
+            setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${(p.ok ? "✅ " : "❌ ") + p.message}`]);
+        });
+    }, []);
+
     const addLog = (msg: string) => {
         setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`]);
     };
 
     const clearLogs = () => setLogs([]);
-
-    useEffect(() => {
-        window.api.onStatus((p) => {
-            addLog((p.ok ? "✅ " : "❌ ") + p.message);
-        });
-    }, []);
 
     return { logs, addLog, clearLogs };
 };
@@ -174,4 +264,43 @@ export const useItemStates = () => {
     const resetItemStates = () => setItemStates({});
 
     return { itemStates, updateItemState, resetItemStates };
+};
+
+export const useActiveDownloads = () => {
+    const [activeDownloads, setActiveDownloads] = useState<any[]>([]);
+
+    const addSpotlightDownload = (id: string, title: string, url: string) => {
+        setActiveDownloads(prev => [
+            ...prev.filter(d => d.id !== id),
+            { id, title, url, state: { status: 'loading', msg: 'Iniciando...' } }
+        ]);
+    };
+
+    const updateSpotlightDownload = (id: string, state: Partial<ItemState>) => {
+        setActiveDownloads(prev =>
+            prev.map(d =>
+                d.id === id
+                    ? { ...d, state: { ...d.state, ...state } }
+                    : d
+            )
+        );
+    };
+
+    const removeSpotlightDownload = (id: string) => {
+        setActiveDownloads(prev => prev.filter(d => d.id !== id));
+    };
+
+    const clearSpotlightDownloads = () => {
+        setActiveDownloads(prev =>
+            prev.filter(d => d.state.status === 'loading')
+        );
+    };
+
+    return {
+        activeDownloads,
+        addSpotlightDownload,
+        updateSpotlightDownload,
+        removeSpotlightDownload,
+        clearSpotlightDownloads
+    };
 };

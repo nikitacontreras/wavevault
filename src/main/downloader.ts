@@ -5,10 +5,21 @@ import axios from "axios";
 import * as mm from "music-metadata";
 import NodeID3 from "node-id3";
 import ff from "./ffmpeg";
-import { DownloadJob, VideoMeta, TargetFormat, Bitrate, SearchResult } from "./types";
+import { DownloadJob, VideoMeta, TargetFormat, Bitrate, SampleRate, SearchResult } from "./types";
 import ytDlp from "yt-dlp-exec";
 import { analyzeBPM, analyzeKey, getDuration } from "./audio-analysis";
 import { getPythonPath, getFFmpegPath } from "./config";
+
+// Helper function to get Python command
+async function getPythonCommand() {
+    const pythonPath = await getPythonPath();
+    return pythonPath;
+}
+
+// Helper function to get yt-dlp path
+function getYtDlpPath() {
+    return ytDlp;
+}
 
 
 const YT_REGEX = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\//i;
@@ -49,105 +60,31 @@ function normalizeUrl(input: any): string {
             return `https://www.youtube.com/watch?v=${id}`;
         }
 
-        return u.toString();
-    } catch (e) {
-        throw new Error("URL no válida de YouTube");
-    }
-}
-
-
-// Dynamic Python Detection
-let CACHED_PYTHON: string | null = null;
-async function getPythonCommand(): Promise<string> {
-    const manual = getPythonPath();
-    if (manual && manual !== "python3") return manual;
-
-    if (CACHED_PYTHON) return CACHED_PYTHON;
-    try {
-        await execa("python3", ["--version"]);
-        CACHED_PYTHON = "python3";
+        return urlWithProtocol;
     } catch {
-        try {
-            await execa("python", ["--version"]);
-            CACHED_PYTHON = "python";
-        } catch {
-            throw new Error("Python no encontrado en el sistema.");
-        }
-    }
-    return CACHED_PYTHON;
-}
-
-
-export async function fetchMeta(url: string): Promise<VideoMeta> {
-    const pythonCmd = await getPythonCommand();
-
-    // Determine path based on environment similar to searchYoutube
-    const isProd = __dirname.includes('dist');
-    const ytDlpPath = isProd
-        ? path.resolve(__dirname, "../../node_modules/yt-dlp-exec/bin/yt-dlp")
-        : path.resolve(__dirname, "../../node_modules/yt-dlp-exec/bin/yt-dlp");
-
-    try {
-        const { stdout } = await execa(pythonCmd, [ytDlpPath, url, '--dump-single-json']);
-        const out = JSON.parse(stdout);
-
-        return {
-            id: out.id,
-            title: out.title,
-            uploader: out.uploader,
-            uploader_id: out.uploader_id,
-            channel: out.channel,
-            description: out.description,
-            upload_date: out.upload_date,
-            release_year: out.release_year,
-            thumbnail: out.thumbnail,
-            duration: out.duration // Add duration if available for UI
-        };
-    } catch (e: any) {
-        throw new Error("Failed to fetch metadata: " + e.message);
-    }
-}
-
-// Helper to identify production path
-const isProd = __dirname.includes('dist');
-const ytDlpPath = isProd
-    ? path.resolve(__dirname, "../../node_modules/yt-dlp-exec/bin/yt-dlp") // In prod might need adjustment based on how node_modules are packed, usually ASAR problem.
-    // BUT for local "npm run electron" which runs from src/main, we need:
-    : path.resolve(__dirname, "../../node_modules/yt-dlp-exec/bin/yt-dlp");
-
-// Note: In a real packaged app (electron-builder), node_modules aren't always available like this. 
-// We would usually explicitly unpack the binary. For now, since user runs locally, this works.
-
-export async function getStreamUrl(url: string): Promise<string> {
-    try {
-        const pythonCmd = await getPythonCommand();
-        const normalized = normalizeUrl(url);
-        const { stdout } = await execa(pythonCmd, [
-            ytDlpPath,
-
-            normalized,
-            '-f', 'bestaudio',
-            '--get-url',
-            '--no-check-certificate',
-            '--no-warnings'
-        ]);
-        return stdout.trim();
-    } catch (e) {
-        console.error("Failed to get stream URL:", e);
-        throw e;
+        // If URL parsing fails, return the cleaned original
+        return urlWithProtocol;
     }
 }
 
 export async function searchYoutube(query: string): Promise<SearchResult[]> {
+    if (!query) return [];
+
     try {
         const pythonCmd = await getPythonCommand();
-        const { stdout } = await execa(pythonCmd, [ytDlpPath, `ytsearch10:${query}`, '--dump-single-json', '--default-search', 'ytsearch', '--flat-playlist']);
-        const out = JSON.parse(stdout);
+        const ytDlpBinary = path.join(__dirname, "../../node_modules/yt-dlp-exec/bin/yt-dlp");
+        const { stdout } = await execa(pythonCmd, [
+            ytDlpBinary,
+            `ytsearch10:${query}`,
+            "--dump-json",
+            "--no-playlist",
+            "--no-check-certificate",
+            "--no-warnings"
+        ]);
 
+        const results = stdout.split('\n').filter(l => !!l.trim()).map(l => JSON.parse(l));
 
-        if (!out.entries) return [];
-
-        return out.entries.map((e: any) => ({
+        return results.map((e: any) => ({
             id: e.id,
             title: e.title,
             channel: e.uploader ?? e.channel ?? "Unknown",
@@ -161,24 +98,85 @@ export async function searchYoutube(query: string): Promise<SearchResult[]> {
     }
 }
 
+export async function fetchMeta(url: string): Promise<VideoMeta> {
+    try {
+        const pythonCmd = await getPythonCommand();
+        const ytDlpBinary = path.join(__dirname, "../../node_modules/yt-dlp-exec/bin/yt-dlp");
+        const { stdout } = await execa(pythonCmd, [
+            ytDlpBinary,
+            url,
+            "--dump-json",
+            "--no-playlist",
+            "--no-check-certificate",
+            "--no-warnings"
+        ]);
+
+        const info = JSON.parse(stdout);
+        return {
+            id: info.id,
+            title: info.title,
+            uploader: info.uploader,
+            channel: info.uploader,
+            upload_date: info.upload_date,
+            description: info.description,
+            thumbnail: info.thumbnail ?? `https://i.ytimg.com/vi/${info.id}/mqdefault.jpg`,
+            duration: info.duration
+        };
+    } catch (e) {
+        console.error("Search failed:", e);
+        return {
+            id: "",
+            title: "Error",
+            uploader: "Error",
+            channel: "Error",
+            upload_date: "",
+            description: "",
+            thumbnail: "",
+            duration: 0
+        };
+    }
+}
+
+export async function getStreamUrl(url: string): Promise<string> {
+    try {
+        const pythonCmd = await getPythonCommand();
+        const ytDlpBinary = path.join(__dirname, "../../node_modules/yt-dlp-exec/bin/yt-dlp");
+        const { stdout } = await execa(pythonCmd, [
+            ytDlpBinary,
+            "--get-url",
+            "-f", "bestaudio",
+            url,
+            "--no-check-certificate",
+            "--no-warnings"
+        ]);
+
+        return stdout.trim();
+    } catch (e) {
+        console.error("Failed to get stream URL:", e);
+        throw e;
+    }
+}
+
 async function downloadBestAudio(url: string, outDir: string): Promise<string> {
     await fs.mkdir(outDir, { recursive: true });
 
     // Manual execution
-    // Output template: outDir/%(id)s.%(ext)s
-    const outputTemplate = path.join(outDir, "%(id)s.%(ext)s");
+    // Output template: outDir/%(id)s.%(ext)s - Usar template compatible
+    const outputTemplate = path.join(outDir, "%(title)s.%(ext)s");
 
     const pythonCmd = await getPythonCommand();
+    const ytDlpBinary = path.join(__dirname, "../../node_modules/yt-dlp-exec/bin/yt-dlp");
     await execa(pythonCmd, [
-        ytDlpPath,
-
+        ytDlpBinary,
         url,
-        '--extract-audio', // actually we want original container first then convert, but bestaudio is usually enough
+        '--extract-audio',
+        '--audio-format', 'mp3',
         '-f', 'bestaudio/best',
         '-o', outputTemplate,
         '--no-check-certificate',
-        '--no-warnings'
-        // '--prefer-free-formats'
+        '--no-warnings',
+        '--embed-thumbnail',
+        '--add-metadata'
     ]);
 
     // yt-dlp imprime paths en stdout; para fiabilidad, listamos el fichero más reciente
@@ -212,17 +210,28 @@ async function downloadCover(url?: string, outDir?: string): Promise<string | un
     }
 }
 
+// Helper function to create safe filename
 function toSafeFilename(s: string): string {
-    return s.replace(/[<>:"/\\|?*\u0000-\u001F]/g, "_").slice(0, 180);
+    const invalidChars = /[<>"\/\\|?*\x00-\x1F]/g;
+    const controlChars = /[\x00-\x1F\x7F]/g;
+
+    return s
+        .replace(invalidChars, "_")
+        .replace(controlChars, "")
+        .slice(0, 180);
 }
 
-// Sanitize metadata for ffmpeg to avoid "Invalid argument" errors
+// Helper function to sanitize metadata for ffmpeg
 function sanitizeMetadata(s: string): string {
     if (!s) return "";
-    // Escape special characters that cause issues with ffmpeg metadata
-    // Replace problematic characters: = : \ and control characters
-    return s.replace(/[=:\\]/g, " ")
-        .replace(/[\u0000-\u001F\u007F]/g, "")
+
+    // Replace problematic characters that cause issues with ffmpeg metadata
+    const problematicChars = /[=:\\]/g;
+    const controlChars = /[\x00-\x1F\x7F]/g;
+
+    return s
+        .replace(problematicChars, " ")
+        .replace(controlChars, "")
         .trim();
 }
 
@@ -323,7 +332,7 @@ async function convertWithFfmpeg(
         cmd.save(dest);
     });
 
-    // Afinar etiquetas ID3 en MP3 (más compatibles)
+    // Add ID3 tags to MP3 (more compatible)
     if (dest.endsWith(".mp3")) {
         const tags: NodeID3.Tags = {
             title: meta.title,
@@ -370,6 +379,10 @@ export async function processJob(job: DownloadJob): Promise<{
     const duration = await getDuration(dest);
 
     return {
+        id: meta.id,
+        title: meta.title,
+        thumbnail: meta.thumbnail,
+        channel: meta.uploader || meta.channel,
         path: dest,
         bpm,
         key,
@@ -377,6 +390,7 @@ export async function processJob(job: DownloadJob): Promise<{
         description: meta.description,
         duration: duration || meta.duration?.toString()
     };
+
 }
 
 export async function trimAudio(

@@ -1,6 +1,8 @@
 import React from "react";
 import { TargetFormat, Bitrate, SampleRate } from "../types";
-import { Settings, FileAudio, BarChart3, Waves, FolderSync, Trash2, Cpu, Activity, Info } from "lucide-react";
+import { Settings, FileAudio, BarChart3, Waves, FolderSync, Trash2, Cpu, Activity, Info, Command } from "lucide-react";
+import { KeybindManager } from "./KeybindManager";
+
 
 interface SettingsViewProps {
     format: TargetFormat;
@@ -22,7 +24,19 @@ interface SettingsViewProps {
     setFfmpegPath: (path: string) => void;
     ffprobePath: string;
     setFfprobePath: (path: string) => void;
+    spotlightShortcut: string;
+    setSpotlightShortcut: (s: string) => void;
+    clipboardShortcut: string;
+    setClipboardShortcut: (s: string) => void;
+    keybinds: any[];
+    updateKeybind: (id: string, accelerator: string) => Promise<void>;
+    resetKeybinds: () => Promise<void>;
+    audioDeviceId: string;
+    setAudioDeviceId: (id: string) => void;
 }
+
+
+
 
 const AdvancedPathInput = ({ label, value, onChange, placeholder }: { label: string, value: string, onChange: (v: string) => void, placeholder: string }) => {
     const handlePick = async () => {
@@ -54,12 +68,33 @@ const AdvancedPathInput = ({ label, value, onChange, placeholder }: { label: str
     );
 };
 
+
+
 export const SettingsView: React.FC<SettingsViewProps> = ({
     format, setFormat, bitrate, setBitrate, sampleRate, setSampleRate,
     normalize, setNormalize, outDir, onPickDir,
     logs, onClearLogs, debugMode,
-    pythonPath, setPythonPath, ffmpegPath, setFfmpegPath, ffprobePath, setFfprobePath
+    pythonPath, setPythonPath, ffmpegPath, setFfmpegPath, ffprobePath, setFfprobePath,
+    spotlightShortcut, setSpotlightShortcut, clipboardShortcut, setClipboardShortcut,
+    keybinds, updateKeybind, resetKeybinds,
+    audioDeviceId, setAudioDeviceId
 }) => {
+
+    const [devices, setDevices] = React.useState<MediaDeviceInfo[]>([]);
+
+    React.useEffect(() => {
+        const fetchDevices = async () => {
+            const allDevices = await navigator.mediaDevices.enumerateDevices();
+            setDevices(allDevices.filter(d => d.kind === 'audiooutput'));
+        };
+        fetchDevices();
+        navigator.mediaDevices.addEventListener('devicechange', fetchDevices);
+        return () => navigator.mediaDevices.removeEventListener('devicechange', fetchDevices);
+    }, []);
+
+
+
+
 
     const isBitrateApplicable = !["wav", "flac", "aiff"].includes(format);
 
@@ -154,7 +189,29 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             </label>
                         </div>
                     </div>
+
+                    <div className="mt-6 pt-6 border-t border-white/5">
+
+                        <div className="flex flex-col gap-2">
+                            <label className="text-[9px] font-bold text-wv-gray uppercase tracking-widest flex items-center gap-2">
+                                Dispositivo de Salida
+                            </label>
+                            <select
+                                className="bg-wv-bg border border-white/5 rounded-lg px-3 py-2 text-xs outline-none focus:border-white/10"
+                                value={audioDeviceId}
+                                onChange={e => setAudioDeviceId(e.target.value)}
+                            >
+                                <option value="default">Dispositivo por Defecto</option>
+                                {devices.map(device => (
+                                    <option key={device.deviceId} value={device.deviceId}>
+                                        {device.label || `Salida ${device.deviceId.slice(0, 5)}...`}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
                 </section>
+
 
                 <section className="bg-wv-sidebar border border-white/5 rounded-2xl p-6">
                     <div className="flex items-center gap-2.5 mb-6 border-b border-white/5 pb-4">
@@ -178,6 +235,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             </button>
                         </div>
                     </div>
+                </section>
+
+                <section className="bg-wv-sidebar border border-white/5 rounded-2xl p-6">
+                    <KeybindManager
+                        keybinds={keybinds}
+                        onUpdateKeybind={updateKeybind}
+                        onRefresh={resetKeybinds}
+                    />
+
                 </section>
 
                 <section className="bg-wv-sidebar border border-white/5 rounded-2xl p-6">
@@ -240,5 +306,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </section>
             </div>
         </div>
+
     );
 };

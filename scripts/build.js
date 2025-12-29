@@ -60,6 +60,13 @@ async function build() {
 
   fs.mkdirSync('dist/renderer', { recursive: true });
   fs.writeFileSync('dist/renderer/index.html', htmlContent);
+  if (fs.existsSync('wavevault-white.svg')) {
+    fs.copyFileSync('wavevault-white.svg', 'dist/renderer/wavevault-white.svg');
+  }
+  if (fs.existsSync('wavevault.svg')) {
+    fs.copyFileSync('wavevault.svg', 'dist/renderer/wavevault.svg');
+  }
 }
+
 
 build().catch(() => process.exit(1));

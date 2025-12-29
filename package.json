@@ -23,7 +23,7 @@
     "asar": true,
     "mac": {
       "category": "public.app-category.music",
-      "icon": "wavevault.svg"
+      "icon": "build/icon.png"
     },
     "win": {
       "target": "nsis"

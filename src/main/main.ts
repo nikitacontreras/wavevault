@@ -557,6 +557,24 @@ ipcMain.handle("open-external", async (_evt, url) => {
     shell.openExternal(url);
 });
 
+ipcMain.handle("window-minimize", () => {
+    if (win) win.minimize();
+});
+
+ipcMain.handle("window-toggle-maximize", () => {
+    if (win) {
+        if (win.isMaximized()) {
+            win.unmaximize();
+        } else {
+            win.maximize();
+        }
+    }
+});
+
+ipcMain.handle("window-close", () => {
+    if (win) win.close();
+});
+
 ipcMain.handle("get-platform-info", () => {
     return `${process.platform}-${process.arch}`;
 });

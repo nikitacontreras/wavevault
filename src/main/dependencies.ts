@@ -21,13 +21,14 @@ export async function checkDependencies(manualPaths?: { python?: string; ffmpeg?
     // Check Python
     const pythonCmd = manualPaths?.python || "python3";
     try {
-        await execAsync(`${pythonCmd} --version`);
-        status.python = true;
+        // Check if python exists and version is >= 3.10
+        const { stdout } = await execAsync(`${pythonCmd} -c "import sys; print(sys.version_info >= (3, 10))"`);
+        status.python = stdout.trim() === 'True';
     } catch (e) {
         if (!manualPaths?.python) {
             try {
-                await execAsync("python --version");
-                status.python = true;
+                const { stdout } = await execAsync(`python -c "import sys; print(sys.version_info >= (3, 10))"`);
+                status.python = stdout.trim() === 'True';
             } catch (e2) {
                 status.python = false;
             }

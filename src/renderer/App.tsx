@@ -18,7 +18,7 @@ import { ActiveDownloads } from "./components/ActiveDownloads";
 declare global {
     interface Window {
         api: {
-            download: (url: string, format: string, bitrate: string, sampleRate: string, normalize: boolean, outDir?: string) => Promise<{
+            download: (url: string, format: string, bitrate: string, sampleRate: string, normalize: boolean, outDir?: string, smartOrganize?: boolean) => Promise<{
                 path: string,
                 id: string,
                 title: string,
@@ -58,6 +58,7 @@ declare global {
             getAppVersion: () => Promise<string>;
             openExternal: (url: string) => Promise<void>;
             getPlatformInfo: () => Promise<string>;
+            startDrag: (filepath: string, iconpath?: string) => void;
             minimizeWindow: () => void;
             toggleMaximizeWindow: () => void;
             closeWindow: () => void;
@@ -106,7 +107,8 @@ export const App: React.FC = () => {
         volume, setVolume,
         sidebarCollapsed, setSidebarCollapsed,
         audioDeviceId, setAudioDeviceId,
-        theme, setTheme
+        theme, setTheme,
+        smartOrganize, setSmartOrganize
     } = settings;
 
     const isDark = theme === 'dark';
@@ -271,7 +273,7 @@ export const App: React.FC = () => {
         updateItemState(id, { status: 'loading', msg: 'Iniciando...' });
         addLog(`⏳ Iniciando descarga: ${item.title}...`);
         try {
-            const { path: dest, bpm, key, source, description, duration } = await window.api.download(item.url, format, bitrate, sampleRate, normalize, outDir);
+            const { path: dest, bpm, key, source, description, duration } = await window.api.download(item.url, format, bitrate, sampleRate, normalize, outDir, smartOrganize);
             updateItemState(id, { status: 'success', path: dest, msg: 'Completado' });
             addLog(`✅ Descarga completada: ${item.title}`);
             const newItem: HistoryItem = {
@@ -513,6 +515,8 @@ export const App: React.FC = () => {
                                 audioDeviceId={audioDeviceId}
                                 setAudioDeviceId={setAudioDeviceId}
                                 theme={theme}
+                                smartOrganize={smartOrganize}
+                                setSmartOrganize={setSmartOrganize}
                             />
 
                         )}

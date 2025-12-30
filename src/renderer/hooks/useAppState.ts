@@ -44,6 +44,10 @@ export const useSettings = () => {
         return (stored as 'light' | 'dark') || "light";
     });
 
+    const [smartOrganize, setSmartOrganize] = useState<boolean>(() => {
+        return localStorage.getItem('smartOrganize') === 'true';
+    });
+
 
 
 
@@ -99,6 +103,10 @@ export const useSettings = () => {
     useEffect(() => {
         localStorage.setItem('theme', theme);
     }, [theme]);
+
+    useEffect(() => {
+        localStorage.setItem('smartOrganize', smartOrganize.toString());
+    }, [smartOrganize]);
 
 
 
@@ -182,7 +190,8 @@ export const useSettings = () => {
         volume, setVolume,
         sidebarCollapsed, setSidebarCollapsed,
         audioDeviceId, setAudioDeviceId,
-        theme, setTheme
+        theme, setTheme,
+        smartOrganize, setSmartOrganize
     };
 
 };

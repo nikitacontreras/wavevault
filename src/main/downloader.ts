@@ -158,10 +158,12 @@ async function downloadBestAudio(url: string, outDir: string, signal?: AbortSign
     // Check abort before starting
     if (signal?.aborted) throw new Error("Aborted");
 
-    const outputTemplate = path.join(outDir, "%(title)s.%(ext)s");
+    // Use a unique temp filename to avoid collision with final output
+    const outputTemplate = path.join(outDir, `temp_${Date.now()}_%(id)s.%(ext)s`);
     const ytDlpBinary = getYtDlpBinary();
 
-    await execa(ytDlpBinary, [
+    // Use --print filename to get the exact output path
+    const { stdout } = await execa(ytDlpBinary, [
         url,
         '--extract-audio',
         '--audio-format', 'mp3',
@@ -169,26 +171,21 @@ async function downloadBestAudio(url: string, outDir: string, signal?: AbortSign
         '-o', outputTemplate,
         '--no-check-certificate',
         '--no-warnings',
-        '--embed-thumbnail',
-        '--add-metadata'
+        '--print', 'filename' // Critical: Get exact filename
     ], { signal } as any);
 
-    // ... (rest of logic same) ...
-    const files = await fs.readdir(outDir);
-    const stats = await Promise.all(
-        files.map(async f => {
-            try {
-                const s = await fs.stat(path.join(outDir, f));
-                return { f, t: s.mtime.getTime() };
-            } catch { return undefined; }
-        })
-    );
+    const filename = stdout.trim().split('\n').pop()?.trim(); // Handle potential multi-line output
+    if (!filename) throw new Error("Could not determine downloaded filename");
 
-    const validStats = stats.filter(s => s !== undefined) as { f: string, t: number }[];
-    if (validStats.length === 0) throw new Error("No file downloaded");
+    // Check if file exists (absolute path is printed?)
+    // yt-dlp prints the full path if -o is absolute, which outDir usually is.
+    // But let's verify.
+    const fullPath = path.isAbsolute(filename) ? filename : path.join(outDir, filename);
 
-    const latest = validStats.sort((a, b) => b.t - a.t)[0].f;
-    return path.join(outDir, latest);
+    // Verify file exists
+    await fs.access(fullPath);
+
+    return fullPath;
 }
 
 async function downloadCover(url?: string, outDir?: string): Promise<string | undefined> {
@@ -350,12 +347,27 @@ export async function processJob(job: DownloadJob): Promise<{
     const key = await analyzeKey(dest);
     const duration = await getDuration(dest);
 
+    let finalPath = dest;
+
+    // Smart Organization Logic
+    if (job.smartOrganize && key) {
+        // Camelot Notation safe folder name
+        const keyFolder = key.replace("/", "_");
+        const smartDir = path.join(path.dirname(dest), keyFolder);
+
+        await fs.mkdir(smartDir, { recursive: true });
+
+        const newDest = path.join(smartDir, path.basename(dest));
+        await fs.rename(dest, newDest);
+        finalPath = newDest;
+    }
+
     return {
         id: meta.id,
         title: meta.title,
         thumbnail: meta.thumbnail,
         channel: meta.uploader || meta.channel,
-        path: dest,
+        path: finalPath,
         bpm,
         key,
         source: meta.uploader || meta.channel || "YouTube",

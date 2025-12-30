@@ -175,6 +175,11 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                                 key={item.id + i}
                                 className={`border rounded-2xl overflow-hidden transition-all group cursor-pointer shadow-sm hover:shadow-md ${isDark ? "bg-wv-sidebar border-white/5 hover:border-white/10" : "bg-white border-black/5 hover:border-black/10"}`}
                                 onClick={() => setSelectedId(item.id)}
+                                draggable
+                                onDragStart={(e) => {
+                                    e.preventDefault();
+                                    window.api.startDrag(item.path, item.thumbnail);
+                                }}
                             >
 
                                 <div className="relative aspect-video overflow-hidden" onClick={(e) => { e.stopPropagation(); onTogglePreview(item.path); }}>

@@ -1,8 +1,8 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("api", {
-    download: (url: string, format: string, bitrate: string, sampleRate: string, normalize: boolean, outDir?: string) =>
-        ipcRenderer.invoke("download", url, format, bitrate, sampleRate, normalize, outDir),
+    download: (url: string, format: string, bitrate: string, sampleRate: string, normalize: boolean, outDir?: string, smartOrganize?: boolean) =>
+        ipcRenderer.invoke("download", url, format, bitrate, sampleRate, normalize, outDir, smartOrganize),
     search: (query: string) => ipcRenderer.invoke("search", query),
     getMeta: (url: string) => ipcRenderer.invoke("getMeta", url),
     getStreamUrl: (url: string) => ipcRenderer.invoke("getStreamUrl", url),
@@ -30,12 +30,10 @@ contextBridge.exposeInMainWorld("api", {
     getAppVersion: () => ipcRenderer.invoke("get-app-version"),
     openExternal: (url: string) => ipcRenderer.invoke("open-external", url),
     getPlatformInfo: () => ipcRenderer.invoke("get-platform-info"),
+    startDrag: (filepath: string, iconpath?: string) => ipcRenderer.send("start-drag", filepath, iconpath),
 
     minimizeWindow: () => ipcRenderer.invoke("window-minimize"),
     toggleMaximizeWindow: () => ipcRenderer.invoke("window-toggle-maximize"),
     closeWindow: () => ipcRenderer.invoke("window-close"),
     platform: process.platform
-
-
-
 });

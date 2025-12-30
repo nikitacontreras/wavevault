@@ -434,7 +434,7 @@ function broadcastDownloadError(url: string, error: string) {
 }
 
 // IPC: procesar descarga desde UI
-ipcMain.handle("download", async (_evt: any, url: string, format: string, bitrate: string, sampleRate: string, normalize: boolean, outDir?: string) => {
+ipcMain.handle("download", async (_evt: any, url: string, format: string, bitrate: string, sampleRate: string, normalize: boolean, outDir?: string, smartOrganize?: boolean) => {
 
     const dir = outDir || app.getPath("music");
 
@@ -457,7 +457,8 @@ ipcMain.handle("download", async (_evt: any, url: string, format: string, bitrat
             bitrate: bitrate as any,
             sampleRate: sampleRate as any,
             normalize,
-            signal: controller.signal
+            signal: controller.signal,
+            smartOrganize // Pass the new flag
         });
 
         broadcastDownloadSuccess(url, result);
@@ -615,6 +616,50 @@ ipcMain.handle("window-toggle-maximize", () => {
 
 ipcMain.handle("window-close", () => {
     if (win) win.close();
+});
+
+ipcMain.on("start-drag", (event, filepath: string, iconpath?: string) => {
+    if (!filepath) return;
+
+    // 1. Try to use the custom icon (thumbnail) if it is a local file
+    let finalIcon = "";
+    const fs = require('fs');
+
+    if (iconpath && !iconpath.startsWith("http") && fs.existsSync(iconpath)) {
+        finalIcon = iconpath;
+    } else {
+        // 2. Fallback to app icon. Try multiple locations.
+        // In Dev: src/main/main.ts -> ../../icon.png
+        // In Prod: resources/app.asar/dist/main.js -> ...
+
+        const possibleIcons = [
+            path.join(__dirname, "../../icon.png"),      // Dev
+            path.join(__dirname, "../../build/icon.png"), // Dev build folder
+            path.join(process.resourcesPath, "icon.png"), // Prod extraResource
+            path.join(app.getAppPath(), "icon.png")       // Root
+        ];
+
+        for (const p of possibleIcons) {
+            if (fs.existsSync(p)) {
+                finalIcon = p;
+                break;
+            }
+        }
+    }
+
+    // 3. Execute drag (safe mode)
+    if (finalIcon) {
+        event.sender.startDrag({
+            file: filepath,
+            icon: finalIcon
+        });
+    } else {
+        // If absolutely no icon found, drag without icon to prevent crash
+        event.sender.startDrag({
+            file: filepath,
+            icon: "" as any // Electron types might complain but it works or ignores it
+        });
+    }
 });
 
 ipcMain.handle("get-platform-info", () => {

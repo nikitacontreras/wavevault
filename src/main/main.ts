@@ -103,7 +103,7 @@ import { processJob, searchYoutube, fetchMeta, getStreamUrl } from "./downloader
 import { checkDependencies } from "./dependencies";
 import { config, saveConfig, resetKeybinds } from "./config";
 import { scanProjects } from "./projects";
-import { getFullProjectDB, createAlbumDB, createTrackDB, moveVersionToTrackDB, updateTrackMetaDB, deleteTrackDB, updateAlbumDB, deleteAlbumDB, deleteVersionDB, setConfigDB, getConfigDB } from "./db";
+import { getFullProjectDB, createAlbumDB, createTrackDB, moveVersionToTrackDB, updateTrackMetaDB, deleteTrackDB, updateAlbumDB, deleteAlbumDB, deleteVersionDB, setConfigDB, getConfigDB, getWorkspacesDB, addWorkspaceDB, removeWorkspaceDB } from "./db";
 
 
 // ...
@@ -606,31 +606,31 @@ ipcMain.handle("open-external", async (_evt, url) => {
     shell.openExternal(url);
 });
 
-ipcMain.handle("get-projects", async () => {
-    const allProjects = [];
-    for (const root of config.projectPaths) {
-        const projs = await scanProjects(root);
-        allProjects.push(...projs);
+ipcMain.handle("get-workspaces", () => {
+    return getWorkspacesDB();
+});
+
+ipcMain.handle("add-workspace", async (_evt, name: string, path: string) => {
+    const ws = addWorkspaceDB(name, path);
+    // Auto-scan after adding
+    await scanProjects(path, ws.id);
+    return ws;
+});
+
+ipcMain.handle("remove-workspace", (_evt, id: string) => {
+    return removeWorkspaceDB(id);
+});
+
+ipcMain.handle("scan-projects", async () => {
+    const workspaces = getWorkspacesDB();
+    const results = [];
+    for (const ws of workspaces) {
+        const projs = await scanProjects(ws.path, ws.id);
+        results.push(...projs);
     }
-    return allProjects;
+    return results;
 });
 
-ipcMain.handle("add-project-path", async (_evt, path: string) => {
-    if (!config.projectPaths.includes(path)) {
-        config.projectPaths.push(path);
-        saveConfig();
-        setConfigDB('appConfig', config);
-    }
-    return await scanProjects(path);
-});
-
-ipcMain.handle("remove-project-path", async (_evt, path: string) => {
-    config.projectPaths = config.projectPaths.filter(p => p !== path);
-    setConfigDB('appConfig', config);
-    return true;
-});
-
-// Project Store Handlers
 ipcMain.handle("get-project-db", () => {
     return getFullProjectDB();
 });

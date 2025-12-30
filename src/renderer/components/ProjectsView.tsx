@@ -59,8 +59,13 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
 
     // UI states
     const [movingVersion, setMovingVersion] = useState<ProjectVersion | null>(null);
+    const [movingToAlbumId, setMovingToAlbumId] = useState<string | null>(null);
+    const [pickingVersionForTrackId, setPickingVersionForTrackId] = useState<string | null>(null);
     const [activeTrackMenu, setActiveTrackMenu] = useState<string | null>(null);
     const [activeAlbumMenu, setActiveAlbumMenu] = useState<string | null>(null);
+    const [linkSearch, setLinkSearch] = useState("");
+    const [isCreatingTrackInline, setIsCreatingTrackInline] = useState(false);
+    const [inlineTrackName, setInlineTrackName] = useState("");
 
     // Modals state
     const [modalData, setModalData] = useState<{
@@ -247,11 +252,29 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
         loadDB();
     };
 
-    const handleMoveToTrack = async (trackId: string) => {
-        if (!movingVersion) return;
-        await (window as any).api.moveProjectVersion(movingVersion.id, trackId);
+    const handleMoveToTrack = async (trackId: string, customVId?: string) => {
+        const vId = customVId || movingVersion?.id;
+        if (!vId) return;
+
+        await (window as any).api.moveProjectVersion(vId, trackId);
         setMovingVersion(null);
+        setMovingToAlbumId(null);
+        setPickingVersionForTrackId(null);
         loadDB();
+    };
+
+    const handleConfirmCreateTrackInline = async () => {
+        if (!inlineTrackName || !movingToAlbumId || !movingVersion) return;
+
+        const newTrack = await (window as any).api.createTrack(inlineTrackName, movingToAlbumId);
+        if (newTrack && newTrack.id) {
+            await (window as any).api.moveProjectVersion(movingVersion.id, newTrack.id);
+            setMovingVersion(null);
+            setMovingToAlbumId(null);
+            setIsCreatingTrackInline(false);
+            setInlineTrackName("");
+            loadDB();
+        }
     };
 
     const handleDeleteVersion = async (vId: string, name: string) => {
@@ -677,8 +700,15 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
                                                             </div>
                                                         </div>
                                                     ))}
+                                                    <button
+                                                        onClick={() => setPickingVersionForTrackId(track.id)}
+                                                        className={`px-3 py-2 rounded-xl border border-dashed flex items-center justify-center gap-2 transition-all ${isDark ? "bg-white/[0.02] border-white/10 hover:bg-white/5 text-wv-gray hover:text-white" : "bg-black/[0.02] border-black/10 hover:bg-black/5"}`}
+                                                    >
+                                                        <Plus size={14} />
+                                                        <span className="text-[9px] font-black uppercase tracking-widest">Vincular Raw</span>
+                                                    </button>
                                                     {track.versions.length === 0 && (
-                                                        <p className="col-span-full py-2 text-[8px] font-black uppercase tracking-widest text-wv-gray/20 text-center">Sin versiones</p>
+                                                        <p className="col-span-full py-2 text-[8px] font-black uppercase tracking-widest text-wv-gray/20 text-center">Sin versiones aún</p>
                                                     )}
                                                 </div>
                                             </div>
@@ -699,24 +729,152 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
                             <div className="text-center mb-6">
                                 <ArrowRight size={24} className="text-blue-500 mx-auto mb-3" />
                                 <h2 className="text-lg font-black tracking-tight">Anidar Archivo</h2>
-                                <p className="text-[10px] text-wv-gray font-bold uppercase tracking-widest mt-1">Destino para: {movingVersion.name}</p>
+                                <p className="text-[10px] text-wv-gray font-bold uppercase tracking-widest mt-1 truncate px-4">Proyecto: {movingVersion.name}</p>
                             </div>
+
                             <div className="flex-1 overflow-y-auto min-h-0 space-y-4 pr-1 mb-6 projects-scroll">
-                                {db.albums.map(album => (
-                                    <div key={album.id} className="space-y-1.5">
-                                        <h4 className="text-[8px] uppercase font-black tracking-[0.2em] text-wv-gray/40 px-2">{album.name}</h4>
-                                        <div className="grid grid-cols-1 gap-1">
-                                            {album.tracks.map(track => (
-                                                <button key={track.id} onClick={() => handleMoveToTrack(track.id)} className={`flex items-center justify-between px-4 py-2.5 rounded-xl border transition-all ${isDark ? "bg-white/5 border-white/5 hover:bg-blue-600 text-white" : "bg-black/5 hover:bg-black/10"}`}>
+                                {!movingToAlbumId ? (
+                                    <>
+                                        <h3 className="text-[9px] font-black uppercase tracking-widest text-wv-gray/40 px-2 mb-2">Selecciona Colección</h3>
+                                        {db.albums.map(album => (
+                                            <button
+                                                key={album.id}
+                                                onClick={() => setMovingToAlbumId(album.id)}
+                                                className={`w-full flex items-center justify-between px-5 py-4 rounded-2xl border transition-all ${isDark ? "bg-white/5 border-white/5 hover:bg-white/10 text-white" : "bg-black/5 hover:bg-black/10"}`}
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <Disc size={16} className="text-blue-500" />
+                                                    <span className="text-[11px] font-black uppercase tracking-tight">{album.name}</span>
+                                                </div>
+                                                <ChevronRight size={14} className="opacity-40" />
+                                            </button>
+                                        ))}
+                                        {db.albums.length === 0 && (
+                                            <div className="text-center py-10 opacity-30">
+                                                <p className="text-[10px] font-black uppercase tracking-widest">No hay colecciones creadas</p>
+                                            </div>
+                                        )}
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="flex items-center gap-2 mb-4">
+                                            <button onClick={() => setMovingToAlbumId(null)} className="p-1.5 rounded-lg hover:bg-white/5 text-wv-gray"><X size={14} /></button>
+                                            <h3 className="text-[9px] font-black uppercase tracking-widest text-wv-gray/40">Colección: {db.albums.find(a => a.id === movingToAlbumId)?.name}</h3>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 gap-1.5">
+                                            {db.albums.find(a => a.id === movingToAlbumId)?.tracks.map(track => (
+                                                <button key={track.id} onClick={() => handleMoveToTrack(track.id)} className={`flex items-center justify-between px-5 py-3 rounded-xl border transition-all ${isDark ? "bg-white/5 border-white/5 hover:bg-blue-600 text-white" : "bg-black/5 hover:bg-black/10"}`}>
                                                     <span className="text-[10px] font-black uppercase tracking-tight">{track.name}</span>
-                                                    <span className={`px-1.5 py-0.5 rounded text-[7px] font-black uppercase ${getStatusColor(track.status)}`}>{track.status}</span>
+                                                    <span className={`px-1.5 py-0.5 rounded text-[7px] font-black uppercase opacity-60 border border-current`}>{track.status}</span>
                                                 </button>
                                             ))}
+
+                                            {isCreatingTrackInline ? (
+                                                <div className={`p-4 rounded-2xl border ${isDark ? "bg-white/5 border-white/5" : "bg-black/5 border-black/5"}`}>
+                                                    <label className="text-[8px] uppercase font-black tracking-widest text-wv-gray ml-1 mb-2 block">Nombre de la nueva track</label>
+                                                    <div className="flex gap-2">
+                                                        <input
+                                                            type="text"
+                                                            autoFocus
+                                                            value={inlineTrackName}
+                                                            onChange={(e) => setInlineTrackName(e.target.value)}
+                                                            onKeyDown={(e) => e.key === 'Enter' && handleConfirmCreateTrackInline()}
+                                                            className={`flex-1 px-4 py-2 rounded-xl border text-xs font-bold outline-none transition-all ${isDark ? "bg-black/20 border-white/5 focus:border-blue-500/50" : "bg-white border-black/5 focus:border-black/20"}`}
+                                                        />
+                                                        <button
+                                                            onClick={handleConfirmCreateTrackInline}
+                                                            className="px-4 py-2 bg-blue-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest"
+                                                        >
+                                                            Crear
+                                                        </button>
+                                                        <button
+                                                            onClick={() => setIsCreatingTrackInline(false)}
+                                                            className={`p-2 rounded-xl ${isDark ? "hover:bg-white/5" : "hover:bg-black/5"}`}
+                                                        >
+                                                            <X size={14} />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <button
+                                                    onClick={() => {
+                                                        setIsCreatingTrackInline(true);
+                                                        setInlineTrackName(movingVersion.name.replace(/\.(flp|zip)$/i, ""));
+                                                    }}
+                                                    className={`flex items-center gap-3 px-5 py-3 rounded-xl border border-dashed transition-all ${isDark ? "bg-blue-600/10 border-blue-500/30 text-blue-400 hover:bg-blue-600/20" : "bg-blue-50 border-blue-200 text-blue-600"}`}
+                                                >
+                                                    <Plus size={14} />
+                                                    <span className="text-[10px] font-black uppercase tracking-widest">Nueva Track en esta Colección</span>
+                                                </button>
+                                            )}
                                         </div>
-                                    </div>
-                                ))}
+                                    </>
+                                )}
                             </div>
-                            <button onClick={() => setMovingVersion(null)} className={`w-full py-3 rounded-xl text-[9px] font-black uppercase tracking-widest ${isDark ? "bg-white/5 hover:bg-white/10" : "bg-black/5"}`}>Cancelar</button>
+                            <button onClick={() => { setMovingVersion(null); setMovingToAlbumId(null); setIsCreatingTrackInline(false); setInlineTrackName(""); }} className={`w-full py-3 rounded-xl text-[9px] font-black uppercase tracking-widest ${isDark ? "bg-white/5 hover:bg-white/10" : "bg-black/5"}`}>Cancelar</button>
+                        </div>
+                    </div>
+                )
+            }
+
+            {
+                pickingVersionForTrackId && (
+                    <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[999] flex items-center justify-center p-6">
+                        <div className={`max-w-md w-full max-h-[85vh] p-8 rounded-[2.5rem] border shadow-2xl flex flex-col ${isDark ? "bg-wv-sidebar border-white/10" : "bg-white border-black/10"}`}>
+                            <div className="text-center mb-6">
+                                <Plus size={24} className="text-blue-500 mx-auto mb-3" />
+                                <h2 className="text-lg font-black tracking-tight">Vincular Proyecto</h2>
+                                <p className="text-[10px] text-wv-gray font-bold uppercase tracking-widest mt-1">Selecciona un archivo raw para {db.albums.flatMap(a => a.tracks).find(t => t.id === pickingVersionForTrackId)?.name}</p>
+                            </div>
+
+                            <div className="mb-4 relative group">
+                                <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-wv-gray opacity-30 group-focus-within:opacity-100 transition-opacity" />
+                                <input
+                                    type="text"
+                                    placeholder="Buscar por nombre..."
+                                    value={linkSearch}
+                                    onChange={(e) => setLinkSearch(e.target.value)}
+                                    autoFocus
+                                    className={`w-full pl-10 pr-4 py-3 rounded-xl border text-xs font-bold outline-none transition-all ${isDark ? "bg-white/5 border-white/5 focus:border-blue-500/50" : "bg-black/5 border-black/5 focus:border-black/20"}`}
+                                />
+                                {linkSearch && (
+                                    <button onClick={() => setLinkSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-wv-gray hover:text-white transition-colors">
+                                        <X size={14} />
+                                    </button>
+                                )}
+                            </div>
+
+                            <div className="flex-1 overflow-y-auto min-h-0 space-y-2 pr-1 mb-6 projects-scroll">
+                                {db.allVersions
+                                    .filter(v => v.isUnorganized === 1)
+                                    .filter(v => !linkSearch || v.name.toLowerCase().includes(linkSearch.toLowerCase()))
+                                    .map(version => (
+                                        <button
+                                            key={version.id}
+                                            onClick={() => {
+                                                handleMoveToTrack(pickingVersionForTrackId, version.id);
+                                                setLinkSearch("");
+                                            }}
+                                            className={`w-full flex items-center gap-3 px-5 py-3 rounded-xl border transition-all ${isDark ? "bg-white/5 border-white/5 hover:bg-blue-600 text-white" : "bg-black/5 hover:bg-black/10"}`}
+                                        >
+                                            <div className={`p-1.5 rounded-lg ${version.type === 'flp' ? 'bg-orange-500/10 text-orange-500' : 'bg-blue-500/10 text-blue-500'}`}>
+                                                <Layout size={14} />
+                                            </div>
+                                            <div className="text-left min-w-0">
+                                                <p className="text-[10px] font-black uppercase truncate">{version.name}</p>
+                                                <p className="text-[8px] text-wv-gray font-bold uppercase tracking-widest">{version.workspaceName || 'Raw'}</p>
+                                            </div>
+                                        </button>
+                                    ))
+                                }
+                                {db.allVersions.filter(v => v.isUnorganized === 1).filter(v => !linkSearch || v.name.toLowerCase().includes(linkSearch.toLowerCase())).length === 0 && (
+                                    <div className="text-center py-10 opacity-30 border border-dashed border-white/10 rounded-2xl">
+                                        <p className="text-[10px] font-black uppercase tracking-widest">No se encontraron resultados</p>
+                                    </div>
+                                )}
+                            </div>
+                            <button onClick={() => { setPickingVersionForTrackId(null); setLinkSearch(""); }} className={`w-full py-3 rounded-xl text-[9px] font-black uppercase tracking-widest ${isDark ? "bg-white/5 hover:bg-white/10" : "bg-black/5"}`}>Cancelar</button>
                         </div>
                     </div>
                 )

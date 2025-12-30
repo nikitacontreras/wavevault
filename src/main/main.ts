@@ -1,4 +1,4 @@
-import { app, BrowserWindow, globalShortcut, ipcMain, clipboard, dialog, shell, Menu, Notification } from "electron";
+import { app, BrowserWindow, globalShortcut, ipcMain, clipboard, dialog, shell, Menu, Notification, Tray, nativeImage } from "electron";
 import { autoUpdater } from "electron-updater";
 import path from "node:path";
 
@@ -118,6 +118,8 @@ import { TargetFormat, Bitrate } from "./types";
 
 let win: BrowserWindow;
 let spotlightWin: BrowserWindow | null = null;
+let tray: Tray | null = null;
+let isQuitting = false;
 
 
 function createWindow() {
@@ -158,6 +160,61 @@ function createWindow() {
 
     win.loadFile(rendererPath);
     // win.webContents.openDevTools(); // Optional: debug
+
+    win.on('close', (event) => {
+        if (!isQuitting && config.minimizeToTray) {
+            event.preventDefault();
+            win.hide();
+            return false;
+        }
+    });
+}
+
+function createTray() {
+    if (tray) return;
+
+    const inDist = __dirname.includes(path.sep + 'dist' + path.sep) || __dirname.endsWith(path.sep + 'dist');
+    const isDev = !inDist;
+    const iconPath = isDev
+        ? path.join(__dirname, "../../icon.png")
+        : path.join(process.resourcesPath, "icon.png");
+
+    // Fallback if the path above fails in some production environments
+    const finalIconPath = fs.existsSync(iconPath) ? iconPath : path.join(__dirname, "icon.png");
+
+    const icon = nativeImage.createFromPath(finalIconPath).resize({ width: 16, height: 16 });
+    tray = new Tray(icon);
+
+    const contextMenu = Menu.buildFromTemplate([
+        { label: 'Mostrar WaveVault', click: () => win?.show() },
+        { type: 'separator' },
+        {
+            label: 'Salir de WaveVault',
+            click: async () => {
+                const choice = await dialog.showMessageBox({
+                    type: 'question',
+                    buttons: ['Cancelar', 'Salir'],
+                    title: 'Confirmación',
+                    message: '¿Estás seguro de que quieres cerrar WaveVault por completo?',
+                    defaultId: 1,
+                    cancelId: 0
+                });
+                if (choice.response === 1) {
+                    isQuitting = true;
+                    app.quit();
+                }
+            }
+        }
+    ]);
+
+    tray.setToolTip('WaveVault');
+    tray.setContextMenu(contextMenu);
+
+    tray.on('click', () => {
+        if (win) {
+            win.isVisible() ? win.hide() : win.show();
+        }
+    });
 }
 
 function registerShortcuts() {
@@ -411,6 +468,7 @@ function setupAutoUpdater() {
 app.whenReady().then(() => {
     createWindow();
     registerShortcuts();
+    createTray();
     setupAutoUpdater();
 
     app.on("activate", () => {

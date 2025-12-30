@@ -20,7 +20,14 @@ async function getPythonCommand() {
 function getYtDlpBinary() {
     const isWin = process.platform === 'win32';
     const binName = isWin ? 'yt-dlp.exe' : 'yt-dlp';
-    return path.join(__dirname, "../../node_modules/yt-dlp-exec/bin", binName);
+    let binPath = path.join(__dirname, "../../node_modules/yt-dlp-exec/bin", binName);
+
+    // Fix for ASAR: If path is inside app.asar, point to app.asar.unpacked
+    if (binPath.includes("app.asar")) {
+        binPath = binPath.replace("app.asar", "app.asar.unpacked");
+    }
+
+    return binPath;
 }
 
 const YT_REGEX = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\//i;

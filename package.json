@@ -21,6 +21,11 @@
       "package.json"
     ],
     "asar": true,
+    "asarUnpack": [
+      "**/node_modules/yt-dlp-exec/bin/**",
+      "**/node_modules/ffmpeg-static/**",
+      "**/node_modules/ffprobe-static/**"
+    ],
     "publish": {
       "provider": "github",
       "owner": "nikitacontreras",

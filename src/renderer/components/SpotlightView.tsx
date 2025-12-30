@@ -262,19 +262,20 @@ export const SpotlightView: React.FC<SpotlightViewProps> = ({ theme = 'dark' }) 
                                         {download.title}
                                     </h4>
                                     <div className="flex items-center gap-2">
-                                        <>
-                                            <Loader2 size={10} className={`animate-spin ${isDark ? "text-white/40" : "text-black/40"}`} />
-                                            <span className={`text-[9px] ${isDark ? "text-white/40" : "text-black/40"}`}>
-                                                {download.state.msg || "Descargando..."}
-                                            </span>
-                                            <button
-                                                onClick={() => cancelDownload(download.url)}
-                                                className="ml-2 hover:text-red-500 transition-colors"
-                                                title="Cancelar descarga"
-                                            >
-                                                <X size={10} />
-                                            </button>
-                                        </>
+                                        {download.state.status === 'loading' && (
+                                            <>
+                                                <Loader2 size={10} className={`animate-spin ${isDark ? "text-white/40" : "text-black/40"}`} />
+                                                <span className={`text-[9px] ${isDark ? "text-white/40" : "text-black/40"}`}>
+                                                    {download.state.msg || "Descargando..."}
+                                                </span>
+                                                <button
+                                                    onClick={() => cancelDownload(download.url)}
+                                                    className="ml-2 hover:text-red-500 transition-colors"
+                                                    title="Cancelar descarga"
+                                                >
+                                                    <X size={10} />
+                                                </button>
+                                            </>
                                         )}
                                         {download.state.status === 'success' && (
                                             <>

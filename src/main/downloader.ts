@@ -151,17 +151,6 @@ export async function getStreamUrl(url: string): Promise<string> {
     }
 }
 
-return { f, t: s.mtime.getTime() };
-            } catch { return undefined; }
-        })
-    );
-const validStats = stats.filter(s => s !== undefined) as { f: string, t: number }[];
-if (validStats.length === 0) throw new Error("No file downloaded");
-
-const latest = validStats.sort((a, b) => b.t - a.t)[0].f;
-return path.join(outDir, latest);
-}
-
 // Updated signatures to accept signal
 async function downloadBestAudio(url: string, outDir: string, signal?: AbortSignal): Promise<string> {
     await fs.mkdir(outDir, { recursive: true });
@@ -182,7 +171,7 @@ async function downloadBestAudio(url: string, outDir: string, signal?: AbortSign
         '--no-warnings',
         '--embed-thumbnail',
         '--add-metadata'
-    ], { signal });
+    ], { signal } as any);
 
     // ... (rest of logic same) ...
     const files = await fs.readdir(outDir);
@@ -200,6 +189,43 @@ async function downloadBestAudio(url: string, outDir: string, signal?: AbortSign
 
     const latest = validStats.sort((a, b) => b.t - a.t)[0].f;
     return path.join(outDir, latest);
+}
+
+async function downloadCover(url?: string, outDir?: string): Promise<string | undefined> {
+    if (!url) return;
+    try {
+        const r = await axios.get(url, { responseType: "arraybuffer" });
+        const coverPath = path.join(outDir ?? process.cwd(), `cover_${Date.now()}.jpg`);
+        await fs.writeFile(coverPath, Buffer.from(r.data));
+        return coverPath;
+    } catch (e) {
+        return undefined;
+    }
+}
+
+// Helper function to create safe filename
+function toSafeFilename(s: string): string {
+    const invalidChars = /[<>"\/\\|?*\x00-\x1F]/g;
+    const controlChars = /[\x00-\x1F\x7F]/g;
+
+    return s
+        .replace(invalidChars, "_")
+        .replace(controlChars, "")
+        .slice(0, 180);
+}
+
+// Helper function to sanitize metadata for ffmpeg
+function sanitizeMetadata(s: string): string {
+    if (!s) return "";
+
+    // Replace problematic characters that cause issues with ffmpeg metadata
+    const problematicChars = /[=:\\]/g;
+    const controlChars = /[\x00-\x1F\x7F]/g;
+
+    return s
+        .replace(problematicChars, " ")
+        .replace(controlChars, "")
+        .trim();
 }
 
 async function convertWithFfmpeg(

@@ -1,3 +1,6 @@
+import { app } from "electron";
+import fs from "node:fs";
+import path from "node:path";
 import { ffmpegPath, ffprobeBinaryPath } from "./ffmpeg";
 
 export interface KeybindConfig {
@@ -13,6 +16,7 @@ export interface AppConfig {
     pythonPath: string | null;
     ffmpegPath: string | null;
     ffprobePath: string | null;
+    projectPaths: string[]; // Nuevo: Rutas de carpetas de proyectos DAW
     keybinds: KeybindConfig[];
 }
 
@@ -55,8 +59,33 @@ export const config: AppConfig = {
     pythonPath: null,
     ffmpegPath: null,
     ffprobePath: null,
+    projectPaths: [],
     keybinds: JSON.parse(JSON.stringify(DEFAULT_KEYBINDS))
 };
+
+const CONFIG_PATH = path.join(app.getPath("userData"), "config.json");
+
+export function saveConfig() {
+    try {
+        fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
+    } catch (e) {
+        console.error("Failed to save config:", e);
+    }
+}
+
+export function loadConfig() {
+    try {
+        if (fs.existsSync(CONFIG_PATH)) {
+            const data = JSON.parse(fs.readFileSync(CONFIG_PATH, "utf-8"));
+            Object.assign(config, data);
+        }
+    } catch (e) {
+        console.error("Failed to load config:", e);
+    }
+}
+
+// Initial load
+loadConfig();
 
 
 

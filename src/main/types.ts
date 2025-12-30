@@ -11,6 +11,7 @@ export interface DownloadJob {
     normalize: boolean;
     shortcut?: boolean;
     signal?: AbortSignal;
+    smartOrganize?: boolean;
 }
 
 export interface VideoMeta {

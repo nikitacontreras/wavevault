@@ -34,6 +34,8 @@ interface SettingsViewProps {
     audioDeviceId: string;
     setAudioDeviceId: (id: string) => void;
     theme: 'light' | 'dark';
+    smartOrganize: boolean;
+    setSmartOrganize: (val: boolean) => void;
 }
 
 
@@ -81,7 +83,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     spotlightShortcut, setSpotlightShortcut, clipboardShortcut, setClipboardShortcut,
     keybinds, updateKeybind, resetKeybinds,
     audioDeviceId, setAudioDeviceId,
-    theme
+    theme,
+    smartOrganize, setSmartOrganize
 }) => {
     const isDark = theme === 'dark';
     const [devices, setDevices] = React.useState<MediaDeviceInfo[]>([]);
@@ -248,7 +251,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         <label className="text-[9px] font-bold text-wv-gray uppercase tracking-widest flex items-center gap-2">
                             Directorio Destino
                         </label>
-                        <div className="flex gap-3">
+                        <div className="flex gap-3 mb-4">
                             <div className={`flex-1 border rounded-lg px-3 py-2 text-xs truncate ${isDark ? "bg-wv-bg border-white/5 text-white" : "bg-white border-black/[0.08] text-black"}`}>
                                 {outDir || "Música del Sistema"}
                             </div>
@@ -259,6 +262,23 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                 Cambiar
                             </button>
                         </div>
+
+                        <label className={`flex items-center gap-3 border p-2.5 rounded-lg cursor-pointer transition-all ${isDark ? "bg-white/5 border-white/5 hover:bg-white/10" : "bg-white border-black/[0.08] hover:bg-black/[0.02]"}`}>
+                            <input
+                                type="checkbox"
+                                className={`w-4 h-4 rounded border transition-all ${isDark ? "border-white/20 bg-wv-sidebar checked:bg-white" : "border-black/20 bg-white checked:bg-black"}`}
+                                checked={smartOrganize}
+                                onChange={e => setSmartOrganize(e.target.checked)}
+                            />
+
+                            <div className="flex flex-col">
+                                <span className={`text-[10px] font-bold uppercase tracking-tight flex items-center gap-2 ${isDark ? "text-white" : "text-black"}`}>
+                                    Organización Inteligente
+                                    <span className="text-[8px] bg-blue-500 text-white px-1.5 py-0.5 rounded-full">NEW</span>
+                                </span>
+                                <span className="text-[9px] text-wv-gray">Crear subcarpetas por Tonalidad (Camelot)</span>
+                            </div>
+                        </label>
 
                     </div>
                 </section>

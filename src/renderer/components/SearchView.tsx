@@ -17,6 +17,7 @@ interface SearchViewProps {
     playingUrl: string | null;
     isPreviewLoading: boolean;
     theme: 'light' | 'dark';
+    onStartDrag: () => void;
 }
 
 
@@ -33,7 +34,8 @@ export const SearchView: React.FC<SearchViewProps> = ({
     onTogglePreview,
     playingUrl,
     isPreviewLoading,
-    theme
+    theme,
+    onStartDrag
 }) => {
     const isDark = theme === 'dark';
 
@@ -96,6 +98,7 @@ export const SearchView: React.FC<SearchViewProps> = ({
                                     isPlaying={playingUrl === r.url}
                                     isPreviewLoading={isPreviewLoading}
                                     theme={theme}
+                                    onStartDrag={onStartDrag}
                                 />
 
                             );
@@ -106,7 +109,7 @@ export const SearchView: React.FC<SearchViewProps> = ({
                 {isSearching && results.length === 0 && (
                     <div className="flex flex-col items-center justify-center py-20">
                         <Loader2 className="animate-spin text-wv-gray opacity-30" size={40} />
-                        <p className="mt-4 font-bold uppercase tracking-widest text-[10px] text-wv-gray">Escaneando archivos...</p>
+                        <p className="mt-4 font-bold uppercase tracking-widest text-[10px] text-wv-gray">Buscando...</p>
                     </div>
                 )}
             </div>

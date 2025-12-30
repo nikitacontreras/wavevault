@@ -1,8 +1,8 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("api", {
-    download: (url: string, format: string, bitrate: string, sampleRate: string, normalize: boolean, outDir?: string) =>
-        ipcRenderer.invoke("download", url, format, bitrate, sampleRate, normalize, outDir),
+    download: (url: string, format: string, bitrate: string, sampleRate: string, normalize: boolean, outDir?: string, smartOrganize?: boolean) =>
+        ipcRenderer.invoke("download", url, format, bitrate, sampleRate, normalize, outDir, smartOrganize),
     search: (query: string) => ipcRenderer.invoke("search", query),
     getMeta: (url: string) => ipcRenderer.invoke("getMeta", url),
     getStreamUrl: (url: string) => ipcRenderer.invoke("getStreamUrl", url),
@@ -10,7 +10,7 @@ contextBridge.exposeInMainWorld("api", {
     openItem: (path: string) => ipcRenderer.invoke("show-item", path),
     trimAudio: (src: string, start: number, end: number) => ipcRenderer.invoke("trim-audio", src, start, end),
     checkDependencies: (manualPaths?: any) => ipcRenderer.invoke("check-dependencies", manualPaths),
-    pickFile: () => ipcRenderer.invoke("pick-file"),
+    pickFile: (filters?: any[]) => ipcRenderer.invoke("pick-file", filters),
     updateConfig: (config: any) => ipcRenderer.invoke("update-config", config),
     getKeybinds: () => ipcRenderer.invoke("get-keybinds"),
     resetKeybinds: () => ipcRenderer.invoke("reset-keybinds"),
@@ -30,12 +30,30 @@ contextBridge.exposeInMainWorld("api", {
     getAppVersion: () => ipcRenderer.invoke("get-app-version"),
     openExternal: (url: string) => ipcRenderer.invoke("open-external", url),
     getPlatformInfo: () => ipcRenderer.invoke("get-platform-info"),
+    startDrag: (filepath: string, iconpath?: string) => ipcRenderer.send("start-drag", filepath, iconpath),
 
     minimizeWindow: () => ipcRenderer.invoke("window-minimize"),
     toggleMaximizeWindow: () => ipcRenderer.invoke("window-toggle-maximize"),
     closeWindow: () => ipcRenderer.invoke("window-close"),
+
+    // Workspace Management
+    getWorkspaces: () => ipcRenderer.invoke("get-workspaces"),
+    addWorkspace: (name: string, path: string) => ipcRenderer.invoke("add-workspace", name, path),
+    removeWorkspace: (id: string) => ipcRenderer.invoke("remove-workspace", id),
+    scanProjects: () => ipcRenderer.invoke("scan-projects"),
+
+    getProjectDB: () => ipcRenderer.invoke("get-project-db"),
+    createAlbum: (name: string, artist: string) => ipcRenderer.invoke("create-album", name, artist),
+    updateAlbum: (albumId: string, updates: any) => ipcRenderer.invoke("update-album", albumId, updates),
+    deleteAlbum: (albumId: string) => ipcRenderer.invoke("delete-album", albumId),
+    createTrack: (name: string, albumId?: string) => ipcRenderer.invoke("create-track", name, albumId),
+    addProjectVersion: (trackId: string, filePath?: string) => ipcRenderer.invoke("add-project-version", trackId, filePath),
+    moveProjectVersion: (versionId: string, trackId: string) => ipcRenderer.invoke("move-project-version", versionId, trackId),
+    deleteTrack: (trackId: string) => ipcRenderer.invoke("delete-track", trackId),
+    deleteVersion: (versionId: string) => ipcRenderer.invoke("delete-version", versionId),
+    updateTrackMeta: (trackId: string, updates: any) => ipcRenderer.invoke("update-track-meta", trackId, updates),
+    detectDAWs: () => ipcRenderer.invoke("detect-daws"),
+    saveDAWPath: (daw: any) => ipcRenderer.invoke("save-daw-path", daw),
+    getDAWPaths: () => ipcRenderer.invoke("get-daw-paths"),
     platform: process.platform
-
-
-
 });

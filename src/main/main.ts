@@ -101,7 +101,9 @@ Menu.setApplicationMenu(isMac ? menu : null);
 
 import { processJob, searchYoutube, fetchMeta, getStreamUrl } from "./downloader";
 import { checkDependencies } from "./dependencies";
-import { config } from "./config";
+import { config, saveConfig, resetKeybinds } from "./config";
+import { scanProjects } from "./projects";
+import { getFullProjectDB, createAlbumDB, createTrackDB, moveVersionToTrackDB, updateTrackMetaDB, deleteTrackDB, updateAlbumDB, deleteAlbumDB, deleteVersionDB, setConfigDB, getConfigDB, getWorkspacesDB, addWorkspaceDB, removeWorkspaceDB } from "./db";
 
 
 // ...
@@ -434,7 +436,7 @@ function broadcastDownloadError(url: string, error: string) {
 }
 
 // IPC: procesar descarga desde UI
-ipcMain.handle("download", async (_evt: any, url: string, format: string, bitrate: string, sampleRate: string, normalize: boolean, outDir?: string) => {
+ipcMain.handle("download", async (_evt: any, url: string, format: string, bitrate: string, sampleRate: string, normalize: boolean, outDir?: string, smartOrganize?: boolean) => {
 
     const dir = outDir || app.getPath("music");
 
@@ -457,7 +459,8 @@ ipcMain.handle("download", async (_evt: any, url: string, format: string, bitrat
             bitrate: bitrate as any,
             sampleRate: sampleRate as any,
             normalize,
-            signal: controller.signal
+            signal: controller.signal,
+            smartOrganize // Pass the new flag
         });
 
         broadcastDownloadSuccess(url, result);
@@ -511,8 +514,11 @@ ipcMain.handle("pick-dir", async () => {
 });
 
 // Diálogo para elegir archivo (ejecutable)
-ipcMain.handle("pick-file", async () => {
-    const r = await dialog.showOpenDialog({ properties: ["openFile"] });
+ipcMain.handle("pick-file", async (_evt, filters: any[]) => {
+    const r = await dialog.showOpenDialog({
+        properties: ["openFile"],
+        filters: filters || []
+    });
     return r.canceled ? null : r.filePaths[0];
 });
 
@@ -547,6 +553,7 @@ ipcMain.handle("update-config", async (_evt: any, newConfig: Partial<typeof conf
         setupFfmpeg(config.ffmpegPath, config.ffprobePath);
     }
 
+    saveConfig();
     return true;
 });
 
@@ -599,6 +606,141 @@ ipcMain.handle("open-external", async (_evt, url) => {
     shell.openExternal(url);
 });
 
+ipcMain.handle("get-workspaces", () => {
+    return getWorkspacesDB();
+});
+
+ipcMain.handle("add-workspace", async (_evt, name: string, path: string) => {
+    const ws = addWorkspaceDB(name, path);
+    // Auto-scan after adding
+    await scanProjects(path, ws.id);
+    return ws;
+});
+
+ipcMain.handle("remove-workspace", (_evt, id: string) => {
+    return removeWorkspaceDB(id);
+});
+
+ipcMain.handle("scan-projects", async () => {
+    const workspaces = getWorkspacesDB();
+    const results = [];
+    for (const ws of workspaces) {
+        const projs = await scanProjects(ws.path, ws.id);
+        results.push(...projs);
+    }
+    return results;
+});
+
+ipcMain.handle("get-project-db", () => {
+    return getFullProjectDB();
+});
+
+ipcMain.handle("create-album", (_evt, name: string, artist: string) => {
+    return createAlbumDB(name, artist);
+});
+
+ipcMain.handle("create-track", (_evt, name: string, albumId: string) => {
+    return createTrackDB(name, albumId);
+});
+
+ipcMain.handle("add-project-version", async (_evt, trackId: string, filePath?: string) => {
+    // This handler is now mostly handled via Inbox -> Move, but keeping for direct adds if needed
+    // For now, let's just use it to pick and add to Inbox
+    if (!filePath) {
+        const picked = await dialog.showOpenDialog({
+            properties: ['openFile'],
+            filters: [{ name: 'FL Studio Projects', extensions: ['flp', 'zip'] }]
+        });
+        if (picked.canceled) return null;
+        filePath = picked.filePaths[0];
+    }
+    const { addToUnorganizedDB } = require("./db");
+    const stats = require("fs").statSync(filePath);
+    const version = {
+        id: "VER-" + stats.ino || Date.now().toString(),
+        name: require("path").basename(filePath),
+        path: filePath,
+        type: (require("path").extname(filePath).toLowerCase() === '.flp' ? 'flp' : 'zip') as any,
+        lastModified: stats.mtimeMs
+    };
+    addToUnorganizedDB(version);
+    return version;
+});
+
+ipcMain.handle("update-track-meta", (_evt, trackId: string, updates: any) => {
+    return updateTrackMetaDB(trackId, updates);
+});
+
+ipcMain.handle("move-project-version", (_evt, versionId: string, trackId: string) => {
+    return moveVersionToTrackDB(versionId, trackId);
+});
+
+ipcMain.handle("delete-track", (_evt, trackId: string) => {
+    return deleteTrackDB(trackId);
+});
+
+ipcMain.handle("update-album", (_evt, albumId: string, updates: any) => {
+    return updateAlbumDB(albumId, updates);
+});
+
+ipcMain.handle("delete-album", (_evt, albumId: string) => {
+    return deleteAlbumDB(albumId);
+});
+
+ipcMain.handle("delete-version", (_evt, versionId: string) => {
+    return deleteVersionDB(versionId);
+});
+
+ipcMain.handle("detect-daws", async () => {
+    const daws: { name: string, path: string, version: string }[] = [];
+    const isMac = process.platform === "darwin";
+
+    if (isMac) {
+        const appsDir = "/Applications";
+        try {
+            const files = require("fs").readdirSync(appsDir);
+            for (const file of files) {
+                if (file.toLowerCase().includes("fl studio")) {
+                    const fullPath = require("path").join(appsDir, file, "Contents/MacOS/FL Studio");
+                    if (require("fs").existsSync(fullPath)) {
+                        daws.push({ name: file.replace(".app", ""), path: fullPath, version: file.match(/\d+/)?.[0] || "Unknown" });
+                    }
+                }
+            }
+        } catch (e) { }
+    } else {
+        // Windows
+        const progFiles = process.env["ProgramFiles"] || "C:\\Program Files";
+        const ilDir = require("path").join(progFiles, "Image-Line");
+        try {
+            if (require("fs").existsSync(ilDir)) {
+                const versions = require("fs").readdirSync(ilDir);
+                for (const v of versions) {
+                    if (v.toLowerCase().includes("fl studio")) {
+                        const exePath = require("path").join(ilDir, v, "FL64.exe");
+                        if (require("fs").existsSync(exePath)) {
+                            daws.push({ name: v, path: exePath, version: v.match(/\d+/)?.[0] || "Unknown" });
+                        }
+                    }
+                }
+            }
+        } catch (e) { }
+    }
+    return daws;
+});
+
+ipcMain.handle("save-daw-path", (_evt, daw: any) => {
+    const db = require("./db").default;
+    db.prepare('INSERT OR REPLACE INTO daw_paths (id, name, path, version) VALUES (?, ?, ?, ?)').run(daw.path, daw.name, daw.path, daw.version);
+    return true;
+});
+
+ipcMain.handle("get-daw-paths", () => {
+    const db = require("./db").default;
+    return db.prepare('SELECT * FROM daw_paths').all();
+});
+
+
 ipcMain.handle("window-minimize", () => {
     if (win) win.minimize();
 });
@@ -615,6 +757,53 @@ ipcMain.handle("window-toggle-maximize", () => {
 
 ipcMain.handle("window-close", () => {
     if (win) win.close();
+});
+
+ipcMain.on("start-drag", (event, filepath: string, iconpath?: string) => {
+    if (!filepath) return;
+    const fs = require('fs');
+    const { nativeImage } = require('electron');
+    const path = require('path');
+
+    // Ensure absolute path
+    const absolutePath = path.isAbsolute(filepath) ? filepath : path.resolve(filepath);
+
+    if (!fs.existsSync(absolutePath)) {
+        broadcastStatus(false, `No se puede arrastrar: El archivo no existe en ${absolutePath}`);
+        return;
+    }
+
+    let finalIcon;
+    try {
+        if (iconpath && !iconpath.startsWith("http") && fs.existsSync(iconpath)) {
+            finalIcon = nativeImage.createFromPath(iconpath).resize({ height: 48 });
+        } else {
+            const appIconPath = path.join(__dirname, "../../icon.png");
+            if (fs.existsSync(appIconPath)) {
+                finalIcon = nativeImage.createFromPath(appIconPath).resize({ height: 48 });
+            } else {
+                finalIcon = nativeImage.createEmpty();
+            }
+        }
+    } catch (e) {
+        finalIcon = nativeImage.createEmpty();
+    }
+
+    event.sender.startDrag({
+        file: absolutePath,
+        icon: finalIcon
+    });
+});
+
+// Capture Global Main Process Errors
+process.on('uncaughtException', (error) => {
+    console.error('Uncaught Exception:', error);
+    broadcastStatus(false, `[Main Process Error] ${error.message}`);
+});
+
+process.on('unhandledRejection', (reason) => {
+    console.error('Unhandled Rejection:', reason);
+    broadcastStatus(false, `[Main Process Rejection] ${String(reason)}`);
 });
 
 ipcMain.handle("get-platform-info", () => {

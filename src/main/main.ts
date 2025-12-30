@@ -19,6 +19,19 @@ if (isMac) {
     });
 }
 
+function broadcastStatus(ok: boolean, message: string) {
+    const windows = BrowserWindow.getAllWindows();
+    const emoji = ok ? "✅ " : "❌ Error: ";
+    // Don't double-add emoji
+    const fullMessage = message.includes("✅") || message.includes("❌") ? message : `${emoji}${message}`;
+
+    windows.forEach(w => {
+        if (!w.isDestroyed()) {
+            w.webContents.send("status", { ok, message: fullMessage });
+        }
+    });
+}
+
 const template = [
     ...(isMac ? [{
         label: "WaveVault",
@@ -159,18 +172,6 @@ function registerShortcuts() {
 
 
 
-function broadcastStatus(ok: boolean, message: string) {
-    const windows = BrowserWindow.getAllWindows();
-    const emoji = ok ? "✅ " : "❌ Error: ";
-    // Don't double-add emoji
-    const fullMessage = message.includes("✅") || message.includes("❌") ? message : `${emoji}${message}`;
-
-    windows.forEach(w => {
-        if (!w.isDestroyed()) {
-            w.webContents.send("status", { ok, message: fullMessage });
-        }
-    });
-}
 
 function broadcastDownloadStarted(url: string, title: string) {
     const windows = BrowserWindow.getAllWindows();

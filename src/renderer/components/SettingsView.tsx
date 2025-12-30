@@ -306,36 +306,38 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </section>
 
 
-                <section className={`border rounded-2xl p-6 shadow-sm ${isDark ? "bg-black/20 border-white/[0.05]" : "bg-black/[0.02] border-black/[0.08]"}`}>
-                    <div className={`flex justify-between items-center mb-6 border-b pb-4 ${isDark ? "border-white/[0.05]" : "border-black/[0.08]"}`}>
-                        <div className="flex items-center gap-2 text-wv-gray">
-                            <Activity size={16} />
-                            <h3 className={`text-sm font-bold tracking-tight uppercase tracking-wider ${isDark ? "text-white/40" : "text-black/40"}`}>Actividad</h3>
+                {debugMode && (
+                    <section className={`border rounded-2xl p-6 shadow-sm ${isDark ? "bg-black/20 border-white/[0.05]" : "bg-black/[0.02] border-black/[0.08]"}`}>
+                        <div className={`flex justify-between items-center mb-6 border-b pb-4 ${isDark ? "border-white/[0.05]" : "border-black/[0.08]"}`}>
+                            <div className="flex items-center gap-2 text-wv-gray">
+                                <Activity size={16} />
+                                <h3 className={`text-sm font-bold tracking-tight uppercase tracking-wider ${isDark ? "text-white/40" : "text-black/40"}`}>Actividad</h3>
+                            </div>
+
+                            <button
+                                className="text-[9px] font-bold uppercase tracking-widest text-wv-gray hover:text-red-400 transition-colors"
+                                onClick={onClearLogs}
+                            >
+                                <Trash2 size={12} /> Limpiar
+                            </button>
                         </div>
 
-                        <button
-                            className="text-[9px] font-bold uppercase tracking-widest text-wv-gray hover:text-red-400 transition-colors"
-                            onClick={onClearLogs}
-                        >
-                            <Trash2 size={12} /> Limpiar
-                        </button>
-                    </div>
-
-                    <div className={`rounded-xl p-4 font-mono text-[10px] leading-relaxed border max-h-40 overflow-y-auto custom-scrollbar ${isDark ? "bg-black/20 border-white/[0.05]" : "bg-white border-black/[0.08]"}`}>
-                        {logs.length === 0 ? (
-                            <div className="text-center py-4 text-wv-gray italic opacity-30">
-                                Sin eventos
-                            </div>
-                        ) : (
-                            logs.map((log, i) => (
-                                <div key={i} className={`mb-2 flex gap-3 ${isDark ? "text-wv-gray" : "text-black/60"}`}>
-                                    <span className={`select-none ${isDark ? "text-white/20" : "text-black/20"}`}>[{new Date().toLocaleTimeString()}]</span>
-                                    <span>{log}</span>
+                        <div className={`rounded-xl p-4 font-mono text-[10px] leading-relaxed border max-h-40 overflow-y-auto custom-scrollbar ${isDark ? "bg-black/20 border-white/[0.05]" : "bg-white border-black/[0.08]"}`}>
+                            {logs.length === 0 ? (
+                                <div className="text-center py-4 text-wv-gray italic opacity-30">
+                                    Sin eventos
                                 </div>
-                            ))
-                        )}
-                    </div>
-                </section>
+                            ) : (
+                                logs.map((log, i) => (
+                                    <div key={i} className={`mb-2 flex gap-3 ${isDark ? "text-wv-gray" : "text-black/60"}`}>
+                                        <span className={`select-none ${isDark ? "text-white/20" : "text-black/20"}`}>[{new Date().toLocaleTimeString()}]</span>
+                                        <span>{log}</span>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </section>
+                )}
 
                 <section className={`border rounded-2xl p-6 overflow-hidden relative ${isDark ? "bg-wv-sidebar border-white/5" : "bg-white border-black/5 shadow-sm"}`}>
                     <div className="flex items-center justify-between gap-4">

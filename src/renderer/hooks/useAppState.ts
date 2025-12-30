@@ -243,16 +243,17 @@ export const useDebugMode = () => {
         return () => window.removeEventListener('keypress', handleKeyPress);
     }, []);
 
-    return { debugMode, setDebugMode };
+    return { debugMode, setDebugMode, keySequence };
 };
 
 export const useLogs = () => {
     const [logs, setLogs] = useState<string[]>([]);
 
     useEffect(() => {
-        window.api.onStatus((p) => {
-            setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${(p.ok ? "✅ " : "❌ ") + p.message}`]);
-        });
+        const handleStatus = (p: { ok: boolean, message: string }) => {
+            setLogs(prev => [...prev, `${p.message}`]);
+        };
+        window.api.onStatus(handleStatus);
     }, []);
 
     const addLog = (msg: string) => {

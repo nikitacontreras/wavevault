@@ -25,6 +25,41 @@ function getYtDlpBinary() {
     return binPath;
 }
 
+// Global helper for running yt-dlp with the right environment/python
+async function runYtDlp(args: string[], options: any = {}) {
+    const isWin = process.platform === 'win32';
+    const ytDlpBinary = getYtDlpBinary();
+    const configPython = getPythonPath();
+
+    if (isWin) {
+        // Windows binaries are standalone
+        return await execa(ytDlpBinary, args, options);
+    } else {
+        // Unix binaries/scripts need a compatible python interpreter
+        // Use the configured one or try to find a suitable one
+        let pythonPath = configPython;
+
+        // If it's just the default "python3", let's try to be a bit smarter
+        // but if the user SET it to something, we must use it.
+        console.log(`[runYtDlp] UID: ${Date.now()}`);
+        console.log(`[runYtDlp] Python Path: "${pythonPath}"`);
+        console.log(`[runYtDlp] Binary Path: "${ytDlpBinary}"`);
+
+        try {
+            return await execa(pythonPath, [ytDlpBinary, ...args], options);
+        } catch (e: any) {
+            // If the configured one failed and it wasn't the default "python3", 
+            // maybe we should try "python3" as fallback if they specifically pointed to a non-existent one?
+            // Actually, let's just throw but with a better message if it's a python version issue.
+            if (e.stderr?.includes("unsupported version of Python") && pythonPath !== "python3") {
+                console.warn(`[runYtDlp] Configured python ${pythonPath} failed with version error. Trying fallback "python3"`);
+                return await execa("python3", [ytDlpBinary, ...args], options);
+            }
+            throw e;
+        }
+    }
+}
+
 const YT_REGEX = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\//i;
 const YT_ID_REGEX = /^[a-zA-Z0-9_-]{11}$/;
 
@@ -74,8 +109,7 @@ export async function searchYoutube(query: string): Promise<SearchResult[]> {
     if (!query) return [];
 
     try {
-        const ytDlpBinary = getYtDlpBinary();
-        const { stdout } = await execa(ytDlpBinary, [
+        const { stdout } = await runYtDlp([
             `ytsearch10:${query}`,
             "--dump-json",
             "--no-playlist",
@@ -102,8 +136,7 @@ export async function searchYoutube(query: string): Promise<SearchResult[]> {
 
 export async function fetchMeta(url: string): Promise<VideoMeta> {
     try {
-        const ytDlpBinary = getYtDlpBinary();
-        const { stdout } = await execa(ytDlpBinary, [
+        const { stdout } = await runYtDlp([
             url,
             "--dump-json",
             "--no-playlist",
@@ -130,11 +163,10 @@ export async function fetchMeta(url: string): Promise<VideoMeta> {
 
 export async function getStreamUrl(url: string): Promise<string> {
     try {
-        const ytDlpBinary = getYtDlpBinary();
-        const { stdout } = await execa(ytDlpBinary, [
-            "--get-url",
-            "-f", "bestaudio",
+        const { stdout } = await runYtDlp([
             url,
+            "-g",
+            "-f", "bestaudio/best",
             "--no-check-certificate",
             "--no-warnings"
         ]);
@@ -155,17 +187,15 @@ async function downloadBestAudio(url: string, outDir: string, signal?: AbortSign
 
     // Use a unique temp filename to avoid collision with final output
     const outputTemplate = path.join(outDir, `temp_${Date.now()}_%(id)s.%(ext)s`);
-    const ytDlpBinary = getYtDlpBinary();
-
     // Use --print filepath to get the exact final absolute path
-    const { stdout } = await execa(ytDlpBinary, [
+    const { stdout } = await runYtDlp([
         url,
         '-f', 'bestaudio/best',
         '-o', outputTemplate,
         '--no-check-certificate',
         '--no-warnings',
         '--print', 'after_move:filepath' // Get exact final path after all moves
-    ], { signal } as any);
+    ], { signal });
 
     const fullPath = stdout.trim().split('\n').pop()?.trim();
     if (!fullPath) throw new Error("Could not determine downloaded filename");

@@ -35,9 +35,13 @@ contextBridge.exposeInMainWorld("api", {
     minimizeWindow: () => ipcRenderer.invoke("window-minimize"),
     toggleMaximizeWindow: () => ipcRenderer.invoke("window-toggle-maximize"),
     closeWindow: () => ipcRenderer.invoke("window-close"),
-    getProjects: () => ipcRenderer.invoke("get-projects"),
-    addProjectPath: (path: string) => ipcRenderer.invoke("add-project-path", path),
-    removeProjectPath: (path: string) => ipcRenderer.invoke("remove-project-path", path),
+
+    // Workspace Management
+    getWorkspaces: () => ipcRenderer.invoke("get-workspaces"),
+    addWorkspace: (name: string, path: string) => ipcRenderer.invoke("add-workspace", name, path),
+    removeWorkspace: (id: string) => ipcRenderer.invoke("remove-workspace", id),
+    scanProjects: () => ipcRenderer.invoke("scan-projects"),
+
     getProjectDB: () => ipcRenderer.invoke("get-project-db"),
     createAlbum: (name: string, artist: string) => ipcRenderer.invoke("create-album", name, artist),
     updateAlbum: (albumId: string, updates: any) => ipcRenderer.invoke("update-album", albumId, updates),

@@ -1,7 +1,7 @@
 import { app } from "electron";
 import fs from "node:fs";
 import path from "node:path";
-import { ffmpegPath, ffprobeBinaryPath } from "./ffmpeg";
+import { ffmpegBinaryPath, ffprobeBinaryPath } from "./ffmpeg";
 
 export interface KeybindConfig {
     id: string;
@@ -16,8 +16,9 @@ export interface AppConfig {
     pythonPath: string | null;
     ffmpegPath: string | null;
     ffprobePath: string | null;
-    projectPaths: string[]; // Nuevo: Rutas de carpetas de proyectos DAW
+    projectPaths: string[];
     keybinds: KeybindConfig[];
+    minimizeToTray: boolean;
 }
 
 export const DEFAULT_KEYBINDS: KeybindConfig[] = [
@@ -60,7 +61,8 @@ export const config: AppConfig = {
     ffmpegPath: null,
     ffprobePath: null,
     projectPaths: [],
-    keybinds: JSON.parse(JSON.stringify(DEFAULT_KEYBINDS))
+    keybinds: JSON.parse(JSON.stringify(DEFAULT_KEYBINDS)),
+    minimizeToTray: true
 };
 
 const CONFIG_PATH = path.join(app.getPath("userData"), "config.json");
@@ -94,7 +96,7 @@ export function getPythonPath(): string {
 }
 
 export function getFFmpegPath(): string {
-    return config.ffmpegPath || (ffmpegPath as string);
+    return config.ffmpegPath || (ffmpegBinaryPath as string);
 }
 
 export function getFFprobePath(): string {

@@ -36,6 +36,8 @@ interface SettingsViewProps {
     theme: 'light' | 'dark';
     smartOrganize: boolean;
     setSmartOrganize: (val: boolean) => void;
+    minimizeToTray: boolean;
+    setMinimizeToTray: (val: boolean) => void;
 }
 
 
@@ -84,7 +86,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     keybinds, updateKeybind, resetKeybinds,
     audioDeviceId, setAudioDeviceId,
     theme,
-    smartOrganize, setSmartOrganize
+    smartOrganize, setSmartOrganize,
+    minimizeToTray, setMinimizeToTray
 }) => {
     const isDark = theme === 'dark';
     const [devices, setDevices] = React.useState<MediaDeviceInfo[]>([]);
@@ -358,6 +361,49 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         </div>
                     </section>
                 )}
+
+                <div className={`p-6 rounded-2xl border ${isDark ? "bg-wv-sidebar border-white/5" : "bg-white border-black/[0.08]"}`}>
+                    <div className="flex items-center gap-3 mb-6">
+                        <Waves size={18} className="text-wv-gray" />
+                        <h3 className="text-xs font-black uppercase tracking-widest leading-none">Organización y Sistema</h3>
+                    </div>
+
+                    <div className="space-y-6">
+                        <label className="flex items-center justify-between cursor-pointer group">
+                            <div className="flex flex-col gap-1">
+                                <span className={`text-[11px] font-bold uppercase tracking-wider ${isDark ? "text-white" : "text-black"}`}>Organización Inteligente</span>
+                                <span className="text-[9px] text-wv-gray uppercase font-medium tracking-widest opacity-60">Crear carpetas por BPM/Key automáticamente</span>
+                            </div>
+                            <div className="relative">
+                                <input
+                                    type="checkbox"
+                                    className="sr-only"
+                                    checked={smartOrganize}
+                                    onChange={(e) => setSmartOrganize(e.target.checked)}
+                                />
+                                <div className={`w-10 h-6 rounded-full transition-colors ${smartOrganize ? "bg-blue-600" : (isDark ? "bg-white/10" : "bg-black/10")}`} />
+                                <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${smartOrganize ? "translate-x-4" : ""}`} />
+                            </div>
+                        </label>
+
+                        <label className="flex items-center justify-between cursor-pointer group">
+                            <div className="flex flex-col gap-1">
+                                <span className={`text-[11px] font-bold uppercase tracking-wider ${isDark ? "text-white" : "text-black"}`}>Minimizar al Tray</span>
+                                <span className="text-[9px] text-wv-gray uppercase font-medium tracking-widest opacity-60">Seguir funcionando en segundo plano al cerrar</span>
+                            </div>
+                            <div className="relative">
+                                <input
+                                    type="checkbox"
+                                    className="sr-only"
+                                    checked={minimizeToTray}
+                                    onChange={(e) => setMinimizeToTray(e.target.checked)}
+                                />
+                                <div className={`w-10 h-6 rounded-full transition-colors ${minimizeToTray ? "bg-blue-600" : (isDark ? "bg-white/10" : "bg-black/10")}`} />
+                                <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${minimizeToTray ? "translate-x-4" : ""}`} />
+                            </div>
+                        </label>
+                    </div>
+                </div>
 
                 <section className={`border rounded-2xl p-6 overflow-hidden relative ${isDark ? "bg-wv-sidebar border-white/5" : "bg-white border-black/5 shadow-sm"}`}>
                     <div className="flex items-center justify-between gap-4">

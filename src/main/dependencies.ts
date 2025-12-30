@@ -1,7 +1,7 @@
 import { exec } from "child_process";
 import { promisify } from "util";
 import fs from "fs";
-import { ffmpegPath, ffprobeBinaryPath } from "./ffmpeg";
+import { ffmpegBinaryPath, ffprobeBinaryPath } from "./ffmpeg";
 
 const execAsync = promisify(exec);
 
@@ -37,7 +37,7 @@ export async function checkDependencies(manualPaths?: { python?: string; ffmpeg?
     }
 
     // Check FFmpeg
-    const fPath = manualPaths?.ffmpeg || (ffmpegPath as string);
+    const fPath = manualPaths?.ffmpeg || (ffmpegBinaryPath as string);
     try {
         if (manualPaths?.ffmpeg) {
             await execAsync(`${fPath} -version`);

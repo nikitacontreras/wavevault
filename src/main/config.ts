@@ -1,7 +1,7 @@
 import { app } from "electron";
 import fs from "node:fs";
 import path from "node:path";
-import { ffmpegPath, ffprobeBinaryPath } from "./ffmpeg";
+import { ffmpegBinaryPath, ffprobeBinaryPath } from "./ffmpeg";
 
 export interface KeybindConfig {
     id: string;
@@ -96,7 +96,7 @@ export function getPythonPath(): string {
 }
 
 export function getFFmpegPath(): string {
-    return config.ffmpegPath || (ffmpegPath as string);
+    return config.ffmpegPath || (ffmpegBinaryPath as string);
 }
 
 export function getFFprobePath(): string {

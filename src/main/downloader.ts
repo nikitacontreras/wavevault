@@ -16,11 +16,12 @@ async function getPythonCommand() {
     return pythonPath;
 }
 
-// Helper function to get yt-dlp path
-function getYtDlpPath() {
-    return ytDlp;
+// Helper function to get yt-dlp path correctly
+function getYtDlpBinary() {
+    const isWin = process.platform === 'win32';
+    const binName = isWin ? 'yt-dlp.exe' : 'yt-dlp';
+    return path.join(__dirname, "../../node_modules/yt-dlp-exec/bin", binName);
 }
-
 
 const YT_REGEX = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\//i;
 const YT_ID_REGEX = /^[a-zA-Z0-9_-]{11}$/;
@@ -71,10 +72,8 @@ export async function searchYoutube(query: string): Promise<SearchResult[]> {
     if (!query) return [];
 
     try {
-        const pythonCmd = await getPythonCommand();
-        const ytDlpBinary = path.join(__dirname, "../../node_modules/yt-dlp-exec/bin/yt-dlp");
-        const { stdout } = await execa(pythonCmd, [
-            ytDlpBinary,
+        const ytDlpBinary = getYtDlpBinary();
+        const { stdout } = await execa(ytDlpBinary, [
             `ytsearch10:${query}`,
             "--dump-json",
             "--no-playlist",
@@ -92,18 +91,17 @@ export async function searchYoutube(query: string): Promise<SearchResult[]> {
             duration: e.duration_string ?? "0:00",
             url: `https://www.youtube.com/watch?v=${e.id}`
         }));
-    } catch (e) {
+    } catch (e: any) {
         console.error("Search failed:", e);
-        return [];
+        // Throw semantic error for UI log
+        throw new Error(e.stderr || e.stdout || e.message || "Unknown error during search");
     }
 }
 
 export async function fetchMeta(url: string): Promise<VideoMeta> {
     try {
-        const pythonCmd = await getPythonCommand();
-        const ytDlpBinary = path.join(__dirname, "../../node_modules/yt-dlp-exec/bin/yt-dlp");
-        const { stdout } = await execa(pythonCmd, [
-            ytDlpBinary,
+        const ytDlpBinary = getYtDlpBinary();
+        const { stdout } = await execa(ytDlpBinary, [
             url,
             "--dump-json",
             "--no-playlist",
@@ -122,27 +120,16 @@ export async function fetchMeta(url: string): Promise<VideoMeta> {
             thumbnail: info.thumbnail ?? `https://i.ytimg.com/vi/${info.id}/mqdefault.jpg`,
             duration: info.duration
         };
-    } catch (e) {
-        console.error("Search failed:", e);
-        return {
-            id: "",
-            title: "Error",
-            uploader: "Error",
-            channel: "Error",
-            upload_date: "",
-            description: "",
-            thumbnail: "",
-            duration: 0
-        };
+    } catch (e: any) {
+        console.error("Meta fetch failed:", e);
+        throw new Error(e.stderr || e.stdout || e.message || "Unknown error fetching metadata");
     }
 }
 
 export async function getStreamUrl(url: string): Promise<string> {
     try {
-        const pythonCmd = await getPythonCommand();
-        const ytDlpBinary = path.join(__dirname, "../../node_modules/yt-dlp-exec/bin/yt-dlp");
-        const { stdout } = await execa(pythonCmd, [
-            ytDlpBinary,
+        const ytDlpBinary = getYtDlpBinary();
+        const { stdout } = await execa(ytDlpBinary, [
             "--get-url",
             "-f", "bestaudio",
             url,
@@ -164,10 +151,8 @@ async function downloadBestAudio(url: string, outDir: string): Promise<string> {
     // Output template: outDir/%(id)s.%(ext)s - Usar template compatible
     const outputTemplate = path.join(outDir, "%(title)s.%(ext)s");
 
-    const pythonCmd = await getPythonCommand();
-    const ytDlpBinary = path.join(__dirname, "../../node_modules/yt-dlp-exec/bin/yt-dlp");
-    await execa(pythonCmd, [
-        ytDlpBinary,
+    const ytDlpBinary = getYtDlpBinary();
+    await execa(ytDlpBinary, [
         url,
         '--extract-audio',
         '--audio-format', 'mp3',

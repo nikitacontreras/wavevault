@@ -125,7 +125,8 @@ export const App: React.FC = () => {
         sidebarCollapsed, setSidebarCollapsed,
         audioDeviceId, setAudioDeviceId,
         theme, setTheme,
-        smartOrganize, setSmartOrganize
+        smartOrganize, setSmartOrganize,
+        minimizeToTray, setMinimizeToTray
     } = settings;
 
     const isDark = theme === 'dark';

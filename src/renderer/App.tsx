@@ -9,7 +9,7 @@ import { TitleBar } from "./components/TitleBar";
 import { useSettings, useHistory, useDebugMode, useLogs, useItemStates, useActiveDownloads } from "./hooks/useAppState";
 import "./App.css";
 import { SearchResult, HistoryItem } from "./types";
-import { Play, Pause, Volume2, X, Music2, Loader2, Music } from "lucide-react";
+import { Play, Pause, Volume2, X, Music2, Loader2, Music, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { SpotlightView } from "./components/SpotlightView";
 import { ActiveDownloads } from "./components/ActiveDownloads";
 import { CursorTrail } from "./components/CursorTrail";
@@ -52,6 +52,21 @@ declare global {
             updateConfig: (config: any) => Promise<boolean>;
             getKeybinds: () => Promise<any[]>;
             resetKeybinds: () => Promise<any[]>;
+
+            // Workspace Management
+            getWorkspaces: () => Promise<any[]>;
+            addWorkspace: (name: string, path: string) => Promise<any>;
+            removeWorkspace: (id: string) => Promise<boolean>;
+            scanProjects: () => Promise<any[]>;
+            getProjectDB: () => Promise<any>;
+            createAlbum: (name: string, artist: string) => Promise<any>;
+            createTrack: (name: string, albumId: string) => Promise<any>;
+            moveProjectVersion: (versionId: string, trackId: string) => Promise<boolean>;
+            updateTrackMeta: (trackId: string, updates: any) => Promise<boolean>;
+            deleteTrack: (trackId: string) => Promise<boolean>;
+            updateAlbum: (albumId: string, updates: any) => Promise<boolean>;
+            deleteAlbum: (albumId: string) => Promise<boolean>;
+            deleteVersion: (versionId: string) => Promise<boolean>;
 
             checkDependencies: (manualPaths?: { python?: string, ffmpeg?: string, ffprobe?: string }) => Promise<{ python: boolean, ffmpeg: boolean, ffprobe: boolean }>;
             closeSpotlight: () => Promise<void>;
@@ -461,13 +476,23 @@ export const App: React.FC = () => {
                     <header className={`px-8 py-4 border-b flex justify-between items-center backdrop-blur-md z-20 transition-all ${isDark ? "bg-wv-bg/80 border-white/5" : "bg-white/80 border-black/5"}`}>
 
 
-                        <div className="flex flex-col">
-                            <h1 className="text-lg font-bold tracking-tight">
-                                {view === 'search' && "Buscar"}
-                                {view === 'library' && "Librería"}
-                                {view === 'projects' && "Gestor de Proyectos"}
-                                {view === 'settings' && "Configuración"}
-                            </h1>
+                        <div className="flex items-center gap-4">
+                            <button
+                                type="button"
+                                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                                className={`p-1.5 rounded-lg transition-colors ${isDark ? "hover:bg-white/5 text-wv-gray hover:text-white" : "hover:bg-black/5 text-black/40 hover:text-black"}`}
+                            >
+                                {sidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+                            </button>
+
+                            <div className="flex flex-col">
+                                <h1 className="text-lg font-bold tracking-tight">
+                                    {view === 'search' && "Buscar"}
+                                    {view === 'library' && "Librería"}
+                                    {view === 'projects' && "Gestor de Proyectos"}
+                                    {view === 'settings' && "Configuración"}
+                                </h1>
+                            </div>
                         </div>
                         {/* <div className="flex items-center gap-6">
                             <div className="flex flex-col items-end">

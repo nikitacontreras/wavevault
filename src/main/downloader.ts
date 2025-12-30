@@ -11,11 +11,6 @@ import { analyzeBPM, analyzeKey, getDuration } from "./audio-analysis";
 import { getPythonPath, getFFmpegPath } from "./config";
 
 // Helper function to get Python command
-async function getPythonCommand() {
-    const pythonPath = await getPythonPath();
-    return pythonPath;
-}
-
 // Helper function to get yt-dlp path correctly
 function getYtDlpBinary() {
     const isWin = process.platform === 'win32';
@@ -79,10 +74,8 @@ export async function searchYoutube(query: string): Promise<SearchResult[]> {
     if (!query) return [];
 
     try {
-        const pythonCmd = await getPythonCommand();
         const ytDlpBinary = getYtDlpBinary();
-        const { stdout } = await execa(pythonCmd, [
-            ytDlpBinary,
+        const { stdout } = await execa(ytDlpBinary, [
             `ytsearch10:${query}`,
             "--dump-json",
             "--no-playlist",
@@ -109,10 +102,8 @@ export async function searchYoutube(query: string): Promise<SearchResult[]> {
 
 export async function fetchMeta(url: string): Promise<VideoMeta> {
     try {
-        const pythonCmd = await getPythonCommand();
         const ytDlpBinary = getYtDlpBinary();
-        const { stdout } = await execa(pythonCmd, [
-            ytDlpBinary,
+        const { stdout } = await execa(ytDlpBinary, [
             url,
             "--dump-json",
             "--no-playlist",
@@ -139,10 +130,8 @@ export async function fetchMeta(url: string): Promise<VideoMeta> {
 
 export async function getStreamUrl(url: string): Promise<string> {
     try {
-        const pythonCmd = await getPythonCommand();
         const ytDlpBinary = getYtDlpBinary();
-        const { stdout } = await execa(pythonCmd, [
-            ytDlpBinary,
+        const { stdout } = await execa(ytDlpBinary, [
             "--get-url",
             "-f", "bestaudio",
             url,
@@ -166,12 +155,10 @@ async function downloadBestAudio(url: string, outDir: string, signal?: AbortSign
 
     // Use a unique temp filename to avoid collision with final output
     const outputTemplate = path.join(outDir, `temp_${Date.now()}_%(id)s.%(ext)s`);
-    const pythonCmd = await getPythonCommand();
     const ytDlpBinary = getYtDlpBinary();
 
     // Use --print filepath to get the exact final absolute path
-    const { stdout } = await execa(pythonCmd, [
-        ytDlpBinary,
+    const { stdout } = await execa(ytDlpBinary, [
         url,
         '-f', 'bestaudio/best',
         '-o', outputTemplate,

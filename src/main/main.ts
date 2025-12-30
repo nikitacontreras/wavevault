@@ -1,6 +1,7 @@
 import { app, BrowserWindow, globalShortcut, ipcMain, clipboard, dialog, shell, Menu, Notification, Tray, nativeImage } from "electron";
 import { autoUpdater } from "electron-updater";
 import path from "node:path";
+import fs from "node:fs";
 
 
 process.title = "WaveVault";

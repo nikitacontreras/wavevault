@@ -47,12 +47,14 @@ export function initDB() {
         CREATE TABLE IF NOT EXISTS versions (
             id TEXT PRIMARY KEY,
             trackId TEXT,
+            workspaceId TEXT,
             name TEXT NOT NULL,
             path TEXT NOT NULL UNIQUE,
             type TEXT,
             lastModified INTEGER,
             isUnorganized INTEGER DEFAULT 0,
-            FOREIGN KEY(trackId) REFERENCES tracks(id) ON DELETE CASCADE
+            FOREIGN KEY(trackId) REFERENCES tracks(id) ON DELETE CASCADE,
+            FOREIGN KEY(workspaceId) REFERENCES workspaces(id) ON DELETE SET NULL
         )
     `).run();
 
@@ -79,6 +81,29 @@ export function initDB() {
             version TEXT
         )
     `).run();
+
+    // 7. Indexed Workspaces Table
+    db.prepare(`
+        CREATE TABLE IF NOT EXISTS workspaces (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            path TEXT NOT NULL UNIQUE,
+            createdAt INTEGER
+        )
+    `).run();
+
+    // --- MIGRATIONS ---
+    // Check if versions table has workspaceId column
+    const tableInfo = db.prepare("PRAGMA table_info(versions)").all() as any[];
+    const hasWorkspaceId = tableInfo.some(col => col.name === 'workspaceId');
+    if (!hasWorkspaceId) {
+        try {
+            db.prepare("ALTER TABLE versions ADD COLUMN workspaceId TEXT").run();
+            console.log("Database Migration: Added workspaceId to versions table.");
+        } catch (e) {
+            console.error("Migration failed:", e);
+        }
+    }
 }
 
 // Config Helpers
@@ -94,14 +119,21 @@ export function getConfigDB(key: string, defaultValue: any = null) {
 // Project Store Logic
 export function getFullProjectDB() {
     const albums = db.prepare('SELECT * FROM albums ORDER BY createdAt DESC').all() as any[];
-    const allVersions = db.prepare('SELECT * FROM versions ORDER BY lastModified DESC').all() as any[];
+
+    // Join versions with workspaces to get the name
+    const allVersions = db.prepare(`
+        SELECT v.*, w.name as workspaceName 
+        FROM versions v 
+        LEFT JOIN workspaces w ON v.workspaceId = w.id 
+        ORDER BY v.lastModified DESC
+    `).all() as any[];
 
     const result = {
         albums: albums.map(album => ({
             ...album,
             tracks: db.prepare('SELECT * FROM tracks WHERE albumId = ? ORDER BY createdAt DESC').all(album.id).map((track: any) => ({
                 ...track,
-                versions: db.prepare('SELECT * FROM versions WHERE trackId = ? ORDER BY lastModified DESC').all(track.id)
+                versions: allVersions.filter(v => v.trackId === track.id)
             }))
         })),
         allVersions
@@ -122,14 +154,17 @@ export function createTrackDB(name: string, albumId: string) {
     return { id, name, albumId };
 }
 
-export function addToUnorganizedDB(version: any) {
+export function addToUnorganizedDB(version: any, workspaceId?: string) {
     try {
         db.prepare(`
-            INSERT OR IGNORE INTO versions (id, name, path, type, lastModified, isUnorganized)
-            VALUES (?, ?, ?, ?, ?, 1)
-        `).run(version.id, version.name, version.path, version.type, version.lastModified);
+            INSERT INTO versions (id, name, path, type, lastModified, isUnorganized, workspaceId)
+            VALUES (?, ?, ?, ?, ?, 1, ?)
+            ON CONFLICT(path) DO UPDATE SET 
+                lastModified = excluded.lastModified,
+                workspaceId = COALESCE(excluded.workspaceId, versions.workspaceId)
+        `).run(version.id, version.name, version.path, version.type, version.lastModified, workspaceId || null);
     } catch (e) {
-        // Path might already exist
+        console.error("DB Error adding to unorganized:", e);
     }
 }
 
@@ -172,10 +207,23 @@ export function deleteAlbumDB(albumId: string) {
 }
 
 export function deleteVersionDB(versionId: string) {
-    // If it's unorganized, we just remove the entry. 
-    // If it's in a track, we could mark it as unorganized instead? 
-    // User asked for "eliminar", so let's delete the reference.
     db.prepare('DELETE FROM versions WHERE id = ?').run(versionId);
+    return true;
+}
+
+// Workspace Helpers
+export function getWorkspacesDB() {
+    return db.prepare('SELECT * FROM workspaces ORDER BY createdAt DESC').all() as any[];
+}
+
+export function addWorkspaceDB(name: string, path: string) {
+    const id = "WSP-" + Date.now();
+    db.prepare('INSERT INTO workspaces (id, name, path, createdAt) VALUES (?, ?, ?, ?)').run(id, name, path, Date.now());
+    return { id, name, path };
+}
+
+export function removeWorkspaceDB(id: string) {
+    db.prepare('DELETE FROM workspaces WHERE id = ?').run(id);
     return true;
 }
 

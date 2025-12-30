@@ -92,7 +92,10 @@ loadConfig();
 
 
 export function getPythonPath(): string {
-    return config.pythonPath || "python3";
+    if (config.pythonPath && config.pythonPath.trim().length > 0) {
+        return config.pythonPath;
+    }
+    return "python3";
 }
 
 export function getFFmpegPath(): string {

@@ -15,6 +15,7 @@ interface HistoryViewProps {
     playingUrl: string | null;
     isPreviewLoading: boolean;
     theme: 'light' | 'dark';
+    onStartDrag: () => void;
 }
 
 
@@ -28,7 +29,8 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
     onRemoveItem,
     playingUrl,
     isPreviewLoading,
-    theme
+    theme,
+    onStartDrag
 }) => {
     const isDark = theme === 'dark';
 
@@ -178,6 +180,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                                 draggable
                                 onDragStart={(e) => {
                                     e.preventDefault();
+                                    onStartDrag();
                                     window.api.startDrag(item.path, item.thumbnail);
                                 }}
                             >

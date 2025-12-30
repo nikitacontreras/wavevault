@@ -12,6 +12,7 @@ interface ResultCardProps {
     isPlaying: boolean;
     isPreviewLoading: boolean;
     theme: 'light' | 'dark';
+    onStartDrag: () => void;
 }
 
 
@@ -24,16 +25,27 @@ export const ResultCard: React.FC<ResultCardProps> = ({
     onTogglePreview,
     isPlaying,
     isPreviewLoading,
-    theme
+    theme,
+    onStartDrag
 }) => {
     const isDark = theme === 'dark';
     const isDownloading = state.status === 'loading';
     const isSuccess = state.status === 'success' || inHistory;
 
     return (
-        <div className={`rounded-2xl overflow-hidden transition-all group border ${isDark
-            ? "bg-wv-surface border-white/[0.05] hover:border-white/10"
-            : "bg-white border-black/[0.08] hover:border-black/20 shadow-sm hover:shadow-md"}`}>
+        <div
+            className={`rounded-2xl overflow-hidden transition-all group border ${isDark
+                ? "bg-wv-surface border-white/[0.05] hover:border-white/10"
+                : "bg-white border-black/[0.08] hover:border-black/20 shadow-sm hover:shadow-md"}`}
+            draggable={isSuccess}
+            onDragStart={(e) => {
+                if (isSuccess && state.path) {
+                    e.preventDefault();
+                    onStartDrag();
+                    (window as any).api.startDrag(state.path, result.thumbnail);
+                }
+            }}
+        >
             <button
                 type="button"
                 className="relative aspect-video overflow-hidden w-full p-0 border-0 bg-transparent cursor-pointer"

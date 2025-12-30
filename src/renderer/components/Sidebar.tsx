@@ -1,5 +1,5 @@
 import React from "react";
-import { Search, Folder, Settings, PanelLeftClose, PanelLeftOpen, Sun, Moon } from "lucide-react";
+import { Search, Folder, Layout, Settings, PanelLeftClose, PanelLeftOpen, Sun, Moon } from "lucide-react";
 
 interface SidebarProps {
     currentView: string;
@@ -66,6 +66,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     label="Librería"
                     active={currentView === "library"}
                     onClick={() => onViewChange("library")}
+                    isCollapsed={isCollapsed}
+                    theme={theme}
+                />
+                <NavItem
+                    icon={<Layout size={18} />}
+                    label="Proyectos"
+                    active={currentView === "projects"}
+                    onClick={() => onViewChange("projects")}
                     isCollapsed={isCollapsed}
                     theme={theme}
                 />

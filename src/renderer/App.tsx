@@ -4,6 +4,7 @@ import { Sidebar } from "./components/Sidebar";
 import { SearchView } from "./components/SearchView";
 import { HistoryView } from "./components/HistoryView";
 import { SettingsView } from "./components/SettingsView";
+import { ProjectsView } from "./components/ProjectsView";
 import { TitleBar } from "./components/TitleBar";
 import { useSettings, useHistory, useDebugMode, useLogs, useItemStates, useActiveDownloads } from "./hooks/useAppState";
 import "./App.css";
@@ -11,6 +12,7 @@ import { SearchResult, HistoryItem } from "./types";
 import { Play, Pause, Volume2, X, Music2, Loader2, Music } from "lucide-react";
 import { SpotlightView } from "./components/SpotlightView";
 import { ActiveDownloads } from "./components/ActiveDownloads";
+import { CursorTrail } from "./components/CursorTrail";
 
 
 
@@ -128,6 +130,7 @@ export const App: React.FC = () => {
     const { itemStates, updateItemState, resetItemStates } = useItemStates();
     const { activeDownloads, addSpotlightDownload, updateSpotlightDownload, removeSpotlightDownload, clearSpotlightDownloads } = useActiveDownloads();
     const [version, setVersion] = useState("...");
+    const [isDragging, setIsDragging] = useState(false);
 
     useEffect(() => {
         window.api.getAppVersion().then(setVersion);
@@ -140,6 +143,19 @@ export const App: React.FC = () => {
             document.documentElement.classList.remove('dark');
         }
     }, [theme]);
+
+    useEffect(() => {
+        const handleMouseUp = () => setIsDragging(false);
+        const handleMouseEnter = (e: MouseEvent) => {
+            if (e.buttons !== 1) setIsDragging(false);
+        };
+        window.addEventListener('mouseup', handleMouseUp);
+        window.addEventListener('mouseenter', handleMouseEnter);
+        return () => {
+            window.removeEventListener('mouseup', handleMouseUp);
+            window.removeEventListener('mouseenter', handleMouseEnter);
+        };
+    }, []);
 
 
     const handleTogglePreview = async (url: string) => {
@@ -239,7 +255,7 @@ export const App: React.FC = () => {
         setResults([]);
         resetItemStates();
         try {
-            if (query.match(/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\//)) {
+            if (query.match(/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be|soundcloud\.com)\//)) {
                 addLog("URL detectada. Obteniendo metadatos...");
                 try {
                     const meta: any = await window.api.getMeta(query);
@@ -376,6 +392,11 @@ export const App: React.FC = () => {
             addToHistory(newItem);
             addLog(`✅ Descarga completada: ${newItem.title}`);
         });
+
+        window.api.onDownloadError(({ url, error }) => {
+            updateSpotlightDownload(url, { status: 'error', msg: error });
+            addLog(`❌ Error en descarga: ${error}`);
+        });
     }, [format, sampleRate]);
 
 
@@ -398,7 +419,7 @@ export const App: React.FC = () => {
     return (
 
         <div id="app-root" className="flex flex-col h-screen w-screen transition-colors duration-300 overflow-hidden font-sans bg-wv-bg text-wv-text">
-
+            <CursorTrail isDragging={isDragging} />
             <TitleBar theme={theme} version={version} />
 
 
@@ -442,17 +463,18 @@ export const App: React.FC = () => {
 
                         <div className="flex flex-col">
                             <h1 className="text-lg font-bold tracking-tight">
-                                {view === 'search' && "Buscador de Sonidos"}
-                                {view === 'library' && "Librería Local"}
+                                {view === 'search' && "Buscar"}
+                                {view === 'library' && "Librería"}
+                                {view === 'projects' && "Gestor de Proyectos"}
                                 {view === 'settings' && "Configuración"}
                             </h1>
                         </div>
-                        <div className="flex items-center gap-6">
+                        {/* <div className="flex items-center gap-6">
                             <div className="flex flex-col items-end">
                                 <span className="text-[9px] font-bold text-wv-gray uppercase tracking-widest">Registros</span>
                                 <span className="text-xs font-bold tabular-nums">{history.length}</span>
                             </div>
-                        </div>
+                        </div> */}
                     </header>
 
                     <div className={`flex-1 flex flex-col min-h-0 ${isDark ? "bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.02),transparent_35%)]" : "bg-[radial-gradient(circle_at_top_right,rgba(0,0,0,0.02),transparent_35%)]"}`}>
@@ -473,6 +495,7 @@ export const App: React.FC = () => {
                                 playingUrl={playingUrl}
                                 isPreviewLoading={isPreviewLoading}
                                 theme={theme}
+                                onStartDrag={() => setIsDragging(true)}
                             />
 
                         )}
@@ -488,8 +511,12 @@ export const App: React.FC = () => {
                                 playingUrl={playingUrl}
                                 isPreviewLoading={isPreviewLoading}
                                 theme={theme}
+                                onStartDrag={() => setIsDragging(true)}
                             />
 
+                        )}
+                        {view === 'projects' && (
+                            <ProjectsView theme={theme} />
                         )}
                         {view === 'settings' && (
                             <SettingsView

@@ -12,6 +12,12 @@ const isMac = process.platform === 'darwin';
 // Read version from package.json
 const pkg = require(path.join(__dirname, "../../package.json"));
 
+if (!app.isPackaged) {
+    Object.defineProperty(app, 'getVersion', {
+        value: () => pkg.version
+    });
+}
+
 if (isMac) {
     app.setAboutPanelOptions({
         applicationName: "WaveVault",
@@ -324,23 +330,77 @@ function createSpotlightWindow() {
     });
 }
 
+let isManualCheck = false;
+
 function setupAutoUpdater() {
     if (!app.isPackaged) {
         autoUpdater.forceDevUpdateConfig = true;
     }
 
-    autoUpdater.checkForUpdatesAndNotify();
+    autoUpdater.autoDownload = false;
 
-    autoUpdater.on('update-available', () => {
-        broadcastStatus(true, "Nueva versión encontrada. Descargando...");
+    // Check on startup (silent)
+    autoUpdater.checkForUpdates().catch(e => console.error(e));
+
+    autoUpdater.on('checking-for-update', () => {
+        if (isManualCheck) broadcastStatus(true, "Buscando actualizaciones...");
+    });
+
+    autoUpdater.on('update-available', (info) => {
+        broadcastStatus(true, `Nueva versión encontrada: ${info.version}`);
+
+        dialog.showMessageBox({
+            type: 'info',
+            title: 'Actualización disponible',
+            message: `Hay una nueva versión disponible (${info.version}). ¿Quieres descargarla?`,
+            detail: "La descarga se realizará en segundo plano.",
+            buttons: ['Sí, descargar', 'No, gracias']
+        }).then((result) => {
+            if (result.response === 0) {
+                broadcastStatus(true, "Iniciando descarga de actualización...");
+                autoUpdater.downloadUpdate();
+            } else {
+                broadcastStatus(true, "Actualización cancelada por el usuario.");
+                isManualCheck = false;
+            }
+        });
+    });
+
+    autoUpdater.on('update-not-available', () => {
+        if (isManualCheck) {
+            dialog.showMessageBox({
+                type: 'info',
+                title: 'Sin actualizaciones',
+                message: 'WaveVault está actualizado.',
+                detail: `Versión actual: ${app.getVersion()}`
+            });
+            broadcastStatus(true, "El sistema está actualizado.");
+            isManualCheck = false;
+        }
     });
 
     autoUpdater.on('update-downloaded', () => {
-        broadcastStatus(true, "Actualización lista. Reinicia para aplicar.");
+        broadcastStatus(true, "Actualización descargada.");
+
+        dialog.showMessageBox({
+            type: 'question',
+            title: 'Actualización lista',
+            message: 'La actualización se ha descargado correctamente.',
+            detail: '¿Deseas reiniciar ahora para instalarla?',
+            buttons: ['Reiniciar y Actualizar', 'Más tarde']
+        }).then((result) => {
+            if (result.response === 0) {
+                autoUpdater.quitAndInstall();
+            }
+        });
     });
 
     autoUpdater.on('error', (err) => {
         console.error("Auto-updater error:", err);
+        if (isManualCheck) {
+            dialog.showErrorBox('Error de actualización', 'No se pudo verificar la actualización. Revisa tu conexión.');
+            isManualCheck = false;
+        }
         broadcastStatus(false, "Error al buscar actualizaciones.");
     });
 }
@@ -485,7 +545,8 @@ ipcMain.handle("reset-keybinds", () => {
 });
 
 ipcMain.handle("check-for-updates", async () => {
-    return await autoUpdater.checkForUpdatesAndNotify();
+    isManualCheck = true;
+    return await autoUpdater.checkForUpdates();
 });
 
 ipcMain.handle("get-app-version", () => {

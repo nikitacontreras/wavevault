@@ -56,6 +56,10 @@ declare global {
             getAppVersion: () => Promise<string>;
             openExternal: (url: string) => Promise<void>;
             getPlatformInfo: () => Promise<string>;
+            minimizeWindow: () => void;
+            toggleMaximizeWindow: () => void;
+            closeWindow: () => void;
+            platform: string;
         }
     }
 }

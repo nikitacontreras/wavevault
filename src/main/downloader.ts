@@ -79,8 +79,10 @@ export async function searchYoutube(query: string): Promise<SearchResult[]> {
     if (!query) return [];
 
     try {
+        const pythonCmd = await getPythonCommand();
         const ytDlpBinary = getYtDlpBinary();
-        const { stdout } = await execa(ytDlpBinary, [
+        const { stdout } = await execa(pythonCmd, [
+            ytDlpBinary,
             `ytsearch10:${query}`,
             "--dump-json",
             "--no-playlist",
@@ -107,8 +109,10 @@ export async function searchYoutube(query: string): Promise<SearchResult[]> {
 
 export async function fetchMeta(url: string): Promise<VideoMeta> {
     try {
+        const pythonCmd = await getPythonCommand();
         const ytDlpBinary = getYtDlpBinary();
-        const { stdout } = await execa(ytDlpBinary, [
+        const { stdout } = await execa(pythonCmd, [
+            ytDlpBinary,
             url,
             "--dump-json",
             "--no-playlist",
@@ -135,8 +139,10 @@ export async function fetchMeta(url: string): Promise<VideoMeta> {
 
 export async function getStreamUrl(url: string): Promise<string> {
     try {
+        const pythonCmd = await getPythonCommand();
         const ytDlpBinary = getYtDlpBinary();
-        const { stdout } = await execa(ytDlpBinary, [
+        const { stdout } = await execa(pythonCmd, [
+            ytDlpBinary,
             "--get-url",
             "-f", "bestaudio",
             url,
@@ -160,27 +166,22 @@ async function downloadBestAudio(url: string, outDir: string, signal?: AbortSign
 
     // Use a unique temp filename to avoid collision with final output
     const outputTemplate = path.join(outDir, `temp_${Date.now()}_%(id)s.%(ext)s`);
+    const pythonCmd = await getPythonCommand();
     const ytDlpBinary = getYtDlpBinary();
 
-    // Use --print filename to get the exact output path
-    const { stdout } = await execa(ytDlpBinary, [
+    // Use --print filepath to get the exact final absolute path
+    const { stdout } = await execa(pythonCmd, [
+        ytDlpBinary,
         url,
-        '--extract-audio',
-        '--audio-format', 'mp3',
         '-f', 'bestaudio/best',
         '-o', outputTemplate,
         '--no-check-certificate',
         '--no-warnings',
-        '--print', 'filename' // Critical: Get exact filename
+        '--print', 'after_move:filepath' // Get exact final path after all moves
     ], { signal } as any);
 
-    const filename = stdout.trim().split('\n').pop()?.trim(); // Handle potential multi-line output
-    if (!filename) throw new Error("Could not determine downloaded filename");
-
-    // Check if file exists (absolute path is printed?)
-    // yt-dlp prints the full path if -o is absolute, which outDir usually is.
-    // But let's verify.
-    const fullPath = path.isAbsolute(filename) ? filename : path.join(outDir, filename);
+    const fullPath = stdout.trim().split('\n').pop()?.trim();
+    if (!fullPath) throw new Error("Could not determine downloaded filename");
 
     // Verify file exists
     await fs.access(fullPath);

@@ -28,27 +28,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
             ${isDark ? "bg-wv-sidebar border-white/5" : "bg-wv-surface border-black/5"} 
             border-r flex flex-col transition-all duration-300 ease-in-out z-50
         `}>
-            <div className={`p-6 flex ${isCollapsed ? "flex-col items-center gap-6" : "justify-between items-center"}`}>
-                <div className={`flex items-center gap-3 ${isCollapsed ? "justify-center" : ""}`}>
-                    <img
-                        src={isDark ? "wavevault-white.svg" : "wavevault.svg"}
-                        className={`${isCollapsed ? "w-8 h-8" : "w-6 h-6"} object-contain`}
-                        alt="Logo"
-                    />
+            <div className={`p-6 flex items-center gap-3 ${isCollapsed ? "justify-center" : ""}`}>
+                <img
+                    src={isDark ? "wavevault-white.svg" : "wavevault.svg"}
+                    className={`${isCollapsed ? "w-8 h-8" : "w-6 h-6"} object-contain`}
+                    alt="Logo"
+                />
 
-                    {!isCollapsed && (
-                        <span className={`text-[11px] font-black uppercase tracking-[0.3em] ${isDark ? "text-white" : "text-black"}`}>
-                            WaveVault
-                        </span>
-                    )}
-                </div>
-                <button
-                    type="button"
-                    onClick={onToggle}
-                    className={`p-1.5 rounded-lg transition-colors ${isDark ? "hover:bg-white/5 text-wv-gray hover:text-white" : "hover:bg-black/5 text-black/40 hover:text-black"}`}
-                >
-                    {isCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
-                </button>
+                {!isCollapsed && (
+                    <span className={`text-[11px] font-black uppercase tracking-[0.3em] ${isDark ? "text-white" : "text-black"}`}>
+                        WaveVault
+                    </span>
+                )}
             </div>
 
 

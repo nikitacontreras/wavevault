@@ -48,6 +48,11 @@ export const useSettings = () => {
         return localStorage.getItem('smartOrganize') === 'true';
     });
 
+    const [minimizeToTray, setMinimizeToTray] = useState<boolean>(() => {
+        const stored = localStorage.getItem('minimizeToTray');
+        return stored === null ? true : stored === 'true';
+    });
+
 
 
 
@@ -106,7 +111,13 @@ export const useSettings = () => {
 
     useEffect(() => {
         localStorage.setItem('smartOrganize', smartOrganize.toString());
+        window.api.updateConfig({ smartOrganize });
     }, [smartOrganize]);
+
+    useEffect(() => {
+        localStorage.setItem('minimizeToTray', minimizeToTray.toString());
+        window.api.updateConfig({ minimizeToTray });
+    }, [minimizeToTray]);
 
 
 
@@ -191,7 +202,8 @@ export const useSettings = () => {
         sidebarCollapsed, setSidebarCollapsed,
         audioDeviceId, setAudioDeviceId,
         theme, setTheme,
-        smartOrganize, setSmartOrganize
+        smartOrganize, setSmartOrganize,
+        minimizeToTray, setMinimizeToTray
     };
 
 };

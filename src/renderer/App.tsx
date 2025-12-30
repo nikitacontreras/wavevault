@@ -569,6 +569,8 @@ export const App: React.FC = () => {
                                 theme={theme}
                                 smartOrganize={smartOrganize}
                                 setSmartOrganize={setSmartOrganize}
+                                minimizeToTray={minimizeToTray}
+                                setMinimizeToTray={setMinimizeToTray}
                             />
 
                         )}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 
-import { Search, Loader2, Music, CheckCircle2, AlertCircle } from "lucide-react";
+import { Search, Loader2, Music, CheckCircle2, AlertCircle, X } from "lucide-react";
 import { SearchResult } from "../types";
 
 // Importamos el hook de descargas activas (crearemos una implementación simple aquí)
@@ -31,6 +31,16 @@ const useSpotlightDownloads = () => {
                     setDownloads(prev => prev.filter(d => d.url !== url));
                 }, 3000);
             });
+
+            window.api.onDownloadError(({ url, error }) => {
+                setDownloads(prev =>
+                    prev.map(d =>
+                        d.url === url
+                            ? { ...d, state: { status: 'error', msg: error } }
+                            : d
+                    )
+                );
+            });
         }
     }, []);
 
@@ -52,11 +62,17 @@ const useSpotlightDownloads = () => {
         ]);
     }, []);
 
+    const cancelDownload = useCallback((url: string) => {
+        window.api.cancelDownload(url);
+        // Optimistically set to error/cancelled
+        setDownloads(prev => prev.filter(d => d.url !== url));
+    }, []);
+
     const clearDownloads = useCallback(() => {
         setDownloads([]);
     }, []);
 
-    return { downloads, addDownload, clearDownloads };
+    return { downloads, addDownload, cancelDownload, clearDownloads };
 };
 
 
@@ -72,7 +88,7 @@ export const SpotlightView: React.FC<SpotlightViewProps> = ({ theme = 'dark' }) 
     const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
     const [status, setStatus] = useState<{ type: 'idle' | 'success' | 'error', message: string }>({ type: 'idle', message: "" });
     const inputRef = useRef<HTMLInputElement>(null);
-    const { downloads, addDownload, clearDownloads } = useSpotlightDownloads();
+    const { downloads, addDownload, cancelDownload, clearDownloads } = useSpotlightDownloads();
 
     const isYoutubeUrl = (input: string) => {
         const trimmed = input.trim();
@@ -246,13 +262,19 @@ export const SpotlightView: React.FC<SpotlightViewProps> = ({ theme = 'dark' }) 
                                         {download.title}
                                     </h4>
                                     <div className="flex items-center gap-2">
-                                        {download.state.status === 'loading' && (
-                                            <>
-                                                <Loader2 size={10} className={`animate-spin ${isDark ? "text-white/40" : "text-black/40"}`} />
-                                                <span className={`text-[9px] ${isDark ? "text-white/40" : "text-black/40"}`}>
-                                                    {download.state.msg || "Descargando..."}
-                                                </span>
-                                            </>
+                                        <>
+                                            <Loader2 size={10} className={`animate-spin ${isDark ? "text-white/40" : "text-black/40"}`} />
+                                            <span className={`text-[9px] ${isDark ? "text-white/40" : "text-black/40"}`}>
+                                                {download.state.msg || "Descargando..."}
+                                            </span>
+                                            <button
+                                                onClick={() => cancelDownload(download.url)}
+                                                className="ml-2 hover:text-red-500 transition-colors"
+                                                title="Cancelar descarga"
+                                            >
+                                                <X size={10} />
+                                            </button>
+                                        </>
                                         )}
                                         {download.state.status === 'success' && (
                                             <>

@@ -84,6 +84,11 @@ export const useSettings = () => {
     }, [ffmpegPath]);
 
     useEffect(() => {
+        localStorage.setItem('ffprobePath', ffprobePath);
+        window.api.updateConfig({ ffprobePath: ffprobePath || null });
+    }, [ffprobePath]);
+
+    useEffect(() => {
         localStorage.setItem('sidebarCollapsed', sidebarCollapsed.toString());
     }, [sidebarCollapsed]);
 

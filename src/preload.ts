@@ -19,6 +19,9 @@ contextBridge.exposeInMainWorld("api", {
     onCommand: (cb: (val: string) => void) => ipcRenderer.on("command", (_evt: any, value: string) => cb(value)),
     onDownloadStarted: (cb: (val: any) => void) => ipcRenderer.on("download-started", (_evt: any, value: any) => cb(value)),
     onDownloadSuccess: (cb: (val: any) => void) => ipcRenderer.on("download-success", (_evt: any, value: any) => cb(value)),
+    onDownloadError: (cb: (val: any) => void) => ipcRenderer.on("download-error", (_evt: any, value: any) => cb(value)),
+
+    cancelDownload: (url: string) => ipcRenderer.invoke("cancel-download", url),
     closeSpotlight: () => ipcRenderer.invoke("close-spotlight"),
 
 

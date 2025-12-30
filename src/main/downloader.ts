@@ -151,14 +151,27 @@ export async function getStreamUrl(url: string): Promise<string> {
     }
 }
 
-async function downloadBestAudio(url: string, outDir: string): Promise<string> {
+return { f, t: s.mtime.getTime() };
+            } catch { return undefined; }
+        })
+    );
+const validStats = stats.filter(s => s !== undefined) as { f: string, t: number }[];
+if (validStats.length === 0) throw new Error("No file downloaded");
+
+const latest = validStats.sort((a, b) => b.t - a.t)[0].f;
+return path.join(outDir, latest);
+}
+
+// Updated signatures to accept signal
+async function downloadBestAudio(url: string, outDir: string, signal?: AbortSignal): Promise<string> {
     await fs.mkdir(outDir, { recursive: true });
 
-    // Manual execution
-    // Output template: outDir/%(id)s.%(ext)s - Usar template compatible
-    const outputTemplate = path.join(outDir, "%(title)s.%(ext)s");
+    // Check abort before starting
+    if (signal?.aborted) throw new Error("Aborted");
 
+    const outputTemplate = path.join(outDir, "%(title)s.%(ext)s");
     const ytDlpBinary = getYtDlpBinary();
+
     await execa(ytDlpBinary, [
         url,
         '--extract-audio',
@@ -169,9 +182,9 @@ async function downloadBestAudio(url: string, outDir: string): Promise<string> {
         '--no-warnings',
         '--embed-thumbnail',
         '--add-metadata'
-    ]);
+    ], { signal });
 
-    // yt-dlp imprime paths en stdout; para fiabilidad, listamos el fichero más reciente
+    // ... (rest of logic same) ...
     const files = await fs.readdir(outDir);
     const stats = await Promise.all(
         files.map(async f => {
@@ -181,50 +194,12 @@ async function downloadBestAudio(url: string, outDir: string): Promise<string> {
             } catch { return undefined; }
         })
     );
+
     const validStats = stats.filter(s => s !== undefined) as { f: string, t: number }[];
     if (validStats.length === 0) throw new Error("No file downloaded");
 
-    // Filtramos para evitar seleccionar ficheros antiguos si la descarga falló
-    // Pero asumiendo flujo limpio, el más nuevo es el correcto.
     const latest = validStats.sort((a, b) => b.t - a.t)[0].f;
     return path.join(outDir, latest);
-}
-
-async function downloadCover(url?: string, outDir?: string): Promise<string | undefined> {
-    if (!url) return;
-    try {
-        const r = await axios.get(url, { responseType: "arraybuffer" });
-        const coverPath = path.join(outDir ?? process.cwd(), `cover_${Date.now()}.jpg`);
-        await fs.writeFile(coverPath, Buffer.from(r.data));
-        return coverPath;
-    } catch (e) {
-        return undefined;
-    }
-}
-
-// Helper function to create safe filename
-function toSafeFilename(s: string): string {
-    const invalidChars = /[<>"\/\\|?*\x00-\x1F]/g;
-    const controlChars = /[\x00-\x1F\x7F]/g;
-
-    return s
-        .replace(invalidChars, "_")
-        .replace(controlChars, "")
-        .slice(0, 180);
-}
-
-// Helper function to sanitize metadata for ffmpeg
-function sanitizeMetadata(s: string): string {
-    if (!s) return "";
-
-    // Replace problematic characters that cause issues with ffmpeg metadata
-    const problematicChars = /[=:\\]/g;
-    const controlChars = /[\x00-\x1F\x7F]/g;
-
-    return s
-        .replace(problematicChars, " ")
-        .replace(controlChars, "")
-        .trim();
 }
 
 async function convertWithFfmpeg(
@@ -235,29 +210,19 @@ async function convertWithFfmpeg(
     fmt: TargetFormat = "mp3",
     bitrate: Bitrate = "192k",
     sampleRate: SampleRate = "44100",
-    normalize: boolean = false
+    normalize: boolean = false,
+    signal?: AbortSignal
 ): Promise<string> {
     await new Promise<void>((resolve, reject) => {
         let codec = "libmp3lame";
         let isLossless = false;
 
-        // Determine codec based on format
         if (fmt === "m4a") codec = "aac";
         else if (fmt === "ogg") codec = "libvorbis";
-        else if (fmt === "wav") {
-            codec = "pcm_s16le";
-            isLossless = true;
-        }
-        else if (fmt === "flac") {
-            codec = "flac";
-            isLossless = true;
-        }
-        else if (fmt === "aiff") {
-            codec = "pcm_s16be";
-            isLossless = true;
-        }
+        else if (fmt === "wav") { codec = "pcm_s16le"; isLossless = true; }
+        else if (fmt === "flac") { codec = "flac"; isLossless = true; }
+        else if (fmt === "aiff") { codec = "pcm_s16be"; isLossless = true; }
 
-        // Sanitize all metadata fields
         const safeTitle = sanitizeMetadata(meta.title ?? "");
         const safeArtist = sanitizeMetadata(meta.uploader ?? meta.channel ?? "");
         const safeAlbum = sanitizeMetadata(meta.channel ?? meta.uploader ?? "");
@@ -269,63 +234,44 @@ async function convertWithFfmpeg(
             .audioFrequency(parseInt(sampleRate))
             .addOutputOption("-vn");
 
-        if (normalize) {
-            cmd.audioFilters('loudnorm=I=-16:TP=-1.5:LRA=11');
+        if (normalize) cmd.audioFilters('loudnorm=I=-16:TP=-1.5:LRA=11');
+        if (!isLossless) cmd.audioBitrate(bitrate);
+
+        if (safeTitle) cmd.addOutputOption("-metadata", `title=${safeTitle}`);
+        if (safeArtist) cmd.addOutputOption("-metadata", `artist=${safeArtist}`);
+        if (safeAlbum) cmd.addOutputOption("-metadata", `album=${safeAlbum}`);
+        if (safeDate) cmd.addOutputOption("-metadata", `date=${safeDate}`);
+        if (safeComment) cmd.addOutputOption("-metadata", `comment=${safeComment}`);
+
+        // Handle Signal Abort
+        if (signal) {
+            signal.addEventListener('abort', () => {
+                cmd.kill('SIGKILL');
+                reject(new Error("Aborted"));
+            });
         }
 
-        // Only add bitrate for compressed formats
-        if (!isLossless) {
-            cmd.audioBitrate(bitrate);
-        }
-
-        // Add metadata individually to avoid escaping issues
-        if (safeTitle) {
-            cmd.addOutputOption("-metadata", `title=${safeTitle}`);
-        }
-        if (safeArtist) {
-            cmd.addOutputOption("-metadata", `artist=${safeArtist}`);
-        }
-        if (safeAlbum) {
-            cmd.addOutputOption("-metadata", `album=${safeAlbum}`);
-        }
-        if (safeDate) {
-            cmd.addOutputOption("-metadata", `date=${safeDate}`);
-        }
-        if (safeComment) {
-            cmd.addOutputOption("-metadata", `comment=${safeComment}`);
-        }
-
-        cmd.on("error", (err) => reject(err))
+        cmd.on("error", (err) => {
+            if (signal?.aborted) {
+                reject(new Error("Aborted"));
+            } else {
+                reject(err);
+            }
+        })
             .on("end", () => resolve());
 
         if (coverPath) {
             if (fmt === "mp3") {
-                cmd.input(coverPath)
-                    .addOutputOption("-map", "0:a")
-                    .addOutputOption("-map", "1:v")
-                    .addOutputOption("-id3v2_version", "3");
-            } else if (fmt === "m4a") {
-                cmd.input(coverPath)
-                    .addOutputOption("-map", "0:a")
-                    .addOutputOption("-map", "1:v")
-                    .addOutputOption("-disposition:v:0", "attached_pic")
-                    .addOutputOption("-metadata:s:v", "title=Album cover")
-                    .addOutputOption("-metadata:s:v", "comment=Cover (front)");
-            } else if (fmt === "flac") {
-                cmd.input(coverPath)
-                    .addOutputOption("-map", "0:a")
-                    .addOutputOption("-map", "1:v")
-                    .addOutputOption("-disposition:v:0", "attached_pic")
-                    .addOutputOption("-metadata:s:v", "title=Album cover")
-                    .addOutputOption("-metadata:s:v", "comment=Cover (front)");
+                cmd.input(coverPath).addOutputOption("-map", "0:a").addOutputOption("-map", "1:v").addOutputOption("-id3v2_version", "3");
+            } else if (fmt === "m4a" || fmt === "flac") {
+                cmd.input(coverPath).addOutputOption("-map", "0:a").addOutputOption("-map", "1:v").addOutputOption("-disposition:v:0", "attached_pic");
             }
-            // WAV and AIFF don't support embedded cover art natively
         }
         cmd.save(dest);
     });
 
-    // Add ID3 tags to MP3 (more compatible)
-    if (dest.endsWith(".mp3")) {
+    // ID3 Logic ...
+    if (dest.endsWith(".mp3") && !signal?.aborted) {
         const tags: NodeID3.Tags = {
             title: meta.title,
             artist: meta.uploader ?? meta.channel,
@@ -333,15 +279,12 @@ async function convertWithFfmpeg(
             year: meta.upload_date ? meta.upload_date.slice(0, 4) : undefined,
             comment: { language: "eng", text: meta.description?.substring(0, 512) ?? "" }
         };
-        if (coverPath) {
-            tags.image = coverPath;
-        }
+        if (coverPath) tags.image = coverPath;
         NodeID3.update(tags, dest);
     }
 
-    if (coverPath) {
-        fs.unlink(coverPath).catch(() => { });
-    }
+    // Cleanup
+    if (coverPath) fs.unlink(coverPath).catch(() => { });
     fs.unlink(src).catch(() => { });
 
     return dest;
@@ -355,23 +298,28 @@ export async function processJob(job: DownloadJob): Promise<{
     channel?: string,
     bpm?: number,
     key?: string,
-
-
     source?: string,
     description?: string,
     duration?: string
 }> {
     const url = normalizeUrl(job.url);
     const meta = await fetchMeta(url);
-    const rawPath = await downloadBestAudio(url, job.outDir);
-    const cover = await downloadCover(meta.thumbnail, job.outDir);
 
+    if (job.signal?.aborted) throw new Error("Aborted");
+
+    const rawPath = await downloadBestAudio(url, job.outDir, job.signal);
+
+    if (job.signal?.aborted) throw new Error("Aborted");
+
+    const cover = await downloadCover(meta.thumbnail, job.outDir);
     const baseName = toSafeFilename(`${meta.title} - ${meta.uploader ?? meta.channel ?? meta.id}`);
     const dest = `${path.join(job.outDir, baseName)}.${job.format}`;
 
-    await convertWithFfmpeg(rawPath, dest, meta, cover, job.format, job.bitrate, job.sampleRate, job.normalize);
+    await convertWithFfmpeg(rawPath, dest, meta, cover, job.format, job.bitrate, job.sampleRate, job.normalize, job.signal);
 
-    // Analyze BPM, Key and Duration after conversion
+    // Analysis
+    if (job.signal?.aborted) throw new Error("Aborted");
+
     const bpm = await analyzeBPM(dest);
     const key = await analyzeKey(dest);
     const duration = await getDuration(dest);
@@ -388,7 +336,6 @@ export async function processJob(job: DownloadJob): Promise<{
         description: meta.description,
         duration: duration || meta.duration?.toString()
     };
-
 }
 
 export async function trimAudio(

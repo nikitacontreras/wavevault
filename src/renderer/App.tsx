@@ -40,6 +40,8 @@ declare global {
             onCommand: (callback: (command: string) => void) => void;
             onDownloadStarted: (callback: (payload: { url: string, title: string }) => void) => void;
             onDownloadSuccess: (callback: (payload: { url: string, result: any }) => void) => void;
+            onDownloadError: (callback: (payload: { url: string, error: string }) => void) => void;
+            cancelDownload: (url: string) => void;
 
 
             openItem: (path: string) => void;

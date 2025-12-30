@@ -10,6 +10,7 @@ export interface DownloadJob {
     sampleRate: SampleRate;
     normalize: boolean;
     shortcut?: boolean;
+    signal?: AbortSignal;
 }
 
 export interface VideoMeta {

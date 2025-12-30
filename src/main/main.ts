@@ -421,14 +421,32 @@ app.on("will-quit", () => {
     globalShortcut.unregisterAll();
 });
 
+// Track active jobs for cancellation
+const activeJobs = new Map<string, AbortController>();
+
+function broadcastDownloadError(url: string, error: string) {
+    const windows = BrowserWindow.getAllWindows();
+    windows.forEach(w => {
+        if (!w.isDestroyed()) {
+            w.webContents.send("download-error", { url, error });
+        }
+    });
+}
+
 // IPC: procesar descarga desde UI
 ipcMain.handle("download", async (_evt: any, url: string, format: string, bitrate: string, sampleRate: string, normalize: boolean, outDir?: string) => {
 
     const dir = outDir || app.getPath("music");
 
+    const controller = new AbortController();
+    activeJobs.set(url, controller);
+
     try {
         // Try to get meta first to broadcast a nice title
         const meta = await fetchMeta(url);
+
+        if (controller.signal.aborted) throw new Error("Aborted");
+
         broadcastDownloadStarted(url, meta.title);
         broadcastStatus(true, `Iniciando descarga: ${meta.title}`);
 
@@ -438,7 +456,8 @@ ipcMain.handle("download", async (_evt: any, url: string, format: string, bitrat
             format: format as any,
             bitrate: bitrate as any,
             sampleRate: sampleRate as any,
-            normalize
+            normalize,
+            signal: controller.signal
         });
 
         broadcastDownloadSuccess(url, result);
@@ -446,8 +465,24 @@ ipcMain.handle("download", async (_evt: any, url: string, format: string, bitrat
 
         return result;
     } catch (e: any) {
-        broadcastStatus(false, e.message);
+        if (e.message === "Aborted") {
+            broadcastStatus(true, `Descarga cancelada: ${url}`);
+        } else {
+            console.error("Download error:", e);
+            broadcastStatus(false, e.message);
+            broadcastDownloadError(url, e.message);
+        }
         throw e;
+    } finally {
+        activeJobs.delete(url);
+    }
+});
+
+ipcMain.handle("cancel-download", (_evt, url) => {
+    const controller = activeJobs.get(url);
+    if (controller) {
+        controller.abort();
+        activeJobs.delete(url);
     }
 });
 
@@ -505,6 +540,13 @@ ipcMain.handle("update-config", async (_evt: any, newConfig: Partial<typeof conf
     }
 
     Object.assign(config, newConfig);
+
+    // Apply FFmpeg/Analyzer updates immediately
+    if (newConfig.ffmpegPath !== undefined || newConfig.ffprobePath !== undefined) {
+        const { setupFfmpeg } = require("./ffmpeg");
+        setupFfmpeg(config.ffmpegPath, config.ffprobePath);
+    }
+
     return true;
 });
 

@@ -16,8 +16,9 @@ export interface AppConfig {
     pythonPath: string | null;
     ffmpegPath: string | null;
     ffprobePath: string | null;
-    projectPaths: string[]; // Nuevo: Rutas de carpetas de proyectos DAW
+    projectPaths: string[];
     keybinds: KeybindConfig[];
+    minimizeToTray: boolean;
 }
 
 export const DEFAULT_KEYBINDS: KeybindConfig[] = [
@@ -60,7 +61,8 @@ export const config: AppConfig = {
     ffmpegPath: null,
     ffprobePath: null,
     projectPaths: [],
-    keybinds: JSON.parse(JSON.stringify(DEFAULT_KEYBINDS))
+    keybinds: JSON.parse(JSON.stringify(DEFAULT_KEYBINDS)),
+    minimizeToTray: true
 };
 
 const CONFIG_PATH = path.join(app.getPath("userData"), "config.json");

@@ -13,6 +13,7 @@ import { Play, Pause, Volume2, X, Music2, Loader2, Music, PanelLeftClose, PanelL
 import { SpotlightView } from "./components/SpotlightView";
 import { ActiveDownloads } from "./components/ActiveDownloads";
 import { CursorTrail } from "./components/CursorTrail";
+import "./i18n";
 
 
 
@@ -190,19 +191,23 @@ export const App: React.FC = () => {
             }
         } else {
             try {
+                // Set loading state and playing URL immediately so UI shows "loading" on the right card
+                setPlayingUrl(url);
+                setIsPreviewLoading(true);
+                setIsPlaying(false); // Reset playing while loading new one
+                addLog("Obteniendo stream para preview...");
+
                 let finalUrl = "";
                 if (url.startsWith('/') || url.includes(':\\')) {
                     finalUrl = `file://${url}`;
                 } else {
-                    addLog("Obteniendo stream para preview...");
-                    setIsPreviewLoading(true);
                     finalUrl = await window.api.getStreamUrl(url);
-                    setIsPreviewLoading(false);
                 }
 
-                setPlayingUrl(url);
                 setStreamUrl(finalUrl);
+                setIsPreviewLoading(false);
                 setIsPlaying(true);
+
                 if (trackInfo) {
                     setActiveTrack({
                         title: trackInfo.title,
@@ -211,6 +216,7 @@ export const App: React.FC = () => {
                     });
                 }
             } catch (e: any) {
+                setPlayingUrl(null);
                 setIsPreviewLoading(false);
                 addLog("Error al obtener preview: " + e.message);
             }
@@ -250,11 +256,12 @@ export const App: React.FC = () => {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [playingUrl, isPlaying]);
 
+    // Sync volume to audio element
     useEffect(() => {
         if (audioRef.current) {
             audioRef.current.volume = volume;
         }
-    }, [volume]);
+    }, [volume, streamUrl]);
 
     useEffect(() => {
         if (audioRef.current && (audioRef.current as any).setSinkId) {
@@ -641,6 +648,7 @@ export const App: React.FC = () => {
                                 ref={audioRef}
                                 src={streamUrl}
                                 autoPlay
+                                onLoadStart={(e) => { e.currentTarget.volume = volume; }}
                                 onEnded={() => { setPlayingUrl(null); setStreamUrl(null); setIsPlaying(false); setActiveTrack(null); }}
                                 onPlay={() => setIsPlaying(true)}
                                 onPause={() => setIsPlaying(false)}

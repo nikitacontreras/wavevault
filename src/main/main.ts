@@ -27,14 +27,10 @@ if (isMac) {
 }
 
 function broadcastStatus(ok: boolean, message: string) {
-    const windows = BrowserWindow.getAllWindows();
-    const emoji = ok ? "✅ " : "❌ Error: ";
-    // Don't double-add emoji
-    const fullMessage = message.includes("✅") || message.includes("❌") ? message : `${emoji}${message}`;
-
+    const windows = BrowserWindow.getAllWindows()
     windows.forEach(w => {
         if (!w.isDestroyed()) {
-            w.webContents.send("status", { ok, message: fullMessage });
+            w.webContents.send("status", { ok, message });
         }
     });
 }
@@ -55,50 +51,20 @@ const template = [
         ]
     }] : []),
     {
-        label: 'Edit',
+        label: "Edit",
         submenu: [
-            { role: 'undo' },
-            { role: 'redo' },
-            { type: 'separator' },
-            { role: 'cut' },
-            { role: 'copy' },
-            { role: 'paste' },
-            { role: 'selectAll' }
-        ]
-    },
-    {
-        label: 'View',
-        submenu: [
-            { role: 'reload' },
-            { role: 'forceReload' },
-            { role: 'toggleDevTools' },
-            { type: 'separator' },
-            { role: 'resetZoom' },
-            { role: 'zoomIn' },
-            { role: 'zoomOut' },
-            { type: 'separator' },
-            { role: 'togglefullscreen' }
-        ]
-    },
-    {
-        role: 'window',
-        submenu: [
-            { role: 'minimize' },
-            { role: 'zoom' },
-            ...(isMac ? [
-                { type: 'separator' },
-                { role: 'front' },
-                { type: 'separator' },
-                { role: 'window' }
-            ] : [
-                { role: 'close' }
-            ])
+            { role: "undo" },
+            { role: "redo" },
+            { type: "separator" },
+            { role: "cut" },
+            { role: "copy" },
+            { role: "paste" },
+            { role: "selectAll" }
         ]
     }
 ];
 
-const menu = Menu.buildFromTemplate(template as any);
-Menu.setApplicationMenu(isMac ? menu : null);
+
 
 import { processJob, searchYoutube, fetchMeta, getStreamUrl } from "./downloader";
 import { checkDependencies } from "./dependencies";
@@ -133,10 +99,28 @@ function createWindow() {
     if (isDev) {
         preloadPath = path.resolve(__dirname, "../../dist/preload.js");
         rendererPath = path.resolve(__dirname, "../../dist/renderer/index.html");
+
+        template.push({
+            label: 'debug',
+            submenu: [
+                { role: 'reload' },
+                { role: 'forceReload' },
+                { role: 'toggleDevTools' },
+                { type: 'separator' },
+                { role: 'resetZoom' },
+                { role: 'zoomIn' },
+                { role: 'zoomOut' },
+                { type: 'separator' },
+                { role: 'togglefullscreen' }
+            ]
+        })
     } else {
         preloadPath = path.resolve(__dirname, "../preload.js");
         rendererPath = path.resolve(__dirname, "../renderer/index.html");
     }
+
+    const menu = Menu.buildFromTemplate(template as any);
+    Menu.setApplicationMenu(isMac ? menu : null);
 
     console.log("Running in:", isDev ? "DEV" : "PROD");
     console.log("Preload:", preloadPath);

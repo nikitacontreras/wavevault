@@ -20,6 +20,8 @@ interface HistoryViewProps {
 
 
 
+import { useTranslation } from "react-i18next";
+
 export const HistoryView: React.FC<HistoryViewProps> = ({
     history,
     onClearHistory,
@@ -33,6 +35,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
     onStartDrag
 }) => {
     const isDark = theme === 'dark';
+    const { t } = useTranslation();
 
     const [searchTerm, setSearchTerm] = useState("");
     const [formatFilter, setFormatFilter] = useState("all");
@@ -69,7 +72,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                 <div>
                     <div className="flex items-center gap-2 text-wv-gray mb-1">
                         <Folder size={14} />
-                        <span className="text-[10px] font-bold uppercase tracking-widest">Tus samples</span>
+                        <span className="text-[10px] font-bold uppercase tracking-widest">{t('history.title')}</span>
                     </div>
                 </div>
                 {history.length > 0 && (
@@ -77,7 +80,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                         className="text-[10px] font-bold uppercase tracking-widest text-wv-gray hover:text-red-400 transition-colors"
                         onClick={onClearHistory}
                     >
-                        Limpiar Librería
+                        {t('history.clearHistory')}
                     </button>
                 )}
             </div>
@@ -88,12 +91,12 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                     <div className="space-y-4">
                         <div className="flex flex-col gap-1.5">
                             <label className="text-[9px] font-bold text-wv-gray uppercase tracking-widest flex items-center gap-2">
-                                <Search size={10} /> Buscar
+                                <Search size={10} /> {t('filters.search')}
                             </label>
                             <input
                                 type="text"
                                 className={`border rounded-lg px-3 py-2 text-xs outline-none transition-all ${isDark ? "bg-wv-bg border-white/5 text-white focus:border-white/20" : "bg-white border-black/[0.08] text-black focus:border-black/20"}`}
-                                placeholder="Título o artista..."
+                                placeholder={t('search.placeholder')}
                                 value={searchTerm}
                                 onChange={e => setSearchTerm(e.target.value)}
                             />
@@ -101,10 +104,10 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                         </div>
                         <div className="flex flex-col gap-1.5">
                             <label className="text-[9px] font-bold text-wv-gray uppercase tracking-widest flex items-center gap-2">
-                                <Filter size={10} /> Formato
+                                <Filter size={10} /> {t('common.format')}
                             </label>
                             <select className={`border rounded-lg px-3 py-2 text-xs outline-none transition-all h-[34px] ${isDark ? "bg-wv-bg border-white/5 text-white focus:border-white/20" : "bg-white border-black/[0.08] text-black focus:border-black/20"}`} value={formatFilter} onChange={e => setFormatFilter(e.target.value)}>
-                                <option value="all">Cualquiera</option>
+                                <option value="all">{t('common.any')}</option>
                                 <option value="mp3">MP3</option>
                                 <option value="wav">WAV</option>
                                 <option value="flac">FLAC</option>
@@ -116,16 +119,16 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                     <div className="space-y-4">
                         <div className="flex flex-col gap-1.5">
                             <label className="text-[9px] font-bold text-wv-gray uppercase tracking-widest flex items-center gap-2">
-                                <Tag size={10} /> Etiquetas
+                                <Tag size={10} /> {t('filters.tags')}
                             </label>
                             <input type="text" placeholder="Género, modo..." className={`border rounded-lg px-3 py-2 text-xs outline-none transition-all ${isDark ? "bg-wv-bg border-white/5 text-white focus:border-white/20" : "bg-white border-black/[0.08] text-black focus:border-black/20"}`} value={tagSearch} onChange={e => setTagSearch(e.target.value)} />
                         </div>
                         <div className="flex flex-col gap-1.5">
                             <label className="text-[9px] font-bold text-wv-gray uppercase tracking-widest flex items-center gap-2">
-                                <Folder size={10} /> Categoría
+                                <Folder size={10} /> {t('filters.category')}
                             </label>
                             <select className={`border rounded-lg px-3 py-2 text-xs outline-none transition-all h-[34px] ${isDark ? "bg-wv-bg border-white/5 text-white focus:border-white/20" : "bg-white border-black/[0.08] text-black focus:border-black/20"}`} value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}>
-                                <option value="all">Todas</option>
+                                <option value="all">{t('common.any')}</option>
                                 <option value="Loops">Loops</option>
                                 <option value="One-shote">One-shots</option>
                                 <option value="Vocals">Vocals</option>
@@ -136,7 +139,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
 
                     <div className="flex flex-col gap-1.5">
                         <label className="text-[9px] font-bold text-wv-gray uppercase tracking-widest flex items-center gap-2">
-                            <Music size={10} /> BPM
+                            <Music size={10} /> {t('filters.bpm')}
                         </label>
                         <div className="flex gap-2">
                             <input type="number" placeholder="Min" className={`w-1/2 border rounded-lg px-3 py-2 text-xs outline-none transition-all ${isDark ? "bg-wv-bg border-white/5 text-white focus:border-white/20" : "bg-white border-black/[0.08] text-black focus:border-black/20"}`} value={bpmMin} onChange={e => setBpmMin(e.target.value)} />
@@ -148,10 +151,10 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                     <div className="space-y-4">
                         <div className="flex flex-col gap-1.5">
                             <label className="text-[9px] font-bold text-wv-gray uppercase tracking-widest flex items-center gap-2">
-                                <Music size={10} /> Tonalidad
+                                <Music size={10} /> {t('filters.key')}
                             </label>
                             <select className={`border rounded-lg px-3 py-2 text-xs outline-none transition-all h-[34px] ${isDark ? "bg-wv-bg border-white/5 text-white focus:border-white/20" : "bg-white border-black/[0.08] text-black focus:border-black/20"}`} value={keyFilter} onChange={e => setKeyFilter(e.target.value)}>
-                                <option value="all">Cualquiera</option>
+                                <option value="all">{t('common.any')}</option>
                                 {["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"].flatMap(k => [
                                     <option key={`${k}maj`} value={`${k} Major`}>{k} Major</option>,
                                     <option key={`${k}min`} value={`${k} Minor`}>{k} Minor</option>
@@ -166,7 +169,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
             {filteredHistory.length === 0 ? (
                 <div className="py-20 flex flex-col items-center justify-center opacity-20">
                     <Music size={50} strokeWidth={1.5} className="text-wv-text" />
-                    <p className="mt-4 text-xs font-medium text-wv-text">No hay coincidencias en tu librería</p>
+                    <p className="mt-4 text-xs font-medium text-wv-text">{t('filters.noMatches')}</p>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-8">
@@ -233,14 +236,14 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                                             <button
                                                 className={`p-1 px-1.5 rounded-md transition-colors ${isDark ? "hover:bg-white/5 text-wv-gray hover:text-white" : "hover:bg-black/5 text-black/10 hover:text-black"}`}
                                                 onClick={(e) => { e.stopPropagation(); onOpenItem(item.path); }}
-                                                title="Abrir Carpeta"
+                                                title={t('common.openFolder')}
                                             >
                                                 <ExternalLink size={14} />
                                             </button>
                                             <button
                                                 className={`p-1 px-1.5 rounded-md transition-colors ${isDark ? "hover:bg-red-500/10 text-wv-gray hover:text-red-400" : "hover:bg-red-500/10 text-black/10 hover:text-red-500"}`}
                                                 onClick={(e) => { e.stopPropagation(); onRemoveItem(item.id); }}
-                                                title="Eliminar de la Librería"
+                                                title={t('common.remove')}
                                             >
                                                 <Trash2 size={14} />
                                             </button>

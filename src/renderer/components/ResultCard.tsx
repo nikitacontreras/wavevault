@@ -16,6 +16,8 @@ interface ResultCardProps {
 }
 
 
+import { useTranslation } from "react-i18next";
+
 export const ResultCard: React.FC<ResultCardProps> = ({
     result,
     state,
@@ -31,6 +33,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
     const isDark = theme === 'dark';
     const isDownloading = state.status === 'loading';
     const isSuccess = state.status === 'success' || inHistory;
+    const { t } = useTranslation();
 
     return (
         <div
@@ -81,7 +84,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
                                 : "bg-black/5 hover:bg-black/10 text-black"}`}
                             onClick={() => state.path && onOpenItem(state.path)}
                         >
-                            <FolderOpen size={14} /> Ver archivo
+                            <FolderOpen size={14} /> {t('search.openFile')}
                         </button>
                     ) : (
                         <button
@@ -93,9 +96,9 @@ export const ResultCard: React.FC<ResultCardProps> = ({
                             disabled={isDownloading}
                         >
                             {isDownloading ? (
-                                <><Loader2 className="animate-spin" size={14} /> Descargando</>
+                                <><Loader2 className="animate-spin" size={14} /> {t('search.downloading')}</>
                             ) : (
-                                <><Download size={14} /> Descargar</>
+                                <><Download size={14} /> {t('search.download')}</>
                             )}
                         </button>
                     )}

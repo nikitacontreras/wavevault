@@ -1,6 +1,8 @@
 import React from "react";
 import { Search, Folder, Layout, Settings, PanelLeftClose, PanelLeftOpen, Sun, Moon } from "lucide-react";
 
+import { useTranslation } from "react-i18next";
+
 interface SidebarProps {
     currentView: string;
     onViewChange: (view: string) => void;
@@ -21,6 +23,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     version
 }) => {
     const isDark = theme === 'dark';
+    const { t } = useTranslation();
 
     return (
         <aside className={`
@@ -46,7 +49,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <nav className={`flex flex-col gap-1.5 ${isCollapsed ? "px-3" : "px-4"}`}>
                 <NavItem
                     icon={<Search size={18} />}
-                    label="Buscar"
+                    label={t('sidebar.search')}
                     active={currentView === "search"}
                     onClick={() => onViewChange("search")}
                     isCollapsed={isCollapsed}
@@ -54,7 +57,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 />
                 <NavItem
                     icon={<Folder size={18} />}
-                    label="Librería"
+                    label={t('sidebar.library')}
                     active={currentView === "library"}
                     onClick={() => onViewChange("library")}
                     isCollapsed={isCollapsed}
@@ -62,7 +65,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 />
                 <NavItem
                     icon={<Layout size={18} />}
-                    label="Proyectos"
+                    label={t('sidebar.projects')}
                     active={currentView === "projects"}
                     onClick={() => onViewChange("projects")}
                     isCollapsed={isCollapsed}
@@ -70,7 +73,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 />
                 <NavItem
                     icon={<Settings size={18} />}
-                    label="Ajustes"
+                    label={t('sidebar.settings')}
                     active={currentView === "settings"}
                     onClick={() => onViewChange("settings")}
                     isCollapsed={isCollapsed}
@@ -88,12 +91,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             ? "text-wv-gray hover:bg-white/5 hover:text-white"
                             : "text-black/40 hover:bg-black/5 hover:text-black"}
                     `}
-                    title={isCollapsed ? (isDark ? "Modo Claro" : "Modo Oscuro") : undefined}
+                    title={isCollapsed ? (isDark ? t('sidebar.lightMode') : t('sidebar.darkMode')) : undefined}
                 >
                     {isDark ? <Sun size={18} /> : <Moon size={18} />}
                     {!isCollapsed && (
                         <span className="text-xs font-medium tracking-tight">
-                            {isDark ? "Modo Claro" : "Modo Oscuro"}
+                            {isDark ? t('sidebar.lightMode') : t('sidebar.darkMode')}
                         </span>
                     )}
                 </button>

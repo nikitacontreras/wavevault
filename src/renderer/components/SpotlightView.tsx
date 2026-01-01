@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 
 import { Search, Loader2, Music, CheckCircle2, AlertCircle, X } from "lucide-react";
 import { SearchResult } from "../types";
+import { useDownloadLogic } from "../hooks/useDownloadLogic";
 
 // Importamos el hook de descargas activas (crearemos una implementación simple aquí)
 const useSpotlightDownloads = () => {
@@ -80,6 +81,8 @@ interface SpotlightViewProps {
     theme?: 'light' | 'dark';
 }
 
+import { useTranslation } from "react-i18next";
+
 export const SpotlightView: React.FC<SpotlightViewProps> = ({ theme = 'dark' }) => {
     const isDark = theme === 'dark';
     const [url, setUrl] = useState("");
@@ -89,6 +92,8 @@ export const SpotlightView: React.FC<SpotlightViewProps> = ({ theme = 'dark' }) 
     const [status, setStatus] = useState<{ type: 'idle' | 'success' | 'error', message: string }>({ type: 'idle', message: "" });
     const inputRef = useRef<HTMLInputElement>(null);
     const { downloads, addDownload, cancelDownload, clearDownloads } = useSpotlightDownloads();
+    const { startDownload: performDownload } = useDownloadLogic();
+    const { t } = useTranslation();
 
     const isYoutubeUrl = (input: string) => {
         const trimmed = input.trim();
@@ -130,31 +135,37 @@ export const SpotlightView: React.FC<SpotlightViewProps> = ({ theme = 'dark' }) 
         (window as any).api.resizeSpotlight(height);
     }, [status, downloads, isSearching, searchResults]);
 
+
     const startDownload = async (targetUrl: string, title?: string) => {
         setIsLoading(true);
-        setStatus({ type: 'idle', message: "Iniciando descarga..." });
+        setStatus({ type: 'idle', message: t('spotlight.startDownload') });
+
+        const options = {
+            format: localStorage.getItem('format') || 'mp3',
+            bitrate: localStorage.getItem('bitrate') || '192k',
+            sampleRate: localStorage.getItem('sampleRate') || '44100',
+            normalize: localStorage.getItem('normalize') === 'true',
+            outDir: localStorage.getItem('outDir') || undefined,
+            smartOrganize: localStorage.getItem('smartOrganize') === 'true'
+        };
 
         try {
-            const format = localStorage.getItem('format') || 'mp3';
-            const bitrate = localStorage.getItem('bitrate') || '192k';
-            const sampleRate = localStorage.getItem('sampleRate') || '44100';
-            const normalize = localStorage.getItem('normalize') === 'true';
-            const outDir = localStorage.getItem('outDir') || undefined;
-
-            window.api.download(targetUrl, format, bitrate, sampleRate, normalize, outDir)
-                .catch((err: any) => console.error("Spotlight download error:", err));
-
-            setStatus({ type: 'success', message: `¡Enviado a descargas: ${title || targetUrl}!` });
-            setUrl("");
-            setSearchResults([]);
-
-            setTimeout(() => {
-                window.api.closeSpotlight();
-                setStatus({ type: 'idle', message: "" });
-            }, 3000);
-
-        } catch (error: any) {
-            setStatus({ type: 'error', message: error.message || "Error al procesar" });
+            await performDownload(targetUrl, options, {
+                onSuccess: () => {
+                    setStatus({ type: 'success', message: t('spotlight.successSent', { title: title || targetUrl }) });
+                    setUrl("");
+                    setSearchResults([]);
+                    setTimeout(() => {
+                        window.api.closeSpotlight();
+                        setStatus({ type: 'idle', message: "" });
+                    }, 3000);
+                },
+                onError: (err: any) => {
+                    setStatus({ type: 'error', message: err.message || t('spotlight.errorProcess') });
+                }
+            });
+        } catch (e) {
+            // Handled in onError
         } finally {
             setIsLoading(false);
         }
@@ -176,7 +187,7 @@ export const SpotlightView: React.FC<SpotlightViewProps> = ({ theme = 'dark' }) 
                 const results = await window.api.search(input);
                 setSearchResults(results.slice(0, 5));
             } catch (error) {
-                setStatus({ type: 'error', message: "Búsqueda fallida" });
+                setStatus({ type: 'error', message: t('spotlight.errorSearch') });
             } finally {
                 setIsSearching(false);
             }
@@ -199,14 +210,14 @@ export const SpotlightView: React.FC<SpotlightViewProps> = ({ theme = 'dark' }) 
                         ref={inputRef}
                         type="text"
                         className={`flex-1 bg-transparent border-none outline-none text-[15px] font-medium transition-colors ${isDark ? "text-white placeholder:text-white/20" : "text-black placeholder:text-black/20"}`}
-                        placeholder="Busca o pega una URL..."
+                        placeholder={t('spotlight.placeholder')}
                         value={url}
                         onChange={(e) => setUrl(e.target.value)}
                         disabled={isLoading || isSearching}
                     />
 
                     <div className={`text-[10px] font-bold px-2 py-1 rounded uppercase tracking-widest leading-none border transition-colors ${isDark ? "text-white/40 border-white/5 bg-white/5" : "text-black/40 border-black/5 bg-black/5"}`}>
-                        Enter
+                        {t('spotlight.enter')}
                     </div>
                 </form>
 
@@ -221,14 +232,14 @@ export const SpotlightView: React.FC<SpotlightViewProps> = ({ theme = 'dark' }) 
                 {isSearching && (
                     <div className={`px-10 py-4 flex items-center gap-3 border-t animate-pulse ${isDark ? "border-white/5" : "border-black/5"}`}>
                         <Loader2 size={14} className={`animate-spin ${isDark ? "text-white/40" : "text-black/40"}`} />
-                        <span className={`text-[11px] font-bold uppercase tracking-widest ${isDark ? "text-white/40" : "text-black/40"}`}>Buscando en YouTube...</span>
+                        <span className={`text-[11px] font-bold uppercase tracking-widest ${isDark ? "text-white/40" : "text-black/40"}`}>{t('spotlight.searchingYoutube')}</span>
                     </div>
                 )}
 
                 {searchResults.length > 0 && !isSearching && (
                     <section className={`border-t max-h-[260px] overflow-y-auto custom-scrollbar-hidden ${isDark ? "border-white/5" : "border-black/5"}`}>
                         <div className={`px-4 py-2 text-[8px] font-bold uppercase tracking-[0.2em] ${isDark ? "text-white/20 bg-white/[0.02]" : "text-black/40 bg-black/[0.02]"}`}>
-                            Resultados encontrados
+                            {t('spotlight.resultsFound')}
                         </div>
 
                         {searchResults.map((r) => (
@@ -252,7 +263,7 @@ export const SpotlightView: React.FC<SpotlightViewProps> = ({ theme = 'dark' }) 
                 {downloads.length > 0 && (
                     <section className={`border-t max-h-[160px] overflow-y-auto custom-scrollbar-hidden ${isDark ? "border-white/5" : "border-black/5"}`}>
                         <div className={`px-4 py-2 text-[8px] font-bold uppercase tracking-[0.2em] ${isDark ? "text-white/20 bg-white/[0.02]" : "text-black/40 bg-black/[0.02]"}`}>
-                            Descargas en curso • {downloads.length}
+                            {t('spotlight.downloadsInProgress')} • {downloads.length}
                         </div>
 
                         {downloads.map((download) => (
@@ -266,12 +277,12 @@ export const SpotlightView: React.FC<SpotlightViewProps> = ({ theme = 'dark' }) 
                                             <>
                                                 <Loader2 size={10} className={`animate-spin ${isDark ? "text-white/40" : "text-black/40"}`} />
                                                 <span className={`text-[9px] ${isDark ? "text-white/40" : "text-black/40"}`}>
-                                                    {download.state.msg || "Descargando..."}
+                                                    {download.state.msg || t('spotlight.downloading')}
                                                 </span>
                                                 <button
                                                     onClick={() => cancelDownload(download.url)}
                                                     className="ml-2 hover:text-red-500 transition-colors"
-                                                    title="Cancelar descarga"
+                                                    title={t('common.cancel')}
                                                 >
                                                     <X size={10} />
                                                 </button>
@@ -280,13 +291,13 @@ export const SpotlightView: React.FC<SpotlightViewProps> = ({ theme = 'dark' }) 
                                         {download.state.status === 'success' && (
                                             <>
                                                 <CheckCircle2 size={10} className="text-green-500" />
-                                                <span className="text-[9px] text-green-500">Completado</span>
+                                                <span className="text-[9px] text-green-500">{t('spotlight.completed')}</span>
                                             </>
                                         )}
                                         {download.state.status === 'error' && (
                                             <>
                                                 <AlertCircle size={10} className="text-red-500" />
-                                                <span className="text-[9px] text-red-500">Error</span>
+                                                <span className="text-[9px] text-red-500">{t('spotlight.error')}</span>
                                             </>
                                         )}
                                     </div>

@@ -21,6 +21,8 @@ interface SearchViewProps {
 }
 
 
+import { useTranslation } from "react-i18next";
+
 export const SearchView: React.FC<SearchViewProps> = ({
     query,
     setQuery,
@@ -38,6 +40,7 @@ export const SearchView: React.FC<SearchViewProps> = ({
     onStartDrag
 }) => {
     const isDark = theme === 'dark';
+    const { t } = useTranslation();
 
     return (
         <div className="flex-1 overflow-y-auto px-8 py-8 custom-scrollbar bg-wv-bg">
@@ -53,7 +56,7 @@ export const SearchView: React.FC<SearchViewProps> = ({
                             ? "bg-wv-surface border-white/5 text-white focus:border-white/10"
                             : "bg-white border-black/5 text-black placeholder:text-black/20 focus:border-black/10 shadow-[0_2px_10px_rgba(0,0,0,0.02)]"}
                     `}
-                    placeholder="Busca por género, artista o link..."
+                    placeholder={t('search.placeholder')}
                     value={query}
                     autoFocus
                     onChange={e => setQuery(e.target.value)}
@@ -67,7 +70,7 @@ export const SearchView: React.FC<SearchViewProps> = ({
                         `}
                         disabled={isSearching}
                     >
-                        {isSearching ? <Loader2 className="animate-spin" size={18} /> : "Buscar"}
+                        {isSearching ? <Loader2 className="animate-spin" size={18} /> : t('search.btnSearch')}
                     </button>
                 </div>
             </form>
@@ -77,7 +80,7 @@ export const SearchView: React.FC<SearchViewProps> = ({
                     <div className={`flex flex-col items-center justify-center py-20 ${isDark ? "opacity-20" : "opacity-10"}`}>
                         <Music size={60} strokeWidth={1.5} className="text-wv-text" />
                         <p className="mt-4 text-sm font-medium max-w-xs text-center text-wv-text">
-                            Encuentra nuevos sonidos para tu producción musical
+                            {t('search.emptyState')}
                         </p>
                     </div>
                 ) : (
@@ -109,7 +112,7 @@ export const SearchView: React.FC<SearchViewProps> = ({
                 {isSearching && results.length === 0 && (
                     <div className="flex flex-col items-center justify-center py-20">
                         <Loader2 className="animate-spin text-wv-gray opacity-30" size={40} />
-                        <p className="mt-4 font-bold uppercase tracking-widest text-[10px] text-wv-gray">Buscando...</p>
+                        <p className="mt-4 font-bold uppercase tracking-widest text-[10px] text-wv-gray">{t('search.searching')}</p>
                     </div>
                 )}
             </div>

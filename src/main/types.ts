@@ -36,4 +36,5 @@ export interface SearchResult {
     thumbnail: string;
     duration: string;
     url: string;
+    streamUrl?: string;
 }

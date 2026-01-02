@@ -10,6 +10,21 @@ if (app.setName) app.setName("WaveVault");
 
 const isMac = process.platform === 'darwin';
 
+// Single Instance Lock
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+    app.quit();
+    process.exit(0);
+}
+
+app.on('second-instance', () => {
+    if (win) {
+        if (win.isMinimized()) win.restore();
+        win.focus();
+        if (!win.isVisible()) win.show();
+    }
+});
+
 // Read version from package.json
 const pkg = require(path.join(__dirname, "../../package.json"));
 

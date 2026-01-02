@@ -31,29 +31,29 @@ async function runYtDlp(args: string[], options: any = {}) {
     const ytDlpBinary = getYtDlpBinary();
     const configPython = getPythonPath();
 
+    // Enable verbose logging by default or via option
+    const verbose = options.verbose ?? true;
+
+    const run = async (bin: string, runArgs: string[]) => {
+        const subprocess = execa(bin, runArgs, options);
+
+        if (verbose) {
+            subprocess.stdout?.pipe(process.stdout);
+            subprocess.stderr?.pipe(process.stderr);
+        }
+
+        return await subprocess;
+    };
+
     if (isWin) {
-        // Windows binaries are standalone
-        return await execa(ytDlpBinary, args, options);
+        return await run(ytDlpBinary, args);
     } else {
-        // Unix binaries/scripts need a compatible python interpreter
-        // Use the configured one or try to find a suitable one
-        let pythonPath = configPython;
-
-        // If it's just the default "python3", let's try to be a bit smarter
-        // but if the user SET it to something, we must use it.
-        console.log(`[runYtDlp] UID: ${Date.now()}`);
-        console.log(`[runYtDlp] Python Path: "${pythonPath}"`);
-        console.log(`[runYtDlp] Binary Path: "${ytDlpBinary}"`);
-
         try {
-            return await execa(pythonPath, [ytDlpBinary, ...args], options);
+            return await run(configPython, [ytDlpBinary, ...args]);
         } catch (e: any) {
-            // If the configured one failed and it wasn't the default "python3", 
-            // maybe we should try "python3" as fallback if they specifically pointed to a non-existent one?
-            // Actually, let's just throw but with a better message if it's a python version issue.
-            if (e.stderr?.includes("unsupported version of Python") && pythonPath !== "python3") {
-                console.warn(`[runYtDlp] Configured python ${pythonPath} failed with version error. Trying fallback "python3"`);
-                return await execa("python3", [ytDlpBinary, ...args], options);
+            if (e.stderr?.includes("unsupported version of Python") && configPython !== "python3") {
+                console.warn(`[runYtDlp] Configured python ${configPython} failed with version error. Trying fallback "python3"`);
+                return await run("python3", [ytDlpBinary, ...args]);
             }
             throw e;
         }
@@ -109,55 +109,130 @@ export async function searchYoutube(query: string): Promise<SearchResult[]> {
     if (!query) return [];
 
     try {
+        // Use a targeted --print with a JSON template to avoid fetching heavy metadata (subs, comments, etc)
         const { stdout } = await runYtDlp([
             `ytsearch10:${query}`,
-            "--dump-json",
             "--no-playlist",
             "--no-check-certificate",
-            "--no-warnings"
-        ]);
+            "--no-warnings",
+            "--no-call-home",
+            "--no-cache-dir",
+            "-f", "bestaudio/best",
+            "--print", "{\"id\":%(id)j,\"title\":%(title)j,\"channel\":%(uploader)j,\"thumbnail\":%(thumbnail)j,\"duration\":%(duration)j,\"url\":%(webpage_url)j,\"streamUrl\":%(url)j}"
+        ], { verbose: false }); // Disable pipe for search to avoid terminal clutter
 
-        const results = stdout.split('\n').filter(l => !!l.trim()).map(l => JSON.parse(l));
-
-        return results.map((e: any) => ({
-            id: e.id,
-            title: e.title,
-            channel: e.uploader ?? e.channel ?? "Unknown",
-            thumbnail: e.thumbnail ?? `https://i.ytimg.com/vi/${e.id}/mqdefault.jpg`,
-            duration: e.duration_string ?? "0:00",
-            url: `https://www.youtube.com/watch?v=${e.id}`
-        }));
+        return stdout.split('\n')
+            .filter(l => !!l.trim())
+            .map(l => {
+                const e = JSON.parse(l);
+                return {
+                    id: e.id,
+                    title: e.title,
+                    channel: e.channel ?? "Unknown",
+                    thumbnail: e.thumbnail ?? `https://i.ytimg.com/vi/${e.id}/mqdefault.jpg`,
+                    duration: (typeof e.duration === 'number')
+                        ? new Date(e.duration * 1000).toISOString().substr(14, 5)
+                        : (e.duration || "0:00"),
+                    url: e.url,
+                    streamUrl: e.streamUrl
+                };
+            });
     } catch (e: any) {
         console.error("Search failed:", e);
-        // Throw semantic error for UI log
         throw new Error(e.stderr || e.stdout || e.message || "Unknown error during search");
     }
 }
 
-export async function fetchMeta(url: string): Promise<VideoMeta> {
+/**
+ * Optimized batch search that gets metadata + stream URL in one single yt-dlp process
+ * Pass an array of search queries like ["artist1 title1", "artist2 title2"]
+ */
+export async function batchSearchAndStream(queries: string[]): Promise<any[]> {
+    if (!queries || queries.length === 0) return [];
+
+    // Get 3 results per query to have options for filtering official/topic channels
+    const searchArgs = queries.map(q => `ytsearch3:${q}`);
+
+    try {
+        const { stdout } = await runYtDlp([
+            ...searchArgs,
+            "--no-playlist",
+            "--no-check-certificate",
+            "--no-warnings",
+            "--no-call-home",
+            "-f", "bestaudio/best",
+            "--print", "{\"id\":%(id)j,\"title\":%(title)j,\"thumbnail\":%(thumbnail)j,\"streamUrl\":%(url)j,\"youtubeUrl\":%(webpage_url)j,\"duration\":%(duration)j,\"uploader\":%(uploader)j}"
+        ], { verbose: false });
+
+        const allResults = stdout.split('\n')
+            .filter(l => !!l.trim())
+            .map(line => JSON.parse(line));
+
+        // Group by 3s and pick the best (preferring Topic/Official)
+        const finalResults = [];
+        for (let i = 0; i < allResults.length; i += 3) {
+            const chunk = allResults.slice(i, i + 3);
+            if (chunk.length === 0) continue;
+
+            // Priority: Channels ending in "- Topic" or containing "Official"
+            const bestResult = chunk.find(r =>
+                r.uploader?.toLowerCase().endsWith("- topic") ||
+                r.uploader?.toLowerCase().includes("official")
+            ) || chunk[0]; // Fallback to first search result
+
+            finalResults.push(bestResult);
+        }
+
+        return finalResults;
+    } catch (e) {
+        console.error("[batchSearchAndStream] Failed:", e);
+        return [];
+    }
+}
+
+export async function fetchMeta(url: string): Promise<VideoMeta | any> {
     try {
         const { stdout } = await runYtDlp([
             url,
-            "--dump-json",
             "--no-playlist",
+            "--no-check-certificate",
+            "--no-warnings",
+            "--no-call-home",
+            "-f", "bestaudio/best",
+            "--print", "{\"id\":%(id)j,\"title\":%(title)j,\"uploader\":%(uploader)j,\"upload_date\":%(upload_date)j,\"description\":%(description)j,\"thumbnail\":%(thumbnail)j,\"duration\":%(duration)j,\"streamUrl\":%(url)j}"
+        ], { verbose: false });
+
+        return JSON.parse(stdout);
+    } catch (e: any) {
+        console.error("Meta fetch failed:", e);
+        throw new Error(e.stderr || e.stdout || e.message || "Unknown error fetching metadata");
+    }
+}
+
+export async function fetchPlaylistMeta(url: string): Promise<{ title: string, entries: any[] }> {
+    try {
+        const { stdout } = await runYtDlp([
+            url,
+            "--dump-single-json",
+            "--flat-playlist",
             "--no-check-certificate",
             "--no-warnings"
         ]);
 
         const info = JSON.parse(stdout);
         return {
-            id: info.id,
-            title: info.title,
-            uploader: info.uploader,
-            channel: info.uploader,
-            upload_date: info.upload_date,
-            description: info.description,
-            thumbnail: info.thumbnail ?? `https://i.ytimg.com/vi/${info.id}/mqdefault.jpg`,
-            duration: info.duration
+            title: info.title || "Playlist",
+            entries: (info.entries || []).map((e: any) => ({
+                id: e.id,
+                title: e.title,
+                url: `https://www.youtube.com/watch?v=${e.id}`,
+                duration: e.duration,
+                uploader: e.uploader
+            }))
         };
     } catch (e: any) {
-        console.error("Meta fetch failed:", e);
-        throw new Error(e.stderr || e.stdout || e.message || "Unknown error fetching metadata");
+        console.error("Playlist meta fetch failed:", e);
+        throw new Error(e.stderr || e.stdout || e.message || "Unknown error fetching playlist metadata");
     }
 }
 

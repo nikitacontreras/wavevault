@@ -55,5 +55,17 @@ contextBridge.exposeInMainWorld("api", {
     detectDAWs: () => ipcRenderer.invoke("detect-daws"),
     saveDAWPath: (daw: any) => ipcRenderer.invoke("save-daw-path", daw),
     getDAWPaths: () => ipcRenderer.invoke("get-daw-paths"),
+
+    // Local Library
+    addLocalFolder: (path: string) => ipcRenderer.invoke("add-local-folder", path),
+    getLocalFolders: () => ipcRenderer.invoke("get-local-folders"),
+    removeLocalFolder: (id: string) => ipcRenderer.invoke("remove-local-folder", id),
+    getLocalFiles: (folderId?: string) => ipcRenderer.invoke("get-local-files", folderId),
+    getPlaylistMeta: (url: string) => ipcRenderer.invoke('get-playlist-meta', url),
+    batchSearchAndStream: (queries: string[]) => ipcRenderer.invoke('batch-search-and-stream', queries),
+    backupDB: () => ipcRenderer.invoke("backup-db"),
+    restoreDB: () => ipcRenderer.invoke("restore-db"),
+    convertFile: (job: any) => ipcRenderer.invoke("convert-file", job),
+
     platform: process.platform
 });

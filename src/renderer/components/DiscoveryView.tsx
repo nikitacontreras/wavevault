@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { ItemState } from "../types";
-import { Shuffle, Loader2, Disc, Filter, ChevronDown, AlertCircle, Play, Pause, Download, Info, X, ExternalLink } from "lucide-react";
+import { Shuffle, Loader2, Disc, Filter, ChevronDown, AlertCircle, Play, Pause, Download, Info, X, ExternalLink, Tag, Clock } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
     searchDiscogs,
@@ -22,22 +22,27 @@ interface EnrichedRelease extends DiscogsRelease {
 interface DiscoveryViewProps {
     itemStates: Record<string, ItemState>;
     history: any[];
-    onTogglePreview: (url: string) => void;
+    onDownload: (item: any) => void;
+    onOpenItem: (path?: string) => void;
+    onTogglePreview: (url: string, metadata?: any) => void;
     playingUrl: string | null;
     isPreviewLoading: boolean;
     theme: 'light' | 'dark';
+    onStartDrag: () => void;
     discogsToken: string;
-    // For downloads
     onDownloadFromUrl?: (url: string, title: string) => void;
 }
 
 export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
     itemStates,
     history,
+    onDownload,
+    onOpenItem,
     onTogglePreview,
     playingUrl,
     isPreviewLoading,
     theme,
+    onStartDrag,
     discogsToken,
     onDownloadFromUrl
 }) => {
@@ -471,7 +476,7 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
                                     )}
                                     {selectedRelease.youtubeUrl && (
                                         <button
-                                            onClick={() => handleDownload(release)}
+                                            onClick={() => handleDownload(selectedRelease)}
                                             className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all ${isDark ? "bg-white/10 text-white hover:bg-white/20" : "bg-black/10 text-black hover:bg-black/20"}`}
                                         >
                                             <Download size={18} />

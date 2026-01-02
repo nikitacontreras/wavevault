@@ -2,10 +2,54 @@
     "sidebar": {
         "search": "Поиск",
         "library": "Библиотека",
+        "discovery": "Crate Digging",
+        "converter": "Конвертер",
         "projects": "Проекты",
         "settings": "Настройки",
         "lightMode": "Светлый режим",
         "darkMode": "Тёмный режим"
+    },
+    "discovery": {
+        "title": "Crate Digging",
+        "subtitle": "Находите редкие релизы в Discogs и прослушивайте их мгновенно",
+        "showFilters": "Показать фильтры",
+        "hideFilters": "Скрыть фильтры",
+        "digDeeper": "Копать глубже",
+        "digging": "Поиск...",
+        "genre": "Жанр",
+        "style": "Стиль",
+        "country": "Страна",
+        "years": "Годы",
+        "ready": "Готово релизов: {{ready}}/{{total}}",
+        "info": "Инфо",
+        "dl": "DL",
+        "details": "Подробности",
+        "genresStyles": "Жанры и стили",
+        "labelsFormats": "Лейблы и форматы",
+        "label": "Лейбл",
+        "youtubeMatch": "Совпадение на YouTube",
+        "notFound": "Не найдено",
+        "noToken": "Добавьте токен Discogs в настройках, чтобы использовать эту функцию"
+    },
+    "converter": {
+        "title": "Аудиоконвертер",
+        "subtitle": "Утилита для пакетной локальной обработки",
+        "settingsTitle": "Конфигурация вывода",
+        "format": "Формат",
+        "bitrate": "Битрейт",
+        "sampleRate": "Частота дискретизации",
+        "normalize": "Нормализация",
+        "normalizeDesc": "-16 LUFS Integrated",
+        "destination": "Папка назначения",
+        "setFolder": "Выбрать папку",
+        "folderSelected": "Папка выбрана",
+        "queueTitle": "Очередь обработки",
+        "addFiles": "Добавить файлы",
+        "dropFiles": "Перетащите файлы или нажмите «Добавить»",
+        "waiting": "В очереди",
+        "convertedTo": "Успешно конвертировано в {{format}}",
+        "startConversion": "Обработать {{count}} файл(ов)",
+        "processing": "Пакетная обработка..."
     },
     "search": {
         "placeholder": "Поиск по жанру, артисту или ссылке...",
@@ -16,6 +60,19 @@
         "searching": "Поиск...",
         "emptyState": "Найдите новые звуки для музыкального продакшена",
         "resultsFound": "Найдено результатов"
+    },
+    "library": {
+        "tabs": {
+            "downloads": "Загрузки",
+            "local": "Локально"
+        },
+        "local": {
+            "empty": "Нет индексированных папок",
+            "subtitle": "Добавьте свои директории с сэмплами для их анализа",
+            "addFolder": "Добавить папку",
+            "indexing": "Индексация...",
+            "stats": "Обнаружено сэмплов: {{count}}"
+        }
     },
     "spotlight": {
         "placeholder": "Введите запрос или вставьте URL...",
@@ -40,7 +97,18 @@
         "confirmRemove": "Удалить этот сэмпл из библиотеки?",
         "source": "YouTube",
         "bpm": "BPM",
-        "key": "Тональность"
+        "key": "Тональность",
+        "tabs": {
+            "downloads": "История веб",
+            "local": "Пакеты"
+        },
+        "local": {
+            "empty": "Нет индексированных папок",
+            "subtitle": "Добавьте свои директории с сэмплами для их анализа",
+            "addFolder": "Добавить папку",
+            "indexing": "Индексация...",
+            "stats": "Обнаружено сэмплов: {{count}}"
+        }
     },
     "projects": {
         "titleGlobal": "Глобальный трей",
@@ -146,6 +214,14 @@
         "clearLogs": "Очистить",
         "noEvents": "Нет событий",
         "system": "Система",
+        "backup": "Резервное копирование",
+        "backupDesc": "Сохраните вашу базу данных для переноса или восстановления",
+        "backupBtn": "Экспорт бэкапа",
+        "restoreBtn": "Восстановить из файла",
+        "discogs": "Discogs API",
+        "discogsToken": "Токен Discogs",
+        "discogsTokenDesc": "Требуется для Crate Digging. Получите токен на discogs.com/settings/developers",
+        "discogsTokenPlaceholder": "Ваш личный токен Discogs",
         "minimizeTray": "Сворачивать в трей",
         "minimizeTrayDesc": "Продолжать работу в фоне после закрытия",
         "deviceId": "Устройство вывода",
@@ -163,7 +239,9 @@
         "downloadsTitle": "Загрузки",
         "language": "Язык интерфейса",
         "english": "Английский",
-        "spanish": "Испанский"
+        "spanish": "Испанский",
+        "korean": "Корейский",
+        "russian": "Русский"
     },
     "deps": {
         "title": "Проверка системы",

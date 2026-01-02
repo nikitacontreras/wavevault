@@ -1,11 +1,55 @@
 {
     "sidebar": {
-        "search": "Buscar",
+        "search": "Búsqueda",
         "library": "Librería",
+        "discovery": "Crate Digging",
+        "converter": "Conversor",
         "projects": "Proyectos",
         "settings": "Ajustes",
         "lightMode": "Modo Claro",
         "darkMode": "Modo Oscuro"
+    },
+    "discovery": {
+        "title": "Crate Digging",
+        "subtitle": "Descubre lanzamientos raros de Discogs y escúchalos al instante",
+        "showFilters": "Mostrar Filtros",
+        "hideFilters": "Ocultar Filtros",
+        "digDeeper": "Excavar Más",
+        "digging": "Excavando...",
+        "genre": "Género",
+        "style": "Estilo",
+        "country": "País",
+        "years": "Años",
+        "ready": "{{ready}}/{{total}} lanzamientos listos",
+        "info": "Info",
+        "dl": "DL",
+        "details": "Detalles",
+        "genresStyles": "Géneros y Estilos",
+        "labelsFormats": "Sellos y Formatos",
+        "label": "Sello",
+        "youtubeMatch": "Coincidencia en YouTube",
+        "notFound": "No encontrado",
+        "noToken": "Añade tu token de Discogs en Ajustes para usar esta función"
+    },
+    "converter": {
+        "title": "Conversor de Audio",
+        "subtitle": "Utilidad de procesamiento por lotes local",
+        "settingsTitle": "Configuración de Salida",
+        "format": "Formato",
+        "bitrate": "Bitrate",
+        "sampleRate": "Sample Rate",
+        "normalize": "Normalizar",
+        "normalizeDesc": "-16 LUFS Integrado",
+        "destination": "Destino",
+        "setFolder": "Elegir Carpeta",
+        "folderSelected": "Carpeta Seleccionada",
+        "queueTitle": "Cola de Procesamiento",
+        "addFiles": "Añadir Archivos",
+        "dropFiles": "Suelta archivos o pulsa añadir",
+        "waiting": "Esperando en cola",
+        "convertedTo": "Convertido con éxito a {{format}}",
+        "startConversion": "Procesar {{count}} Archivos",
+        "processing": "Procesando Lote..."
     },
     "search": {
         "placeholder": "Busca por género, artista o link...",
@@ -16,6 +60,19 @@
         "searching": "Buscando...",
         "emptyState": "Encuentra nuevos sonidos para tu producción musical",
         "resultsFound": "Resultados encontrados"
+    },
+    "library": {
+        "tabs": {
+            "downloads": "Descargas",
+            "local": "Local"
+        },
+        "local": {
+            "empty": "No hay carpetas indexadas",
+            "subtitle": "Añade tus propios directorios de samples para analizarlos",
+            "addFolder": "Añadir Carpeta",
+            "indexing": "Indexando...",
+            "stats": "{{count}} samples detectados"
+        }
     },
     "spotlight": {
         "placeholder": "Busca o pega una URL...",
@@ -40,7 +97,18 @@
         "confirmRemove": "¿Eliminar este sample de la librería?",
         "source": "YouTube",
         "bpm": "BPM",
-        "key": "KEY"
+        "key": "KEY",
+        "tabs": {
+            "downloads": "Historial Web",
+            "local": "Packs Locales"
+        },
+        "local": {
+            "empty": "No hay carpetas indexadas",
+            "subtitle": "Añade tus propios directorios de samples para analizarlos",
+            "addFolder": "Añadir Carpeta",
+            "indexing": "Indexando...",
+            "stats": "{{count}} samples detectados"
+        }
     },
     "projects": {
         "titleGlobal": "Bandeja Global",
@@ -146,6 +214,14 @@
         "clearLogs": "Limpiar",
         "noEvents": "Sin eventos",
         "system": "Sistema",
+        "backup": "Respaldo y Sincronización",
+        "backupDesc": "Guarda tu base de datos para transferirla o restaurarla",
+        "backupBtn": "Exportar Respaldo",
+        "restoreBtn": "Restaurar desde Archivo",
+        "discogs": "Discogs API",
+        "discogsToken": "Token de Discogs",
+        "discogsTokenDesc": "Necesario para Crate Digging. Obtén tu token en discogs.com/settings/developers",
+        "discogsTokenPlaceholder": "Tu token personal de Discogs",
         "minimizeTray": "Minimizar al Tray",
         "minimizeTrayDesc": "Seguir funcionando en segundo plano al cerrar",
         "deviceId": "Dispositivo de Salida",
@@ -153,7 +229,7 @@
         "systemMusic": "Música del Sistema",
         "orgAndSystem": "Organización y Sistema",
         "about": "Acerca de WaveVault",
-        "version": "Versión",
+        "version": "Version",
         "checkUpdates": "Buscar Actualizaciones",
         "developedBy": "Desarrollado por",
         "platform": "Plataforma",
@@ -163,7 +239,9 @@
         "downloadsTitle": "Descargas",
         "language": "Idioma de la Interfaz",
         "english": "English",
-        "spanish": "Español"
+        "spanish": "Español",
+        "korean": "Coreano",
+        "russian": "Ruso"
     },
     "deps": {
         "title": "Verificando Sistema",

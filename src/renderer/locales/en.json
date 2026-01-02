@@ -2,10 +2,54 @@
     "sidebar": {
         "search": "Search",
         "library": "Library",
+        "discovery": "Crate Digging",
+        "converter": "Converter",
         "projects": "Projects",
         "settings": "Settings",
         "lightMode": "Light Mode",
         "darkMode": "Dark Mode"
+    },
+    "discovery": {
+        "title": "Crate Digging",
+        "subtitle": "Discover rare releases from Discogs and preview them instantly",
+        "showFilters": "Show Filters",
+        "hideFilters": "Hide Filters",
+        "digDeeper": "Dig Deeper",
+        "digging": "Digging...",
+        "genre": "Genre",
+        "style": "Style",
+        "country": "Country",
+        "years": "Years",
+        "ready": "{{ready}}/{{total}} releases ready",
+        "info": "Info",
+        "dl": "DL",
+        "details": "Details",
+        "genresStyles": "Genres & Styles",
+        "labelsFormats": "Labels & Formats",
+        "label": "Label",
+        "youtubeMatch": "YouTube Match",
+        "notFound": "Not found",
+        "noToken": "Add your Discogs token in Settings to use this feature"
+    },
+    "converter": {
+        "title": "Audio Converter",
+        "subtitle": "Local Batch Processing Utility",
+        "settingsTitle": "Output Configuration",
+        "format": "Format",
+        "bitrate": "Bitrate",
+        "sampleRate": "Sample Rate",
+        "normalize": "Normalize",
+        "normalizeDesc": "-16 LUFS Integrated",
+        "destination": "Destination",
+        "setFolder": "Set Output Folder",
+        "folderSelected": "Folder Selected",
+        "queueTitle": "Process Queue",
+        "addFiles": "Add Files",
+        "dropFiles": "Drop files or click add",
+        "waiting": "Waiting in queue",
+        "convertedTo": "Successfully converted to {{format}}",
+        "startConversion": "Process {{count}} Files",
+        "processing": "Processing Batch..."
     },
     "search": {
         "placeholder": "Search by genre, artist, or link...",
@@ -40,7 +84,18 @@
         "confirmRemove": "Remove this sample from library?",
         "source": "YouTube",
         "bpm": "BPM",
-        "key": "KEY"
+        "key": "KEY",
+        "tabs": {
+            "downloads": "Web History",
+            "local": "Local Packs"
+        },
+        "local": {
+            "empty": "No indexed folders",
+            "subtitle": "Add your own sample directories to analyze them",
+            "addFolder": "Add Folder",
+            "indexing": "Indexing...",
+            "stats": "{{count}} samples detected"
+        }
     },
     "projects": {
         "titleGlobal": "Global Tray",
@@ -146,6 +201,14 @@
         "clearLogs": "Clear",
         "noEvents": "No events",
         "system": "System",
+        "backup": "Backup & Sync",
+        "backupDesc": "Save your database to transfer or restore it",
+        "backupBtn": "Export Backup",
+        "restoreBtn": "Restore from File",
+        "discogs": "Discogs API",
+        "discogsToken": "Discogs Token",
+        "discogsTokenDesc": "Required for Crate Digging. Get your token at discogs.com/settings/developers",
+        "discogsTokenPlaceholder": "Your personal Discogs token",
         "minimizeTray": "Minimize to Tray",
         "minimizeTrayDesc": "Continue running in background when closed",
         "deviceId": "Output Device",
@@ -163,7 +226,9 @@
         "downloadsTitle": "Downloads",
         "language": "Interface Language",
         "english": "English",
-        "spanish": "Spanish"
+        "spanish": "Spanish",
+        "korean": "Korean",
+        "russian": "Russian"
     },
     "deps": {
         "title": "System Check",

@@ -163,7 +163,9 @@
         "downloadsTitle": "다운로드",
         "language": "인터페이스 언어",
         "english": "영어",
-        "spanish": "스페인어"
+        "spanish": "스페인어",
+        "korean": "한국어",
+        "russian": "러시아어"
     },
     "deps": {
         "title": "시스템 확인",

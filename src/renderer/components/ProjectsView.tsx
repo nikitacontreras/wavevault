@@ -41,7 +41,10 @@ interface ProjectsDB {
 
 type ModalType = 'create-album' | 'edit-album' | 'create-track' | 'edit-track' | 'daw-settings' | 'add-workspace';
 
+import { useTranslation } from "react-i18next";
+
 export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
+    const { t } = useTranslation();
     const isDark = theme === 'dark';
     const [db, setDb] = useState<ProjectsDB>({ albums: [], allVersions: [] });
     const [viewMode, setViewMode] = useState<'projects' | 'todos'>('projects');
@@ -59,8 +62,13 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
 
     // UI states
     const [movingVersion, setMovingVersion] = useState<ProjectVersion | null>(null);
+    const [movingToAlbumId, setMovingToAlbumId] = useState<string | null>(null);
+    const [pickingVersionForTrackId, setPickingVersionForTrackId] = useState<string | null>(null);
     const [activeTrackMenu, setActiveTrackMenu] = useState<string | null>(null);
     const [activeAlbumMenu, setActiveAlbumMenu] = useState<string | null>(null);
+    const [linkSearch, setLinkSearch] = useState("");
+    const [isCreatingTrackInline, setIsCreatingTrackInline] = useState(false);
+    const [inlineTrackName, setInlineTrackName] = useState("");
 
     // Modals state
     const [modalData, setModalData] = useState<{
@@ -106,16 +114,16 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
             setModalData({
                 show: true,
                 type: 'add-workspace',
-                title: 'Nuevo Workspace',
+                title: t('projects.newWorkspace'),
                 inputs: [
-                    { label: 'Nombre Amigable', key: 'name', placeholder: 'Ej: Mis Proyectos, Samples Cloud...', value: 'Mi Música' }
+                    { label: t('projects.friendlyName'), key: 'name', placeholder: 'Ej: Mis Proyectos, Samples Cloud...', value: 'Mi Música' }
                 ]
             });
         }
     };
 
     const handleRemoveWorkspace = async (id: string) => {
-        if (confirm("¿Estás seguro de quitar este workspace? Los proyectos guardados en él ya no aparecerán aquí.")) {
+        if (confirm(t('projects.confirmRemoveWorkspace'))) {
             setIsLoading(true);
             await (window as any).api.removeWorkspace(id);
             loadDB();
@@ -136,7 +144,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
         setModalData({
             show: true,
             type: 'daw-settings',
-            title: 'Configuración de DAWs',
+            title: t('projects.configDaws'),
             inputs: []
         });
     };
@@ -168,10 +176,10 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
         setModalData({
             show: true,
             type: 'create-album',
-            title: 'Nuevo Proyecto',
+            title: t('projects.newProject'),
             inputs: [
-                { label: 'Nombre', key: 'name', placeholder: 'Ej: Mi Nuevo EP', value: '' },
-                { label: 'Artista', key: 'artist', placeholder: 'Ej: Strikemedia', value: 'Yo' }
+                { label: t('projects.name'), key: 'name', placeholder: 'Ej: Mi Nuevo EP', value: '' },
+                { label: t('projects.artist'), key: 'artist', placeholder: 'Ej: Strikemedia', value: 'Yo' }
             ]
         });
     };
@@ -181,17 +189,17 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
             show: true,
             type: 'edit-album',
             id: album.id,
-            title: 'Editar Proyecto',
+            title: t('projects.editProject'),
             inputs: [
-                { label: 'Nombre', key: 'name', placeholder: '', value: album.name },
-                { label: 'Artista', key: 'artist', placeholder: '', value: album.artist }
+                { label: t('projects.name'), key: 'name', placeholder: '', value: album.name },
+                { label: t('projects.artist'), key: 'artist', placeholder: '', value: album.artist }
             ]
         });
         setActiveAlbumMenu(null);
     };
 
     const handleDeleteAlbum = async (id: string, name: string) => {
-        if (!confirm(`¿Borrar el proyecto "${name}"?`)) return;
+        if (!confirm(t('projects.confirmDeleteProject', { name }))) return;
         await (window as any).api.deleteAlbum(id);
         if (selectedAlbumId === id) setSelectedAlbumId(null);
         setActiveAlbumMenu(null);
@@ -203,9 +211,9 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
             show: true,
             type: 'create-track',
             id: albumId,
-            title: 'Nueva Track',
+            title: t('projects.newTrack'),
             inputs: [
-                { label: 'Nombre', key: 'name', placeholder: 'Ej: Midnight Rain', value: '' }
+                { label: t('projects.trackName'), key: 'name', placeholder: 'Ej: Midnight Rain', value: '' }
             ]
         });
     };
@@ -215,13 +223,13 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
             show: true,
             type: 'edit-track',
             id: track.id,
-            title: 'Editar Track',
+            title: t('projects.editTrack'),
             inputs: [
-                { label: 'Nombre', key: 'name', placeholder: '', value: track.name },
-                { label: 'BPM', key: 'bpm', placeholder: 'Ej: 140', value: track.bpm?.toString() || '' },
-                { label: 'Key', key: 'key', placeholder: 'Ej: Am', value: track.key || '' },
+                { label: t('projects.trackName'), key: 'name', placeholder: '', value: track.name },
+                { label: t('projects.bpm'), key: 'bpm', placeholder: 'Ej: 140', value: track.bpm?.toString() || '' },
+                { label: t('projects.key'), key: 'key', placeholder: 'Ej: Am', value: track.key || '' },
                 {
-                    label: 'Estado',
+                    label: t('projects.status'),
                     key: 'status',
                     placeholder: '',
                     value: track.status,
@@ -234,7 +242,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
     };
 
     const handleDeleteTrack = async (trackId: string) => {
-        if (!confirm("¿Borrar track?")) return;
+        if (!confirm(t('projects.confirmDeleteTrack'))) return;
         await (window as any).api.deleteTrack(trackId);
         setActiveTrackMenu(null);
         loadDB();
@@ -247,15 +255,33 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
         loadDB();
     };
 
-    const handleMoveToTrack = async (trackId: string) => {
-        if (!movingVersion) return;
-        await (window as any).api.moveProjectVersion(movingVersion.id, trackId);
+    const handleMoveToTrack = async (trackId: string, customVId?: string) => {
+        const vId = customVId || movingVersion?.id;
+        if (!vId) return;
+
+        await (window as any).api.moveProjectVersion(vId, trackId);
         setMovingVersion(null);
+        setMovingToAlbumId(null);
+        setPickingVersionForTrackId(null);
         loadDB();
     };
 
+    const handleConfirmCreateTrackInline = async () => {
+        if (!inlineTrackName || !movingToAlbumId || !movingVersion) return;
+
+        const newTrack = await (window as any).api.createTrack(inlineTrackName, movingToAlbumId);
+        if (newTrack && newTrack.id) {
+            await (window as any).api.moveProjectVersion(movingVersion.id, newTrack.id);
+            setMovingVersion(null);
+            setMovingToAlbumId(null);
+            setIsCreatingTrackInline(false);
+            setInlineTrackName("");
+            loadDB();
+        }
+    };
+
     const handleDeleteVersion = async (vId: string, name: string) => {
-        if (!confirm(`¿Borrar "${name}"?`)) return;
+        if (!confirm(t('projects.confirmDeleteVersion', { name }))) return;
         await (window as any).api.deleteVersion(vId);
         loadDB();
     };
@@ -295,9 +321,9 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
                             await (window as any).api.addWorkspace(values.name, pendingWorkspacePath);
                         } catch (err: any) {
                             if (err.message.includes('UNIQUE constraint failed')) {
-                                alert("Esta carpeta ya está registrada como un workspace.");
+                                alert(t('projects.workspaceExists'));
                             } else {
-                                alert("Error al añadir workspace: " + err.message);
+                                alert(t('projects.errorAddWorkspace') + err.message);
                             }
                         } finally {
                             setPendingWorkspacePath(null);
@@ -358,7 +384,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
                             className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${viewMode === 'projects' ? (isDark ? "bg-white text-black shadow-lg" : "bg-black text-white") : "text-wv-gray hover:text-white"}`}
                         >
                             <Archive size={14} strokeWidth={2.5} />
-                            Mis Proyectos
+                            {t('projects.myProjects')}
                         </button>
                         <button
                             onClick={() => setViewMode('todos')}
@@ -366,7 +392,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
                         >
                             <div className="flex items-center gap-2.5">
                                 <ListMusic size={14} strokeWidth={2.5} />
-                                Archivos Raw
+                                {t('projects.rawFiles')}
                             </div>
                             {db.allVersions.length > 0 && (
                                 <span className={`px-1.5 py-0.5 rounded-md text-[8px] font-bold ${viewMode === 'todos' ? (isDark ? "bg-black text-white" : "bg-white text-black") : "bg-blue-600 text-white"}`}>
@@ -377,8 +403,8 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
                     </div>
 
                     <div className="flex items-center justify-between mb-2 px-2">
-                        <h2 className="text-[9px] font-black uppercase tracking-[0.2em] text-wv-gray/40">Workspaces</h2>
-                        <button onClick={handleScanWorkspaces} title="Sincronizar todo" className={`p-1 rounded-md transition-all ${isDark ? "text-white/40 hover:text-white" : "text-black/40 hover:text-black"}`}>
+                        <h2 className="text-[9px] font-black uppercase tracking-[0.2em] text-wv-gray/40">{t('projects.workspaces')}</h2>
+                        <button onClick={handleScanWorkspaces} title={t('projects.sync')} className={`p-1 rounded-md transition-all ${isDark ? "text-white/40 hover:text-white" : "text-black/40 hover:text-black"}`}>
                             <Activity size={12} />
                         </button>
                     </div>
@@ -389,7 +415,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
                             className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all ${selectedWorkspaceId === null && viewMode === 'todos' ? (isDark ? "bg-white/5 text-white" : "bg-black/5 text-black") : "text-wv-gray hover:text-white"}`}
                         >
                             <Layout size={12} className="shrink-0 opacity-40" />
-                            <span className="truncate flex-1 text-left">Todos los archivos</span>
+                            <span className="truncate flex-1 text-left">{t('projects.allFiles')}</span>
                         </button>
                         {workspaces.map(ws => (
                             <div key={ws.id} className="group/ws relative">
@@ -411,7 +437,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
                     </div>
 
                     <div className="flex items-center justify-between mb-3 px-2">
-                        <h2 className="text-[9px] font-black uppercase tracking-[0.2em] text-wv-gray/40">Colecciones</h2>
+                        <h2 className="text-[9px] font-black uppercase tracking-[0.2em] text-wv-gray/40">{t('projects.collections')}</h2>
                         <button onClick={handleCreateAlbum} className={`p-1 rounded-md transition-all ${isDark ? "text-white/40 hover:text-white hover:bg-white/10" : "text-black/40 hover:text-black hover:bg-black/10"}`}>
                             <Plus size={14} />
                         </button>
@@ -444,12 +470,12 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
                                 {activeAlbumMenu === album.id && (
                                     <>
                                         <div className="fixed inset-0 z-10" onClick={() => setActiveAlbumMenu(null)} />
-                                        <div className={`absolute left-full ml-1 top-0 w-32 rounded-xl shadow-2xl border z-20 py-1.5 ${isDark ? "bg-wv-sidebar border-white/10" : "bg-white border-black/10"}`}>
+                                        <div className={`absolute right-0 top-full mt-1 w-32 rounded-xl shadow-2xl border z-20 py-1.5 ${isDark ? "bg-wv-sidebar border-white/10" : "bg-white border-black/10"}`}>
                                             <button onClick={() => handleEditAlbum(album)} className="w-full text-left px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-wv-gray hover:text-white flex items-center gap-2">
-                                                <Edit2 size={10} /> Editar
+                                                <Edit2 size={10} /> {t('common.edit')}
                                             </button>
                                             <button onClick={() => handleDeleteAlbum(album.id, album.name)} className="w-full text-left px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-red-500 hover:bg-red-500/10 flex items-center gap-2">
-                                                <Trash2 size={10} /> Borrar
+                                                <Trash2 size={10} /> {t('common.delete')}
                                             </button>
                                         </div>
                                     </>
@@ -464,14 +490,14 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
                             className={`w-full flex items-center justify-center gap-2 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${isDark ? "bg-white/5 text-wv-gray hover:text-white" : "bg-black/5 text-black"}`}
                         >
                             <Cpu size={12} />
-                            Configurar DAWs
+                            {t('projects.configDaws')}
                         </button>
                         <button
                             onClick={handleAddWorkspace}
                             className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest border border-dashed transition-all ${isDark ? "border-white/10 text-wv-gray hover:border-white/25 hover:text-white" : "border-black/10 text-black/40 hover:text-black"}`}
                         >
                             <Plus size={12} />
-                            Añadir Workspace
+                            {t('projects.addWorkspace')}
                         </button>
                     </div>
                 </div >
@@ -487,13 +513,13 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
                                 <div className="space-y-1">
                                     <h2 className="text-3xl font-black tracking-tight leading-none">
                                         {selectedWorkspaceId
-                                            ? `Bandeja Global: ${workspaces.find(w => w.id === selectedWorkspaceId)?.name}`
-                                            : "Bandeja Global"}
+                                            ? `${t('projects.globalTray')}: ${workspaces.find(w => w.id === selectedWorkspaceId)?.name}`
+                                            : t('projects.globalTray')}
                                     </h2>
                                     <p className="text-[10px] font-bold text-wv-gray uppercase tracking-widest opacity-40">
                                         {selectedWorkspaceId
-                                            ? `Viendo archivos detectados en esta carpeta`
-                                            : "Gestiona tus archivos detectados a través de todos los workspaces"}
+                                            ? t('projects.viewingDetected')
+                                            : t('projects.manageDetected')}
                                     </p>
                                 </div>
                                 <div className="flex items-center gap-2">
@@ -502,19 +528,19 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
                                             onClick={() => setFilterMode('all')}
                                             className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${filterMode === 'all' ? (isDark ? "bg-white text-black shadow-lg" : "bg-black text-white") : "text-wv-gray hover:text-white"}`}
                                         >
-                                            Todos
+                                            {t('projects.filterAll')}
                                         </button>
                                         <button
                                             onClick={() => setFilterMode('raw')}
                                             className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${filterMode === 'raw' ? (isDark ? "bg-white text-black shadow-lg" : "bg-black text-white") : "text-wv-gray hover:text-white"}`}
                                         >
-                                            Sin Anidar
+                                            {t('projects.filterRaw')}
                                         </button>
                                         <button
                                             onClick={() => setFilterMode('nested')}
                                             className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${filterMode === 'nested' ? (isDark ? "bg-white text-black shadow-lg" : "bg-black text-white") : "text-wv-gray hover:text-white"}`}
                                         >
-                                            Anidados
+                                            {t('projects.filterNested')}
                                         </button>
                                     </div>
                                 </div>
@@ -524,7 +550,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
                                 <Search className={`absolute left-3 top-1/2 -translate-y-1/2 transition-colors ${isDark ? "text-white/20 group-focus-within:text-blue-500" : "text-black/20 group-focus-within:text-black"}`} size={14} />
                                 <input
                                     type="text"
-                                    placeholder="BUSCAR PROYECTO POR NOMBRE..."
+                                    placeholder={t('projects.searchPlaceholder')}
                                     value={projectSearch}
                                     onChange={(e) => setProjectSearch(e.target.value)}
                                     className={`pl-10 pr-4 py-3 rounded-2xl text-[10px] font-bold uppercase tracking-widest outline-none transition-all w-full ${isDark ? "bg-white/5 text-white focus:bg-white/10" : "bg-black/5 text-black focus:bg-black/10"}`}
@@ -561,7 +587,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
                                                         </>
                                                     )}
                                                     {version.trackId && (
-                                                        <span className="px-1 py-0.5 bg-blue-500/10 text-blue-500 text-[6px] font-black uppercase rounded shrink-0">Anidado</span>
+                                                        <span className="px-1 py-0.5 bg-blue-500/10 text-blue-500 text-[6px] font-black uppercase rounded shrink-0">{t('projects.nested')}</span>
                                                     )}
                                                 </div>
                                             </div>
@@ -571,7 +597,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
                                                 onClick={() => setMovingVersion(version)}
                                                 className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${version.trackId ? (isDark ? "bg-white/5 text-wv-gray hover:text-white" : "bg-black/5") : "bg-blue-600 text-white hover:bg-blue-700"}`}
                                             >
-                                                {version.trackId ? 'Volver a Anidar' : 'Anidar'} <ArrowRight size={10} />
+                                                {version.trackId ? t('projects.reNest') : t('projects.nest')} <ArrowRight size={10} />
                                             </button>
                                             <button onClick={() => handleOpenVersion(version.path)} className={`p-1.5 rounded-lg transition-all ${isDark ? "bg-white/5 hover:bg-white/10" : "bg-black/5"}`}>
                                                 <ExternalLink size={10} />
@@ -590,7 +616,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
                             {!currentAlbum ? (
                                 <div className="flex-1 flex flex-col items-center justify-center text-center p-10">
                                     <Disc size={32} className="mb-4 opacity-10" />
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-wv-gray">Selecciona un proyecto</p>
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-wv-gray">{t('projects.selectProject')}</p>
                                 </div>
                             ) : (
                                 <div className="flex-1 flex flex-col min-h-0 h-full">
@@ -610,7 +636,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
                                                     <Settings2 size={16} />
                                                 </button>
                                                 <button onClick={() => handleCreateTrack(currentAlbum.id)} className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest ${isDark ? "bg-white text-black" : "bg-black text-white hover:opacity-90"}`}>
-                                                    <Plus size={14} /> Nueva Track
+                                                    <Plus size={14} /> {t('projects.newTrack')}
                                                 </button>
                                             </div>
                                         </div>
@@ -649,10 +675,10 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
                                                                 <div className="fixed inset-0 z-10" onClick={() => setActiveTrackMenu(null)} />
                                                                 <div className={`absolute right-0 mt-1 w-32 rounded-xl shadow-2xl border z-20 py-1.5 ${isDark ? "bg-wv-sidebar border-white/10" : "bg-white border-black/10"}`}>
                                                                     <button onClick={() => handleEditTrack(track)} className="w-full text-left px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-wv-gray hover:text-white flex items-center gap-2">
-                                                                        <Edit2 size={10} /> Editar
+                                                                        <Edit2 size={10} /> {t('common.edit')}
                                                                     </button>
                                                                     <button onClick={() => handleDeleteTrack(track.id)} className="w-full text-left px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-red-500 hover:bg-red-500/10 flex items-center gap-2">
-                                                                        <Trash2 size={10} /> Borrar
+                                                                        <Trash2 size={10} /> {t('common.delete')}
                                                                     </button>
                                                                 </div>
                                                             </>
@@ -677,8 +703,15 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
                                                             </div>
                                                         </div>
                                                     ))}
+                                                    <button
+                                                        onClick={() => setPickingVersionForTrackId(track.id)}
+                                                        className={`px-3 py-2 rounded-xl border border-dashed flex items-center justify-center gap-2 transition-all ${isDark ? "bg-white/[0.02] border-white/10 hover:bg-white/5 text-wv-gray hover:text-white" : "bg-black/[0.02] border-black/10 hover:bg-black/5"}`}
+                                                    >
+                                                        <Plus size={14} />
+                                                        <span className="text-[9px] font-black uppercase tracking-widest">{t('projects.linkRaw')}</span>
+                                                    </button>
                                                     {track.versions.length === 0 && (
-                                                        <p className="col-span-full py-2 text-[8px] font-black uppercase tracking-widest text-wv-gray/20 text-center">Sin versiones</p>
+                                                        <p className="col-span-full py-2 text-[8px] font-black uppercase tracking-widest text-wv-gray/20 text-center">{t('projects.noVersions')}</p>
                                                     )}
                                                 </div>
                                             </div>
@@ -698,25 +731,153 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
                         <div className={`max-w-md w-full p-8 rounded-[2.5rem] border shadow-2xl flex flex-col ${isDark ? "bg-wv-sidebar border-white/10" : "bg-white border-black/10"}`}>
                             <div className="text-center mb-6">
                                 <ArrowRight size={24} className="text-blue-500 mx-auto mb-3" />
-                                <h2 className="text-lg font-black tracking-tight">Anidar Archivo</h2>
-                                <p className="text-[10px] text-wv-gray font-bold uppercase tracking-widest mt-1">Destino para: {movingVersion.name}</p>
+                                <h2 className="text-lg font-black tracking-tight">{t('projects.nestFile')}</h2>
+                                <p className="text-[10px] text-wv-gray font-bold uppercase tracking-widest mt-1 truncate px-4">{t('projects.projectLabel')} {movingVersion.name}</p>
                             </div>
+
                             <div className="flex-1 overflow-y-auto min-h-0 space-y-4 pr-1 mb-6 projects-scroll">
-                                {db.albums.map(album => (
-                                    <div key={album.id} className="space-y-1.5">
-                                        <h4 className="text-[8px] uppercase font-black tracking-[0.2em] text-wv-gray/40 px-2">{album.name}</h4>
-                                        <div className="grid grid-cols-1 gap-1">
-                                            {album.tracks.map(track => (
-                                                <button key={track.id} onClick={() => handleMoveToTrack(track.id)} className={`flex items-center justify-between px-4 py-2.5 rounded-xl border transition-all ${isDark ? "bg-white/5 border-white/5 hover:bg-blue-600 text-white" : "bg-black/5 hover:bg-black/10"}`}>
+                                {!movingToAlbumId ? (
+                                    <>
+                                        <h3 className="text-[9px] font-black uppercase tracking-widest text-wv-gray/40 px-2 mb-2">{t('projects.selectCollection')}</h3>
+                                        {db.albums.map(album => (
+                                            <button
+                                                key={album.id}
+                                                onClick={() => setMovingToAlbumId(album.id)}
+                                                className={`w-full flex items-center justify-between px-5 py-4 rounded-2xl border transition-all ${isDark ? "bg-white/5 border-white/5 hover:bg-white/10 text-white" : "bg-black/5 hover:bg-black/10"}`}
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <Disc size={16} className="text-blue-500" />
+                                                    <span className="text-[11px] font-black uppercase tracking-tight">{album.name}</span>
+                                                </div>
+                                                <ChevronRight size={14} className="opacity-40" />
+                                            </button>
+                                        ))}
+                                        {db.albums.length === 0 && (
+                                            <div className="text-center py-10 opacity-30">
+                                                <p className="text-[10px] font-black uppercase tracking-widest">{t('projects.noCollections')}</p>
+                                            </div>
+                                        )}
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="flex items-center gap-2 mb-4">
+                                            <button onClick={() => setMovingToAlbumId(null)} className="p-1.5 rounded-lg hover:bg-white/5 text-wv-gray"><X size={14} /></button>
+                                            <h3 className="text-[9px] font-black uppercase tracking-widest text-wv-gray/40">{t('projects.collectionLabel')} {db.albums.find(a => a.id === movingToAlbumId)?.name}</h3>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 gap-1.5">
+                                            {db.albums.find(a => a.id === movingToAlbumId)?.tracks.map(track => (
+                                                <button key={track.id} onClick={() => handleMoveToTrack(track.id)} className={`flex items-center justify-between px-5 py-3 rounded-xl border transition-all ${isDark ? "bg-white/5 border-white/5 hover:bg-blue-600 text-white" : "bg-black/5 hover:bg-black/10"}`}>
                                                     <span className="text-[10px] font-black uppercase tracking-tight">{track.name}</span>
-                                                    <span className={`px-1.5 py-0.5 rounded text-[7px] font-black uppercase ${getStatusColor(track.status)}`}>{track.status}</span>
+                                                    <span className={`px-1.5 py-0.5 rounded text-[7px] font-black uppercase opacity-60 border border-current`}>{track.status}</span>
                                                 </button>
                                             ))}
+
+                                            {isCreatingTrackInline ? (
+                                                <div className={`p-4 rounded-2xl border ${isDark ? "bg-white/5 border-white/5" : "bg-black/5 border-black/5"}`}>
+                                                    <label className="text-[8px] uppercase font-black tracking-widest text-wv-gray ml-1 mb-2 block">{t('projects.newTrackName')}</label>
+                                                    <div className="flex gap-2">
+                                                        <input
+                                                            type="text"
+                                                            autoFocus
+                                                            value={inlineTrackName}
+                                                            onChange={(e) => setInlineTrackName(e.target.value)}
+                                                            onKeyDown={(e) => e.key === 'Enter' && handleConfirmCreateTrackInline()}
+                                                            className={`flex-1 px-4 py-2 rounded-xl border text-xs font-bold outline-none transition-all ${isDark ? "bg-black/20 border-white/5 focus:border-blue-500/50" : "bg-white border-black/5 focus:border-black/20"}`}
+                                                        />
+                                                        <button
+                                                            onClick={handleConfirmCreateTrackInline}
+                                                            className="px-4 py-2 bg-blue-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest"
+                                                        >
+                                                            {t('common.create')}
+                                                        </button>
+                                                        <button
+                                                            onClick={() => setIsCreatingTrackInline(false)}
+                                                            className={`p-2 rounded-xl ${isDark ? "hover:bg-white/5" : "hover:bg-black/5"}`}
+                                                        >
+                                                            <X size={14} />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <button
+                                                    onClick={() => {
+                                                        setIsCreatingTrackInline(true);
+                                                        setInlineTrackName(movingVersion.name.replace(/\.(flp|zip)$/i, ""));
+                                                    }}
+                                                    className={`flex items-center gap-3 px-5 py-3 rounded-xl border border-dashed transition-all ${isDark ? "bg-blue-600/10 border-blue-500/30 text-blue-400 hover:bg-blue-600/20" : "bg-blue-50 border-blue-200 text-blue-600"}`}
+                                                >
+                                                    <Plus size={14} />
+                                                    <span className="text-[10px] font-black uppercase tracking-widest">{t('projects.newTrackInCollection')}</span>
+                                                </button>
+                                            )}
                                         </div>
-                                    </div>
-                                ))}
+                                    </>
+                                )}
                             </div>
-                            <button onClick={() => setMovingVersion(null)} className={`w-full py-3 rounded-xl text-[9px] font-black uppercase tracking-widest ${isDark ? "bg-white/5 hover:bg-white/10" : "bg-black/5"}`}>Cancelar</button>
+                            <button onClick={() => { setMovingVersion(null); setMovingToAlbumId(null); setIsCreatingTrackInline(false); setInlineTrackName(""); }} className={`w-full py-3 rounded-xl text-[9px] font-black uppercase tracking-widest ${isDark ? "bg-white/5 hover:bg-white/10" : "bg-black/5"}`}>{t('common.cancel')}</button>
+                        </div>
+                    </div>
+                )
+            }
+
+            {
+                pickingVersionForTrackId && (
+                    <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[999] flex items-center justify-center p-6">
+                        <div className={`max-w-md w-full max-h-[85vh] p-8 rounded-[2.5rem] border shadow-2xl flex flex-col ${isDark ? "bg-wv-sidebar border-white/10" : "bg-white border-black/10"}`}>
+                            <div className="text-center mb-6">
+                                <Plus size={24} className="text-blue-500 mx-auto mb-3" />
+                                <h2 className="text-lg font-black tracking-tight">{t('projects.linkProject')}</h2>
+                                <p className="text-[10px] text-wv-gray font-bold uppercase tracking-widest mt-1">{t('projects.selectRawFor', { name: db.albums.flatMap(a => a.tracks).find(t => t.id === pickingVersionForTrackId)?.name })}</p>
+                            </div>
+
+                            <div className="mb-4 relative group">
+                                <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-wv-gray opacity-30 group-focus-within:opacity-100 transition-opacity" />
+                                <input
+                                    type="text"
+                                    placeholder={t('projects.searchByName')}
+                                    value={linkSearch}
+                                    onChange={(e) => setLinkSearch(e.target.value)}
+                                    autoFocus
+                                    className={`w-full pl-10 pr-4 py-3 rounded-xl border text-xs font-bold outline-none transition-all ${isDark ? "bg-white/5 border-white/5 focus:border-blue-500/50" : "bg-black/5 border-black/5 focus:border-black/20"}`}
+                                />
+                                {linkSearch && (
+                                    <button onClick={() => setLinkSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-wv-gray hover:text-white transition-colors">
+                                        <X size={14} />
+                                    </button>
+                                )}
+                            </div>
+
+                            <div className="flex-1 overflow-y-auto min-h-0 space-y-2 pr-1 mb-6 projects-scroll">
+                                {db.allVersions
+                                    .filter(v => v.isUnorganized === 1)
+                                    .filter(v => !linkSearch || v.name.toLowerCase().includes(linkSearch.toLowerCase()))
+                                    .map(version => (
+                                        <button
+                                            key={version.id}
+                                            onClick={() => {
+                                                handleMoveToTrack(pickingVersionForTrackId, version.id);
+                                                setLinkSearch("");
+                                            }}
+                                            className={`w-full flex items-center gap-3 px-5 py-3 rounded-xl border transition-all ${isDark ? "bg-white/5 border-white/5 hover:bg-blue-600 text-white" : "bg-black/5 hover:bg-black/10"}`}
+                                        >
+                                            <div className={`p-1.5 rounded-lg ${version.type === 'flp' ? 'bg-orange-500/10 text-orange-500' : 'bg-blue-500/10 text-blue-500'}`}>
+                                                <Layout size={14} />
+                                            </div>
+                                            <div className="text-left min-w-0">
+                                                <p className="text-[10px] font-black uppercase truncate">{version.name}</p>
+                                                <p className="text-[8px] text-wv-gray font-bold uppercase tracking-widest">{version.workspaceName || 'Raw'}</p>
+                                            </div>
+                                        </button>
+                                    ))
+                                }
+                                {db.allVersions.filter(v => v.isUnorganized === 1).filter(v => !linkSearch || v.name.toLowerCase().includes(linkSearch.toLowerCase())).length === 0 && (
+                                    <div className="text-center py-10 opacity-30 border border-dashed border-white/10 rounded-2xl">
+                                        <p className="text-[10px] font-black uppercase tracking-widest">{t('projects.noResults')}</p>
+                                    </div>
+                                )}
+                            </div>
+                            <button onClick={() => { setPickingVersionForTrackId(null); setLinkSearch(""); }} className={`w-full py-3 rounded-xl text-[9px] font-black uppercase tracking-widest ${isDark ? "bg-white/5 hover:bg-white/10" : "bg-black/5"}`}>{t('common.cancel')}</button>
                         </div>
                     </div>
                 )
@@ -729,7 +890,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
                             <div className="mb-6 flex justify-between items-center">
                                 <div>
                                     <h2 className="text-xl font-black tracking-tight mb-1">{modalData.title}</h2>
-                                    <p className="text-[9px] uppercase font-black tracking-widest text-wv-gray opacity-50">Gestionar recursos de producción</p>
+                                    <p className="text-[9px] uppercase font-black tracking-widest text-wv-gray opacity-50">{t('projects.manageResources')}</p>
                                 </div>
                                 <button onClick={() => setModalData({ ...modalData, show: false })} className="p-2 opacity-50 hover:opacity-100"><X size={16} /></button>
                             </div>
@@ -738,17 +899,17 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
                                 <div className="space-y-6">
                                     <div className="space-y-3">
                                         <div className="flex items-center justify-between">
-                                            <h3 className="text-[9px] font-black uppercase tracking-widest text-blue-500">DAWs Detectados</h3>
+                                            <h3 className="text-[9px] font-black uppercase tracking-widest text-blue-500">{t('projects.detectedDaws')}</h3>
                                             <button
                                                 onClick={handleManualDAWPick}
                                                 className="text-[9px] font-black uppercase tracking-widest text-wv-gray hover:text-white transition-all underline decoration-wv-gray/20 underline-offset-4"
                                             >
-                                                Seleccionar manualmente
+                                                {t('projects.manualSelect')}
                                             </button>
                                         </div>
                                         {detectedDaws.length === 0 ? (
                                             <div className="py-8 bg-black/5 rounded-2xl text-center">
-                                                <p className="text-[10px] font-bold text-wv-gray">No se encontraron versiones de FL Studio automáticamente.</p>
+                                                <p className="text-[10px] font-bold text-wv-gray">{t('projects.noDawsFound')}</p>
                                             </div>
                                         ) : (
                                             <div className="grid grid-cols-1 gap-2">
@@ -764,7 +925,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
                                                                 onClick={() => isSaved ? null : handleSaveDAW(daw)}
                                                                 className={`px-3 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-widest transition-all ${isSaved ? "bg-green-500/10 text-green-500" : "bg-blue-600 text-white hover:scale-105"}`}
                                                             >
-                                                                {isSaved ? "Guardado" : "Usar este"}
+                                                                {isSaved ? t('common.saved') : t('projects.useThis')}
                                                             </button>
                                                         </div>
                                                     );
@@ -774,7 +935,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
                                     </div>
 
                                     <div className="space-y-3">
-                                        <h3 className="text-[9px] font-black uppercase tracking-widest text-wv-gray">Configuración Guardada</h3>
+                                        <h3 className="text-[9px] font-black uppercase tracking-widest text-wv-gray">{t('projects.savedConfig')}</h3>
                                         <div className="grid grid-cols-1 gap-2">
                                             {savedDaws.map(daw => (
                                                 <div key={daw.path} className={`flex items-center gap-3 p-3 rounded-2xl ${isDark ? "bg-white/5" : "bg-black/5"}`}>
@@ -822,8 +983,8 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
                                         ))}
                                     </div>
                                     <div className="flex gap-2.5">
-                                        <button onClick={() => setModalData({ ...modalData, show: false })} className={`flex-1 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest ${isDark ? "bg-white/5" : "bg-black/5"}`}>Cancelar</button>
-                                        <button onClick={handleModalSubmit} className="flex-1 py-3 rounded-xl bg-blue-600 text-white text-[9px] font-black uppercase tracking-widest shadow-lg shadow-blue-500/10">Guardar</button>
+                                        <button onClick={() => setModalData({ ...modalData, show: false })} className={`flex-1 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest ${isDark ? "bg-white/5" : "bg-black/5"}`}>{t('common.cancel')}</button>
+                                        <button onClick={handleModalSubmit} className="flex-1 py-3 rounded-xl bg-blue-600 text-white text-[9px] font-black uppercase tracking-widest shadow-lg shadow-blue-500/10">{t('common.save')}</button>
                                     </div>
                                 </>
                             )}

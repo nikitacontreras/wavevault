@@ -25,6 +25,41 @@ function getYtDlpBinary() {
     return binPath;
 }
 
+// Global helper for running yt-dlp with the right environment/python
+async function runYtDlp(args: string[], options: any = {}) {
+    const isWin = process.platform === 'win32';
+    const ytDlpBinary = getYtDlpBinary();
+    const configPython = getPythonPath();
+
+    // Enable verbose logging by default or via option
+    const verbose = options.verbose ?? true;
+
+    const run = async (bin: string, runArgs: string[]) => {
+        const subprocess = execa(bin, runArgs, options);
+
+        if (verbose) {
+            subprocess.stdout?.pipe(process.stdout);
+            subprocess.stderr?.pipe(process.stderr);
+        }
+
+        return await subprocess;
+    };
+
+    if (isWin) {
+        return await run(ytDlpBinary, args);
+    } else {
+        try {
+            return await run(configPython, [ytDlpBinary, ...args]);
+        } catch (e: any) {
+            if (e.stderr?.includes("unsupported version of Python") && configPython !== "python3") {
+                console.warn(`[runYtDlp] Configured python ${configPython} failed with version error. Trying fallback "python3"`);
+                return await run("python3", [ytDlpBinary, ...args]);
+            }
+            throw e;
+        }
+    }
+}
+
 const YT_REGEX = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\//i;
 const YT_ID_REGEX = /^[a-zA-Z0-9_-]{11}$/;
 
@@ -74,67 +109,139 @@ export async function searchYoutube(query: string): Promise<SearchResult[]> {
     if (!query) return [];
 
     try {
-        const ytDlpBinary = getYtDlpBinary();
-        const { stdout } = await execa(ytDlpBinary, [
+        // Use a targeted --print with a JSON template to avoid fetching heavy metadata (subs, comments, etc)
+        const { stdout } = await runYtDlp([
             `ytsearch10:${query}`,
-            "--dump-json",
             "--no-playlist",
             "--no-check-certificate",
-            "--no-warnings"
-        ]);
+            "--no-warnings",
+            "--no-call-home",
+            "--no-cache-dir",
+            "-f", "bestaudio/best",
+            "--print", "{\"id\":%(id)j,\"title\":%(title)j,\"channel\":%(uploader)j,\"thumbnail\":%(thumbnail)j,\"duration\":%(duration)j,\"url\":%(webpage_url)j,\"streamUrl\":%(url)j}"
+        ], { verbose: false }); // Disable pipe for search to avoid terminal clutter
 
-        const results = stdout.split('\n').filter(l => !!l.trim()).map(l => JSON.parse(l));
-
-        return results.map((e: any) => ({
-            id: e.id,
-            title: e.title,
-            channel: e.uploader ?? e.channel ?? "Unknown",
-            thumbnail: e.thumbnail ?? `https://i.ytimg.com/vi/${e.id}/mqdefault.jpg`,
-            duration: e.duration_string ?? "0:00",
-            url: `https://www.youtube.com/watch?v=${e.id}`
-        }));
+        return stdout.split('\n')
+            .filter(l => !!l.trim())
+            .map(l => {
+                const e = JSON.parse(l);
+                return {
+                    id: e.id,
+                    title: e.title,
+                    channel: e.channel ?? "Unknown",
+                    thumbnail: e.thumbnail ?? `https://i.ytimg.com/vi/${e.id}/mqdefault.jpg`,
+                    duration: (typeof e.duration === 'number')
+                        ? new Date(e.duration * 1000).toISOString().substr(14, 5)
+                        : (e.duration || "0:00"),
+                    url: e.url,
+                    streamUrl: e.streamUrl
+                };
+            });
     } catch (e: any) {
         console.error("Search failed:", e);
-        // Throw semantic error for UI log
         throw new Error(e.stderr || e.stdout || e.message || "Unknown error during search");
     }
 }
 
-export async function fetchMeta(url: string): Promise<VideoMeta> {
+/**
+ * Optimized batch search that gets metadata + stream URL in one single yt-dlp process
+ * Pass an array of search queries like ["artist1 title1", "artist2 title2"]
+ */
+export async function batchSearchAndStream(queries: string[]): Promise<any[]> {
+    if (!queries || queries.length === 0) return [];
+
+    // Get 3 results per query to have options for filtering official/topic channels
+    const searchArgs = queries.map(q => `ytsearch3:${q}`);
+
     try {
-        const ytDlpBinary = getYtDlpBinary();
-        const { stdout } = await execa(ytDlpBinary, [
-            url,
-            "--dump-json",
+        const { stdout } = await runYtDlp([
+            ...searchArgs,
             "--no-playlist",
             "--no-check-certificate",
-            "--no-warnings"
-        ]);
+            "--no-warnings",
+            "--no-call-home",
+            "-f", "bestaudio/best",
+            "--print", "{\"id\":%(id)j,\"title\":%(title)j,\"thumbnail\":%(thumbnail)j,\"streamUrl\":%(url)j,\"youtubeUrl\":%(webpage_url)j,\"duration\":%(duration)j,\"uploader\":%(uploader)j}"
+        ], { verbose: false });
 
-        const info = JSON.parse(stdout);
-        return {
-            id: info.id,
-            title: info.title,
-            uploader: info.uploader,
-            channel: info.uploader,
-            upload_date: info.upload_date,
-            description: info.description,
-            thumbnail: info.thumbnail ?? `https://i.ytimg.com/vi/${info.id}/mqdefault.jpg`,
-            duration: info.duration
-        };
+        const allResults = stdout.split('\n')
+            .filter(l => !!l.trim())
+            .map(line => JSON.parse(line));
+
+        // Group by 3s and pick the best (preferring Topic/Official)
+        const finalResults = [];
+        for (let i = 0; i < allResults.length; i += 3) {
+            const chunk = allResults.slice(i, i + 3);
+            if (chunk.length === 0) continue;
+
+            // Priority: Channels ending in "- Topic" or containing "Official"
+            const bestResult = chunk.find(r =>
+                r.uploader?.toLowerCase().endsWith("- topic") ||
+                r.uploader?.toLowerCase().includes("official")
+            ) || chunk[0]; // Fallback to first search result
+
+            finalResults.push(bestResult);
+        }
+
+        return finalResults;
+    } catch (e) {
+        console.error("[batchSearchAndStream] Failed:", e);
+        return [];
+    }
+}
+
+export async function fetchMeta(url: string): Promise<VideoMeta | any> {
+    try {
+        const { stdout } = await runYtDlp([
+            url,
+            "--no-playlist",
+            "--no-check-certificate",
+            "--no-warnings",
+            "--no-call-home",
+            "-f", "bestaudio/best",
+            "--print", "{\"id\":%(id)j,\"title\":%(title)j,\"uploader\":%(uploader)j,\"upload_date\":%(upload_date)j,\"description\":%(description)j,\"thumbnail\":%(thumbnail)j,\"duration\":%(duration)j,\"streamUrl\":%(url)j}"
+        ], { verbose: false });
+
+        return JSON.parse(stdout);
     } catch (e: any) {
         console.error("Meta fetch failed:", e);
         throw new Error(e.stderr || e.stdout || e.message || "Unknown error fetching metadata");
     }
 }
 
+export async function fetchPlaylistMeta(url: string): Promise<{ title: string, entries: any[] }> {
+    try {
+        const { stdout } = await runYtDlp([
+            url,
+            "--dump-single-json",
+            "--flat-playlist",
+            "--no-check-certificate",
+            "--no-warnings"
+        ]);
+
+        const info = JSON.parse(stdout);
+        return {
+            title: info.title || "Playlist",
+            entries: (info.entries || []).map((e: any) => ({
+                id: e.id,
+                title: e.title,
+                url: `https://www.youtube.com/watch?v=${e.id}`,
+                duration: e.duration,
+                uploader: e.uploader
+            }))
+        };
+    } catch (e: any) {
+        console.error("Playlist meta fetch failed:", e);
+        throw new Error(e.stderr || e.stdout || e.message || "Unknown error fetching playlist metadata");
+    }
+}
+
 export async function getStreamUrl(url: string): Promise<string> {
     try {
-        const ytDlpBinary = getYtDlpBinary();
-        const { stdout } = await execa(ytDlpBinary, [
-            "--get-url",
-            "-f", "bestaudio",
+        const { stdout } = await runYtDlp([
             url,
+            "-g",
+            "-f", "bestaudio/best",
             "--no-check-certificate",
             "--no-warnings"
         ]);
@@ -155,17 +262,15 @@ async function downloadBestAudio(url: string, outDir: string, signal?: AbortSign
 
     // Use a unique temp filename to avoid collision with final output
     const outputTemplate = path.join(outDir, `temp_${Date.now()}_%(id)s.%(ext)s`);
-    const ytDlpBinary = getYtDlpBinary();
-
     // Use --print filepath to get the exact final absolute path
-    const { stdout } = await execa(ytDlpBinary, [
+    const { stdout } = await runYtDlp([
         url,
         '-f', 'bestaudio/best',
         '-o', outputTemplate,
         '--no-check-certificate',
         '--no-warnings',
         '--print', 'after_move:filepath' // Get exact final path after all moves
-    ], { signal } as any);
+    ], { signal });
 
     const fullPath = stdout.trim().split('\n').pop()?.trim();
     if (!fullPath) throw new Error("Could not determine downloaded filename");

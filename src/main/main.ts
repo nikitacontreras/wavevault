@@ -27,14 +27,10 @@ if (isMac) {
 }
 
 function broadcastStatus(ok: boolean, message: string) {
-    const windows = BrowserWindow.getAllWindows();
-    const emoji = ok ? "✅ " : "❌ Error: ";
-    // Don't double-add emoji
-    const fullMessage = message.includes("✅") || message.includes("❌") ? message : `${emoji}${message}`;
-
+    const windows = BrowserWindow.getAllWindows()
     windows.forEach(w => {
         if (!w.isDestroyed()) {
-            w.webContents.send("status", { ok, message: fullMessage });
+            w.webContents.send("status", { ok, message });
         }
     });
 }
@@ -55,56 +51,28 @@ const template = [
         ]
     }] : []),
     {
-        label: 'Edit',
+        label: "Edit",
         submenu: [
-            { role: 'undo' },
-            { role: 'redo' },
-            { type: 'separator' },
-            { role: 'cut' },
-            { role: 'copy' },
-            { role: 'paste' },
-            { role: 'selectAll' }
-        ]
-    },
-    {
-        label: 'View',
-        submenu: [
-            { role: 'reload' },
-            { role: 'forceReload' },
-            { role: 'toggleDevTools' },
-            { type: 'separator' },
-            { role: 'resetZoom' },
-            { role: 'zoomIn' },
-            { role: 'zoomOut' },
-            { type: 'separator' },
-            { role: 'togglefullscreen' }
-        ]
-    },
-    {
-        role: 'window',
-        submenu: [
-            { role: 'minimize' },
-            { role: 'zoom' },
-            ...(isMac ? [
-                { type: 'separator' },
-                { role: 'front' },
-                { type: 'separator' },
-                { role: 'window' }
-            ] : [
-                { role: 'close' }
-            ])
+            { role: "undo" },
+            { role: "redo" },
+            { type: "separator" },
+            { role: "cut" },
+            { role: "copy" },
+            { role: "paste" },
+            { role: "selectAll" }
         ]
     }
 ];
 
-const menu = Menu.buildFromTemplate(template as any);
-Menu.setApplicationMenu(isMac ? menu : null);
 
-import { processJob, searchYoutube, fetchMeta, getStreamUrl } from "./downloader";
+
+import { processJob, searchYoutube, fetchMeta, getStreamUrl, fetchPlaylistMeta, batchSearchAndStream } from "./downloader";
 import { checkDependencies } from "./dependencies";
 import { config, saveConfig, resetKeybinds } from "./config";
 import { scanProjects } from "./projects";
-import { getFullProjectDB, createAlbumDB, createTrackDB, moveVersionToTrackDB, updateTrackMetaDB, deleteTrackDB, updateAlbumDB, deleteAlbumDB, deleteVersionDB, setConfigDB, getConfigDB, getWorkspacesDB, addWorkspaceDB, removeWorkspaceDB } from "./db";
+import { indexLocalConnect } from "./localLibrary";
+import { convertFile, ConversionJob } from "./converter";
+import { getFullProjectDB, createAlbumDB, createTrackDB, moveVersionToTrackDB, updateTrackMetaDB, deleteTrackDB, updateAlbumDB, deleteAlbumDB, deleteVersionDB, setConfigDB, getConfigDB, getWorkspacesDB, addWorkspaceDB, removeWorkspaceDB, getLocalFoldersDB, removeLocalFolderDB, getLocalFilesDB } from "./db";
 
 
 // ...
@@ -133,10 +101,28 @@ function createWindow() {
     if (isDev) {
         preloadPath = path.resolve(__dirname, "../../dist/preload.js");
         rendererPath = path.resolve(__dirname, "../../dist/renderer/index.html");
+
+        template.push({
+            label: 'debug',
+            submenu: [
+                { role: 'reload' },
+                { role: 'forceReload' },
+                { role: 'toggleDevTools' },
+                { type: 'separator' },
+                { role: 'resetZoom' },
+                { role: 'zoomIn' },
+                { role: 'zoomOut' },
+                { type: 'separator' },
+                { role: 'togglefullscreen' }
+            ]
+        })
     } else {
         preloadPath = path.resolve(__dirname, "../preload.js");
         rendererPath = path.resolve(__dirname, "../renderer/index.html");
     }
+
+    const menu = Menu.buildFromTemplate(template as any);
+    Menu.setApplicationMenu(isMac ? menu : null);
 
     console.log("Running in:", isDev ? "DEV" : "PROD");
     console.log("Preload:", preloadPath);
@@ -560,9 +546,17 @@ ipcMain.handle("search", async (_evt: any, query: string) => {
     return await searchYoutube(query);
 });
 
+ipcMain.handle("batch-search-and-stream", async (_evt: any, queries: string[]) => {
+    return await batchSearchAndStream(queries);
+});
+
 
 ipcMain.handle("getMeta", async (_evt: any, url: string) => {
     return await fetchMeta(url);
+});
+
+ipcMain.handle("get-playlist-meta", async (_evt: any, url: string) => {
+    return await fetchPlaylistMeta(url);
 });
 
 
@@ -616,6 +610,9 @@ ipcMain.handle("update-config", async (_evt: any, newConfig: Partial<typeof conf
     return true;
 });
 
+ipcMain.handle("convert-file", async (_evt: any, job: ConversionJob) => {
+    return await convertFile(job);
+});
 
 
 ipcMain.handle("trim-audio", async (_evt: any, src: string, start: number, end: number) => {
@@ -662,7 +659,11 @@ ipcMain.handle("get-app-version", () => {
 });
 
 ipcMain.handle("open-external", async (_evt, url) => {
-    shell.openExternal(url);
+    try {
+        if (url) shell.openExternal(url);
+    } catch (e) {
+        console.error("Failed to open external URL:", url, e);
+    }
 });
 
 ipcMain.handle("get-workspaces", () => {
@@ -797,6 +798,65 @@ ipcMain.handle("save-daw-path", (_evt, daw: any) => {
 ipcMain.handle("get-daw-paths", () => {
     const db = require("./db").default;
     return db.prepare('SELECT * FROM daw_paths').all();
+});
+
+ipcMain.handle("backup-db", async () => {
+    const dbPath = require("path").join(app.getPath("userData"), "wavevault.db");
+    const { filePath } = await dialog.showSaveDialog({
+        title: "Backup Database",
+        defaultPath: "wavevault-backup.db",
+        filters: [{ name: "Database", extensions: ["db"] }]
+    });
+
+    if (filePath) {
+        require("fs").copyFileSync(dbPath, filePath);
+        return true;
+    }
+    return false;
+});
+
+ipcMain.handle("restore-db", async () => {
+    const { filePaths } = await dialog.showOpenDialog({
+        title: "Restore Database",
+        properties: ['openFile'],
+        filters: [{ name: "Database", extensions: ["db"] }]
+    });
+
+    if (filePaths && filePaths[0]) {
+        const dbPath = require("path").join(app.getPath("userData"), "wavevault.db");
+        // Close DB connection if possible? better-sqlite3 handles it but we might need to restart app.
+        // We will just copy over and ask user to restart.
+        require("fs").copyFileSync(filePaths[0], dbPath);
+
+        dialog.showMessageBox({
+            type: 'info',
+            title: 'Restore Complete',
+            message: 'Database restored. The application will now restart.',
+            buttons: ['OK']
+        }).then(() => {
+            app.relaunch();
+            app.quit();
+        });
+        return true;
+    }
+    return false;
+});
+
+// Local Library IPC
+ipcMain.handle("add-local-folder", async (_evt, folderPath: string) => {
+    return await indexLocalConnect(folderPath);
+});
+
+ipcMain.handle("get-local-folders", () => {
+    return getLocalFoldersDB();
+});
+
+ipcMain.handle("remove-local-folder", (_evt, id: string) => {
+    return removeLocalFolderDB(id);
+});
+
+ipcMain.handle("get-local-files", (_evt, folderId?: string) => {
+    return getLocalFilesDB(folderId);
 });
 
 

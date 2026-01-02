@@ -92,6 +92,33 @@ export function initDB() {
         )
     `).run();
 
+    // 8. Local Folders (Library)
+    db.prepare(`
+        CREATE TABLE IF NOT EXISTS local_folders (
+            id TEXT PRIMARY KEY,
+            path TEXT NOT NULL UNIQUE,
+            name TEXT NOT NULL,
+            scannedAt INTEGER
+        )
+    `).run();
+
+    // 9. Local Files (Library Index)
+    db.prepare(`
+        CREATE TABLE IF NOT EXISTS local_files (
+            id TEXT PRIMARY KEY,
+            folderId TEXT,
+            path TEXT NOT NULL UNIQUE,
+            filename TEXT NOT NULL,
+            type TEXT, -- Loop, One-Shot
+            instrument TEXT, -- Kick, Snare, etc.
+            key TEXT,
+            bpm INTEGER,
+            duration REAL,
+            size INTEGER,
+            FOREIGN KEY(folderId) REFERENCES local_folders(id) ON DELETE CASCADE
+        )
+    `).run();
+
     // --- MIGRATIONS ---
     // Check if versions table has workspaceId column
     const tableInfo = db.prepare("PRAGMA table_info(versions)").all() as any[];
@@ -225,6 +252,49 @@ export function addWorkspaceDB(name: string, path: string) {
 export function removeWorkspaceDB(id: string) {
     db.prepare('DELETE FROM workspaces WHERE id = ?').run(id);
     return true;
+}
+
+// Local Library Helpers
+export function addLocalFolderDB(path: string, name: string) {
+    const id = "LFD-" + Date.now();
+    db.prepare('INSERT OR IGNORE INTO local_folders (id, path, name, scannedAt) VALUES (?, ?, ?, ?)').run(id, path, name, Date.now());
+    return { id, path, name };
+}
+
+export function getLocalFoldersDB() {
+    return db.prepare('SELECT * FROM local_folders ORDER BY name ASC').all() as any[];
+}
+
+export function removeLocalFolderDB(id: string) {
+    db.prepare('DELETE FROM local_folders WHERE id = ?').run(id);
+    return true;
+}
+
+export function addLocalFileDB(file: any) {
+    // file object: { folderId, path, filename, type, instrument, key, bpm, duration, size }
+    const id = "LFL-" + Math.random().toString(36).substr(2, 9);
+    try {
+        db.prepare(`
+            INSERT INTO local_files (id, folderId, path, filename, type, instrument, key, bpm, duration, size)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(path) DO UPDATE SET
+                scannedAt = ? -- Just to touch it if needed, but we don't have scannedAt on file. Re-insert logic basically.
+        `).run(id, file.folderId, file.path, file.filename, file.type, file.instrument, file.key, file.bpm, file.duration, file.size);
+    } catch (e) {
+        // If conflict and we want to update metadata? For now ignore unique constraint if needed or REPLACE
+        // Using replace for simple updates
+        db.prepare(`
+             INSERT OR REPLACE INTO local_files (id, folderId, path, filename, type, instrument, key, bpm, duration, size)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(id, file.folderId, file.path, file.filename, file.type, file.instrument, file.key, file.bpm, file.duration, file.size);
+    }
+}
+
+export function getLocalFilesDB(folderId?: string) {
+    if (folderId) {
+        return db.prepare('SELECT * FROM local_files WHERE folderId = ?').all(folderId) as any[];
+    }
+    return db.prepare('SELECT * FROM local_files').all() as any[];
 }
 
 initDB();

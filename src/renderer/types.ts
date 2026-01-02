@@ -18,6 +18,7 @@ export interface SearchResult {
     thumbnail: string;
     duration: string;
     url: string;
+    streamUrl?: string; // Cache direct stream URL
 }
 
 export type DownloadStatus = 'idle' | 'loading' | 'success' | 'error';

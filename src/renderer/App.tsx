@@ -2,7 +2,10 @@ import React, { useState, useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import { Sidebar } from "./components/Sidebar";
 import { SearchView } from "./components/SearchView";
-import { HistoryView } from "./components/HistoryView";
+import { LibraryView } from "./components/LibraryView";
+import { DiscoveryView } from "./components/DiscoveryView";
+import { PlaylistModal } from "./components/PlaylistModal";
+import { ConverterView } from "./components/ConverterView";
 import { SettingsView } from "./components/SettingsView";
 import { ProjectsView } from "./components/ProjectsView";
 import { TitleBar } from "./components/TitleBar";
@@ -13,6 +16,8 @@ import { Play, Pause, Volume2, X, Music2, Loader2, Music, PanelLeftClose, PanelL
 import { SpotlightView } from "./components/SpotlightView";
 import { ActiveDownloads } from "./components/ActiveDownloads";
 import { CursorTrail } from "./components/CursorTrail";
+import { useTranslation } from "react-i18next";
+import "./i18n";
 
 
 
@@ -90,6 +95,7 @@ declare global {
 import { DependencyChecker } from "./components/DependencyChecker";
 
 export const App: React.FC = () => {
+    const { t } = useTranslation();
     const isSpotlight = window.location.hash === '#/spotlight';
     const [view, setView] = useState("search");
 
@@ -98,6 +104,7 @@ export const App: React.FC = () => {
 
     const [results, setResults] = useState<SearchResult[]>([]);
     const [isSearching, setIsSearching] = useState(false);
+    const [playlistUrl, setPlaylistUrl] = useState<string | null>(null);
     const [isPreviewLoading, setIsPreviewLoading] = useState(false);
     const [playingUrl, setPlayingUrl] = useState<string | null>(null);
 
@@ -126,7 +133,8 @@ export const App: React.FC = () => {
         audioDeviceId, setAudioDeviceId,
         theme, setTheme,
         smartOrganize, setSmartOrganize,
-        minimizeToTray, setMinimizeToTray
+        minimizeToTray, setMinimizeToTray,
+        discogsToken, setDiscogsToken
     } = settings;
 
     const isDark = theme === 'dark';
@@ -174,9 +182,8 @@ export const App: React.FC = () => {
     }, []);
 
 
-    const handleTogglePreview = async (url: string) => {
-
-        const trackInfo = history.find(h => h.path === url) || results.find(r => r.url === url);
+    const handleTogglePreview = async (url: string, metadata?: any) => {
+        const trackInfo = metadata || history.find(h => h.path === url) || results.find(r => r.url === url);
 
         if (playingUrl === url) {
             if (audioRef.current) {
@@ -190,19 +197,27 @@ export const App: React.FC = () => {
             }
         } else {
             try {
+                // Set loading state and playing URL immediately so UI shows "loading" on the right card
+                setPlayingUrl(url);
+                setIsPreviewLoading(true);
+                setIsPlaying(false); // Reset playing while loading new one
+                addLog("Obteniendo stream para preview...");
+
                 let finalUrl = "";
                 if (url.startsWith('/') || url.includes(':\\')) {
                     finalUrl = `file://${url}`;
+                } else if ((trackInfo as any)?.streamUrl) {
+                    // Use cached stream URL from search/discovery if available
+                    finalUrl = (trackInfo as any).streamUrl;
+                    addLog("Usando stream URL cacheado.");
                 } else {
-                    addLog("Obteniendo stream para preview...");
-                    setIsPreviewLoading(true);
                     finalUrl = await window.api.getStreamUrl(url);
-                    setIsPreviewLoading(false);
                 }
 
-                setPlayingUrl(url);
                 setStreamUrl(finalUrl);
+                setIsPreviewLoading(false);
                 setIsPlaying(true);
+
                 if (trackInfo) {
                     setActiveTrack({
                         title: trackInfo.title,
@@ -211,6 +226,7 @@ export const App: React.FC = () => {
                     });
                 }
             } catch (e: any) {
+                setPlayingUrl(null);
                 setIsPreviewLoading(false);
                 addLog("Error al obtener preview: " + e.message);
             }
@@ -250,11 +266,12 @@ export const App: React.FC = () => {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [playingUrl, isPlaying]);
 
+    // Sync volume to audio element
     useEffect(() => {
         if (audioRef.current) {
             audioRef.current.volume = volume;
         }
-    }, [volume]);
+    }, [volume, streamUrl]);
 
     useEffect(() => {
         if (audioRef.current && (audioRef.current as any).setSinkId) {
@@ -271,6 +288,12 @@ export const App: React.FC = () => {
         setResults([]);
         resetItemStates();
         try {
+            if (query.match(/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.*[?&]list=([^#&?]+)/)) {
+                setPlaylistUrl(query);
+                setIsSearching(false);
+                return;
+            }
+
             if (query.match(/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be|soundcloud\.com)\//)) {
                 addLog("URL detectada. Obteniendo metadatos...");
                 try {
@@ -281,7 +304,8 @@ export const App: React.FC = () => {
                         channel: meta.uploader ?? meta.channel ?? "Desconocido",
                         thumbnail: meta.thumbnail ?? "",
                         duration: meta.duration ? (typeof meta.duration === 'number' ? new Date(meta.duration * 1000).toISOString().substr(14, 5) : meta.duration) : "Video",
-                        url: query
+                        url: query,
+                        streamUrl: (meta as any).streamUrl
                     }]);
                 } catch (err: any) {
                     addLog("Error al obtener metadatos: " + err.message);
@@ -331,8 +355,62 @@ export const App: React.FC = () => {
         }
     };
 
+    const handleBatchDownload = async (entries: any[]) => {
+        addLog(`📦 Iniciando descarga por lotes: ${entries.length} pistas`);
+        for (const entry of entries) {
+            handleDownload({
+                id: entry.id,
+                title: entry.title,
+                url: entry.url,
+                channel: entry.uploader || "Playlist",
+                thumbnail: `https://i.ytimg.com/vi/${entry.id}/mqdefault.jpg`,
+                duration: entry.duration ? new Date(entry.duration * 1000).toISOString().substr(14, 5) : "Video"
+            });
+            // Pequeño delay para no saturar el proceso
+            await new Promise(r => setTimeout(r, 500));
+        }
+    };
+
     const handleOpenItem = (path?: string) => {
         if (path) window.api.openItem(path);
+    };
+
+    const handleDownloadFromUrl = async (url: string, title: string) => {
+        const id = url;
+        if (itemStates[id]?.status === 'loading') return;
+
+        updateItemState(id, { status: 'loading', msg: 'Iniciando...' });
+        addLog(`⏳ Iniciando descarga: ${title}...`);
+
+        try {
+            const { path: dest, bpm, key, source, description, duration, thumbnail } = await window.api.download(
+                url, format, bitrate, sampleRate, normalize, outDir, smartOrganize
+            );
+
+            updateItemState(id, { status: 'success', path: dest, msg: 'Completado' });
+            addLog(`✅ Descarga completada: ${title}`);
+
+            const newItem: HistoryItem = {
+                id: id,
+                title: title,
+                channel: "Discovery",
+                thumbnail: thumbnail || "",
+                path: dest,
+                date: new Date().toISOString(),
+                format: format,
+                sampleRate: sampleRate,
+                bpm: bpm,
+                key: key,
+                source: source || "YouTube",
+                description: description,
+                tags: [],
+                duration: duration
+            };
+            addToHistory(newItem);
+        } catch (e: any) {
+            updateItemState(id, { status: 'error', msg: 'Error' });
+            addLog("❌ Error en descarga: " + e.message);
+        }
     };
 
     const handlePickDir = async () => {
@@ -488,10 +566,12 @@ export const App: React.FC = () => {
 
                             <div className="flex flex-col">
                                 <h1 className="text-lg font-bold tracking-tight">
-                                    {view === 'search' && "Buscar"}
-                                    {view === 'library' && "Librería"}
-                                    {view === 'projects' && "Gestor de Proyectos"}
-                                    {view === 'settings' && "Configuración"}
+                                    {view === 'search' && t('header.search')}
+                                    {view === 'library' && t('header.library')}
+                                    {view === 'discovery' && t('sidebar.discovery')}
+                                    {view === 'converter' && t('sidebar.converter')}
+                                    {view === 'projects' && t('header.projects')}
+                                    {view === 'settings' && t('header.settings')}
                                 </h1>
                             </div>
                         </div>
@@ -526,7 +606,7 @@ export const App: React.FC = () => {
 
                         )}
                         {view === 'library' && (
-                            <HistoryView
+                            <LibraryView
                                 history={history}
                                 onClearHistory={clearHistory}
                                 onOpenItem={handleOpenItem}
@@ -540,6 +620,25 @@ export const App: React.FC = () => {
                                 onStartDrag={() => setIsDragging(true)}
                             />
 
+
+                        )}
+                        {view === 'converter' && (
+                            <ConverterView theme={theme} />
+                        )}
+                        {view === 'discovery' && (
+                            <DiscoveryView
+                                itemStates={itemStates}
+                                history={history}
+                                onDownload={handleDownload}
+                                onOpenItem={handleOpenItem}
+                                onTogglePreview={handleTogglePreview}
+                                playingUrl={playingUrl}
+                                isPreviewLoading={isPreviewLoading}
+                                theme={theme}
+                                onStartDrag={() => setIsDragging(true)}
+                                discogsToken={discogsToken}
+                                onDownloadFromUrl={handleDownloadFromUrl}
+                            />
                         )}
                         {view === 'projects' && (
                             <ProjectsView theme={theme} />
@@ -572,6 +671,8 @@ export const App: React.FC = () => {
                                 setSmartOrganize={setSmartOrganize}
                                 minimizeToTray={minimizeToTray}
                                 setMinimizeToTray={setMinimizeToTray}
+                                discogsToken={discogsToken}
+                                setDiscogsToken={setDiscogsToken}
                             />
 
                         )}
@@ -641,6 +742,7 @@ export const App: React.FC = () => {
                                 ref={audioRef}
                                 src={streamUrl}
                                 autoPlay
+                                onLoadStart={(e) => { e.currentTarget.volume = volume; }}
                                 onEnded={() => { setPlayingUrl(null); setStreamUrl(null); setIsPlaying(false); setActiveTrack(null); }}
                                 onPlay={() => setIsPlaying(true)}
                                 onPause={() => setIsPlaying(false)}
@@ -662,7 +764,15 @@ export const App: React.FC = () => {
                 />
             )}
 
-
+            {/* Playlist Batch Download Modal */}
+            {playlistUrl && (
+                <PlaylistModal
+                    url={playlistUrl}
+                    onClose={() => setPlaylistUrl(null)}
+                    onDownloadBatch={handleBatchDownload}
+                    theme={theme}
+                />
+            )}
         </div>
     );
 };

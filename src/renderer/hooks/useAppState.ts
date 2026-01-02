@@ -53,6 +53,10 @@ export const useSettings = () => {
         return stored === null ? true : stored === 'true';
     });
 
+    const [discogsToken, setDiscogsToken] = useState<string>(() => {
+        return localStorage.getItem('discogsToken') || '';
+    });
+
 
 
 
@@ -118,6 +122,10 @@ export const useSettings = () => {
         localStorage.setItem('minimizeToTray', minimizeToTray.toString());
         window.api.updateConfig({ minimizeToTray });
     }, [minimizeToTray]);
+
+    useEffect(() => {
+        localStorage.setItem('discogsToken', discogsToken);
+    }, [discogsToken]);
 
 
 
@@ -203,7 +211,8 @@ export const useSettings = () => {
         audioDeviceId, setAudioDeviceId,
         theme, setTheme,
         smartOrganize, setSmartOrganize,
-        minimizeToTray, setMinimizeToTray
+        minimizeToTray, setMinimizeToTray,
+        discogsToken, setDiscogsToken
     };
 
 };

@@ -19,6 +19,7 @@ interface DependencyCheckerProps {
 
 
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 export const DependencyChecker: React.FC<DependencyCheckerProps> = ({
     dependencies, onRetry,
@@ -29,6 +30,7 @@ export const DependencyChecker: React.FC<DependencyCheckerProps> = ({
 }) => {
     const isDark = theme === 'dark';
     const [showConfig, setShowConfig] = useState(false);
+    const { t } = useTranslation();
 
     return (
         <div className={`fixed inset-0 z-[3000] backdrop-blur-xl flex items-center justify-center p-6 animate-in fade-in duration-500 transition-all ${isDark ? "bg-wv-bg/80" : "bg-black/10"}`}>
@@ -37,9 +39,9 @@ export const DependencyChecker: React.FC<DependencyCheckerProps> = ({
                     <div className="h-16 w-16 bg-red-500/10 rounded-2xl flex items-center justify-center text-red-500 mb-2">
                         <AlertCircle size={32} />
                     </div>
-                    <h2 className="text-2xl font-bold tracking-tight">Faltan Dependencias</h2>
+                    <h2 className="text-2xl font-bold tracking-tight">{t('deps.missingTitle')}</h2>
                     <p className="text-wv-gray text-sm leading-relaxed">
-                        WaveVault requiere herramientas externas para el procesamiento de audio y la descarga de samples. Por favor, instala lo siguiente para continuar.
+                        {t('deps.missingDesc')}
                     </p>
                 </div>
 
@@ -48,21 +50,21 @@ export const DependencyChecker: React.FC<DependencyCheckerProps> = ({
                         icon={<Cpu size={14} />}
                         name="Python 3"
                         status={dependencies.python}
-                        desc="Necesario para el motor de descarga (yt-dlp)."
+                        desc={t('deps.pythonDesc')}
                         theme={theme}
                     />
                     <DependencyRow
                         icon={<Download size={14} />}
                         name="FFmpeg"
                         status={dependencies.ffmpeg}
-                        desc="Necesario para la conversión de audio."
+                        desc={t('deps.ffmpegDesc')}
                         theme={theme}
                     />
                     <DependencyRow
                         icon={<Info size={14} />}
                         name="FFprobe"
                         status={dependencies.ffprobe}
-                        desc="Necesario para el análisis técnico (BPM/Key)."
+                        desc={t('deps.ffprobeDesc')}
                         theme={theme}
                     />
                 </div>
@@ -75,14 +77,14 @@ export const DependencyChecker: React.FC<DependencyCheckerProps> = ({
                         className={`text-[10px] font-bold uppercase tracking-widest transition-colors flex items-center gap-2 ${isDark ? "text-wv-gray hover:text-white" : "text-black/40 hover:text-black"}`}
                     >
                         <Settings size={12} />
-                        {showConfig ? "Ocultar Configuración" : "Configuración Manual"}
+                        {showConfig ? t('deps.hideConfig') : t('deps.manualConfig')}
                     </button>
 
                     {showConfig && (
                         <div className={`space-y-4 p-4 rounded-2xl border animate-in slide-in-from-top-2 duration-300 ${isDark ? "bg-black/20 border-white/5" : "bg-black/[0.02] border-black/5"}`}>
-                            <MiniPathInput label="Ruta Python" value={pythonPath} onChange={setPythonPath} theme={theme} />
-                            <MiniPathInput label="Ruta FFmpeg" value={ffmpegPath} onChange={setFfmpegPath} theme={theme} />
-                            <MiniPathInput label="Ruta FFprobe" value={ffprobePath} onChange={setFfprobePath} theme={theme} />
+                            <MiniPathInput label={t('deps.pythonPath')} value={pythonPath} onChange={setPythonPath} theme={theme} />
+                            <MiniPathInput label={t('deps.ffmpegPath')} value={ffmpegPath} onChange={setFfmpegPath} theme={theme} />
+                            <MiniPathInput label={t('deps.ffprobePath')} value={ffprobePath} onChange={setFfprobePath} theme={theme} />
                         </div>
                     )}
                 </div>
@@ -94,11 +96,11 @@ export const DependencyChecker: React.FC<DependencyCheckerProps> = ({
                         className={`w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg ${isDark ? "bg-white text-black hover:bg-gray-200" : "bg-black text-white hover:bg-black/90"}`}
                     >
                         <RefreshCw size={16} />
-                        Reintentar Verificación
+                        {t('deps.retryVerification')}
                     </button>
 
                     <p className="text-[10px] text-center text-wv-gray uppercase tracking-widest font-medium opacity-50">
-                        Asegúrate de que estén en tu PATH de sistema
+                        {t('deps.pathHint')}
                     </p>
                 </div>
             </div>

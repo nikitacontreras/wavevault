@@ -1,5 +1,5 @@
 import React from "react";
-import { Search, Folder, Layout, Settings, PanelLeftClose, PanelLeftOpen, Sun, Moon } from "lucide-react";
+import { Search, Folder, Layout, Settings, PanelLeftClose, PanelLeftOpen, Sun, Moon, Disc, RefreshCw } from "lucide-react";
 
 import { useTranslation } from "react-i18next";
 
@@ -60,6 +60,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     label={t('sidebar.library')}
                     active={currentView === "library"}
                     onClick={() => onViewChange("library")}
+                    isCollapsed={isCollapsed}
+                    theme={theme}
+                />
+                <NavItem
+                    icon={<Disc size={18} />}
+                    label={t('sidebar.discovery')}
+                    active={currentView === "discovery"}
+                    onClick={() => onViewChange("discovery")}
+                    isCollapsed={isCollapsed}
+                    theme={theme}
+                />
+                <NavItem
+                    icon={<RefreshCw size={18} />}
+                    label={t('sidebar.converter')}
+                    active={currentView === "converter"}
+                    onClick={() => onViewChange("converter")}
                     isCollapsed={isCollapsed}
                     theme={theme}
                 />

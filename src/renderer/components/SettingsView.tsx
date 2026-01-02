@@ -39,6 +39,8 @@ interface SettingsViewProps {
     setSmartOrganize: (val: boolean) => void;
     minimizeToTray: boolean;
     setMinimizeToTray: (val: boolean) => void;
+    discogsToken: string;
+    setDiscogsToken: (val: string) => void;
 }
 
 
@@ -89,7 +91,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     audioDeviceId, setAudioDeviceId,
     theme,
     smartOrganize, setSmartOrganize,
-    minimizeToTray, setMinimizeToTray
+    minimizeToTray, setMinimizeToTray,
+    discogsToken, setDiscogsToken
 }) => {
     const isDark = theme === 'dark';
     const [devices, setDevices] = React.useState<MediaDeviceInfo[]>([]);
@@ -191,6 +194,49 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                 <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${minimizeToTray ? "translate-x-4" : ""}`} />
                             </div>
                         </label>
+
+                        <div className={`mt-4 pt-4 border-t ${isDark ? "border-white/5" : "border-black/5"}`}>
+                            <div className="flex flex-col gap-1 mb-4">
+                                <span className={`text-[11px] font-bold uppercase tracking-wider ${isDark ? "text-white" : "text-black"}`}>{t('settings.backup')}</span>
+                                <span className="text-[9px] text-wv-gray uppercase font-medium tracking-widest opacity-60">{t('settings.backupDesc')}</span>
+                            </div>
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => (window as any).api.backupDB()}
+                                    className={`flex-1 px-4 py-2.5 border rounded-lg text-xs font-bold uppercase tracking-widest transition-colors ${isDark ? "bg-white/5 hover:bg-white/10 border-white/5 text-white" : "bg-black/5 hover:bg-black/10 border-black/[0.08] text-black"}`}
+                                >
+                                    {t('settings.backupBtn')}
+                                </button>
+                                <button
+                                    onClick={() => (window as any).api.restoreDB()}
+                                    className={`flex-1 px-4 py-2.5 border rounded-lg text-xs font-bold uppercase tracking-widest transition-colors ${isDark ? "bg-white/5 hover:bg-white/10 border-white/5 text-white" : "bg-black/5 hover:bg-black/10 border-black/[0.08] text-black"}`}
+                                >
+                                    {t('settings.restoreBtn')}
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className={`mt-4 pt-4 border-t ${isDark ? "border-white/5" : "border-black/5"}`}>
+                            <div className="flex flex-col gap-1 mb-4">
+                                <span className={`text-[11px] font-bold uppercase tracking-wider ${isDark ? "text-white" : "text-black"}`}>{t('settings.discogs')}</span>
+                                <span className="text-[9px] text-wv-gray uppercase font-medium tracking-widest opacity-60">{t('settings.discogsTokenDesc')}</span>
+                            </div>
+                            <div className="flex gap-3">
+                                <input
+                                    type="password"
+                                    value={discogsToken}
+                                    onChange={(e) => setDiscogsToken(e.target.value)}
+                                    placeholder={t('settings.discogsTokenPlaceholder')}
+                                    className={`flex-1 border rounded-lg px-3 py-2.5 text-xs outline-none transition-all ${isDark ? "bg-wv-bg border-white/5 text-white focus:border-white/20" : "bg-white border-black/[0.08] text-black focus:border-black/20"}`}
+                                />
+                                <button
+                                    onClick={() => (window as any).api.openExternal('https://www.discogs.com/settings/developers')}
+                                    className={`px-4 py-2.5 border rounded-lg text-xs font-bold uppercase tracking-widest transition-colors ${isDark ? "bg-white/5 hover:bg-white/10 border-white/5 text-white" : "bg-black/5 hover:bg-black/10 border-black/[0.08] text-black"}`}
+                                >
+                                    Get Token
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
 

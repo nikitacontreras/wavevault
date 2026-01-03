@@ -211,6 +211,8 @@
         "discogsTokenPlaceholder": "Your personal Discogs token",
         "minimizeTray": "Minimize to Tray",
         "minimizeTrayDesc": "Continue running in background when closed",
+        "lowPowerMode": "Performance Mode",
+        "lowPowerModeDesc": "Disable visual effects (blurs, shadows) to save CPU/GPU",
         "deviceId": "Output Device",
         "defaultDevice": "Default Device",
         "systemMusic": "System Music",

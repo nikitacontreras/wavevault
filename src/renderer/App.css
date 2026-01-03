@@ -102,3 +102,31 @@ input[type="range"].volume-slider::-webkit-slider-thumb {
 input[type="range"].volume-slider::-webkit-slider-thumb:hover {
   transform: scale(1.15);
 }
+
+/* PERFORMANCE / LOW POWER MODE OVERRIDES */
+.low-power * {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
+  transition-duration: 0.01ms !important;
+  animation-duration: 0.01ms !important;
+}
+
+/* Ensure background is solid when blur is disabled */
+.low-power .backdrop-blur-md,
+.low-power .backdrop-blur-sm,
+.low-power .backdrop-blur-lg {
+  background-color: var(--wv-surface) !important;
+}
+
+.low-power .bg-wv-bg\/80 {
+  background-color: var(--wv-bg) !important;
+}
+
+.low-power .bg-white\/80 {
+  background-color: #ffffff !important;
+}
+
+.low-power.dark .bg-wv-sidebar\/80 {
+  background-color: var(--wv-sidebar) !important;
+}

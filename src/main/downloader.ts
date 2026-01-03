@@ -9,26 +9,12 @@ import { DownloadJob, VideoMeta, TargetFormat, Bitrate, SampleRate, SearchResult
 import ytDlp from "yt-dlp-exec";
 import { analyzeBPM, analyzeKey, getDuration } from "./audio-analysis";
 import { getPythonPath, getFFmpegPath } from "./config";
-
-// Helper function to get Python command
-// Helper function to get yt-dlp path correctly
-function getYtDlpBinary() {
-    const isWin = process.platform === 'win32';
-    const binName = isWin ? 'yt-dlp.exe' : 'yt-dlp';
-    let binPath = path.join(__dirname, "../../node_modules/yt-dlp-exec/bin", binName);
-
-    // Fix for ASAR: If path is inside app.asar, point to app.asar.unpacked
-    if (binPath.includes("app.asar")) {
-        binPath = binPath.replace("app.asar", "app.asar.unpacked");
-    }
-
-    return binPath;
-}
+import { getYtDlpPath } from "./binaries";
 
 // Global helper for running yt-dlp with the right environment/python
 async function runYtDlp(args: string[], options: any = {}) {
     const isWin = process.platform === 'win32';
-    const ytDlpBinary = getYtDlpBinary();
+    const ytDlpBinary = getYtDlpPath();
     const configPython = getPythonPath();
 
     // Enable verbose logging by default or via option
@@ -105,38 +91,55 @@ function normalizeUrl(input: any): string {
     }
 }
 
-export async function searchYoutube(query: string): Promise<SearchResult[]> {
+export async function searchYoutube(query: string, offset: number = 0, limit: number = 10): Promise<SearchResult[]> {
     if (!query) return [];
 
     try {
-        // Use a targeted --print with a JSON template to avoid fetching heavy metadata (subs, comments, etc)
+        const start = offset + 1;
+        const end = offset + limit;
+
+        // Removing --flat-playlist is essential to get the real streamUrl (%(url)s)
+        // We use -f bestaudio to only resolve the audio stream, keeping it as fast as possible
         const { stdout } = await runYtDlp([
-            `ytsearch10:${query}`,
+            `ytsearch${end}:${query}`,
             "--no-playlist",
+            "--playlist-items", `${start}:${end}`,
             "--no-check-certificate",
             "--no-warnings",
             "--no-call-home",
             "--no-cache-dir",
             "-f", "bestaudio/best",
             "--print", "{\"id\":%(id)j,\"title\":%(title)j,\"channel\":%(uploader)j,\"thumbnail\":%(thumbnail)j,\"duration\":%(duration)j,\"url\":%(webpage_url)j,\"streamUrl\":%(url)j}"
-        ], { verbose: false }); // Disable pipe for search to avoid terminal clutter
+        ], { verbose: false });
 
         return stdout.split('\n')
             .filter(l => !!l.trim())
             .map(l => {
-                const e = JSON.parse(l);
-                return {
-                    id: e.id,
-                    title: e.title,
-                    channel: e.channel ?? "Unknown",
-                    thumbnail: e.thumbnail ?? `https://i.ytimg.com/vi/${e.id}/mqdefault.jpg`,
-                    duration: (typeof e.duration === 'number')
-                        ? new Date(e.duration * 1000).toISOString().substr(14, 5)
-                        : (e.duration || "0:00"),
-                    url: e.url,
-                    streamUrl: e.streamUrl
-                };
-            });
+                try {
+                    const sanitized = l.replace(/:NA([,}])/g, ':null$1');
+                    const e = JSON.parse(sanitized);
+
+                    if (!e.id) return null;
+                    // Ensure the streamUrl is actually a direct link and not a youtube.com link
+                    // This happens if yt-dlp fails to resolve formats for some reason
+                    const isRealStream = e.streamUrl && (e.streamUrl.includes('googlevideo.com') || e.streamUrl.includes('manifest'));
+
+                    return {
+                        id: e.id,
+                        title: e.title,
+                        channel: e.channel ?? "Unknown",
+                        thumbnail: e.thumbnail ?? `https://i.ytimg.com/vi/${e.id}/mqdefault.jpg`,
+                        duration: (typeof e.duration === 'number')
+                            ? new Date(e.duration * 1000).toISOString().substr(14, 5)
+                            : (e.duration || "Video"),
+                        url: e.url || `https://www.youtube.com/watch?v=${e.id}`,
+                        streamUrl: isRealStream ? e.streamUrl : undefined
+                    };
+                } catch (err) {
+                    return null;
+                }
+            })
+            .filter((r): r is SearchResult => r !== null);
     } catch (e: any) {
         console.error("Search failed:", e);
         throw new Error(e.stderr || e.stdout || e.message || "Unknown error during search");
@@ -419,23 +422,29 @@ export async function processJob(job: DownloadJob): Promise<{
     duration?: string
 }> {
     const url = normalizeUrl(job.url);
+
+    job.onProgress?.("Obteniendo metadatos...");
     const meta = await fetchMeta(url);
 
     if (job.signal?.aborted) throw new Error("Aborted");
 
+    job.onProgress?.("Descargando audio...");
     const rawPath = await downloadBestAudio(url, job.outDir, job.signal);
 
     if (job.signal?.aborted) throw new Error("Aborted");
 
+    job.onProgress?.("Obteniendo carátula...");
     const cover = await downloadCover(meta.thumbnail, job.outDir);
     const baseName = toSafeFilename(`${meta.title} - ${meta.uploader ?? meta.channel ?? meta.id}`);
     const dest = `${path.join(job.outDir, baseName)}.${job.format}`;
 
+    job.onProgress?.("Convirtiendo y etiquetando...");
     await convertWithFfmpeg(rawPath, dest, meta, cover, job.format, job.bitrate, job.sampleRate, job.normalize, job.signal);
 
     // Analysis
     if (job.signal?.aborted) throw new Error("Aborted");
 
+    job.onProgress?.("Analizando BPM y Key...");
     const bpm = await analyzeBPM(dest);
     const key = await analyzeKey(dest);
     const duration = await getDuration(dest);
@@ -444,6 +453,7 @@ export async function processJob(job: DownloadJob): Promise<{
 
     // Smart Organization Logic
     if (job.smartOrganize && key) {
+        job.onProgress?.("Organizando archivos...");
         // Camelot Notation safe folder name
         const keyFolder = key.replace("/", "_");
         const smartDir = path.join(path.dirname(dest), keyFolder);

@@ -38,7 +38,7 @@ declare global {
                 description?: string,
                 duration?: string
             }>;
-            search: (query: string) => Promise<SearchResult[]>;
+            search: (query: string, offset?: number, limit?: number) => Promise<SearchResult[]>;
             getMeta: (url: string) => Promise<SearchResult>;
             getStreamUrl: (url: string) => Promise<string>;
             trimAudio: (src: string, start: number, end: number) => Promise<string>;
@@ -48,6 +48,7 @@ declare global {
             onDownloadStarted: (callback: (payload: { url: string, title: string }) => void) => void;
             onDownloadSuccess: (callback: (payload: { url: string, result: any }) => void) => void;
             onDownloadError: (callback: (payload: { url: string, error: string }) => void) => void;
+            onDownloadProgress: (callback: (payload: { url: string, message: string }) => void) => void;
             cancelDownload: (url: string) => void;
 
 
@@ -81,6 +82,8 @@ declare global {
             openExternal: (url: string) => Promise<void>;
             getPlatformInfo: () => Promise<string>;
             startDrag: (filepath: string, iconpath?: string) => void;
+            savePeaks: (type: 'sample' | 'local' | 'track' | 'cache', id: string, peaks: any) => Promise<void>;
+            getCachedPeaks: (id: string) => Promise<any>;
             minimizeWindow: () => void;
             toggleMaximizeWindow: () => void;
             closeWindow: () => void;
@@ -134,7 +137,8 @@ export const App: React.FC = () => {
         theme, setTheme,
         smartOrganize, setSmartOrganize,
         minimizeToTray, setMinimizeToTray,
-        discogsToken, setDiscogsToken
+        discogsToken, setDiscogsToken,
+        lowPowerMode, setLowPowerMode
     } = settings;
 
     const isDark = theme === 'dark';
@@ -167,6 +171,14 @@ export const App: React.FC = () => {
             document.documentElement.classList.remove('dark');
         }
     }, [theme]);
+
+    useEffect(() => {
+        if (lowPowerMode) {
+            document.documentElement.classList.add('low-power');
+        } else {
+            document.documentElement.classList.remove('low-power');
+        }
+    }, [lowPowerMode]);
 
     useEffect(() => {
         const handleMouseUp = () => setIsDragging(false);
@@ -215,8 +227,7 @@ export const App: React.FC = () => {
                 }
 
                 setStreamUrl(finalUrl);
-                setIsPreviewLoading(false);
-                setIsPlaying(true);
+                // We keep isPreviewLoading as true until audio canPlay/onPlaying fires
 
                 if (trackInfo) {
                     setActiveTrack({
@@ -233,6 +244,18 @@ export const App: React.FC = () => {
 
         }
     };
+
+    // Explicitly handle audio playback when streamUrl changes
+    useEffect(() => {
+        if (audioRef.current && streamUrl) {
+            audioRef.current.load();
+            audioRef.current.play().catch(err => {
+                console.error("Audio playback failed:", err);
+                setIsPlaying(false);
+            });
+            setIsPlaying(true);
+        }
+    }, [streamUrl]);
 
 
     useEffect(() => {
@@ -487,11 +510,24 @@ export const App: React.FC = () => {
             addLog(`✅ Descarga completada: ${newItem.title}`);
         });
 
+        window.api.onDownloadProgress(({ url, message }) => {
+            updateSpotlightDownload(url, { status: 'loading', msg: message });
+
+            // Critical: Update by URL directly (for direct URL downloads)
+            updateItemState(url, { status: 'loading', msg: message });
+
+            // Also update search results if they match the URL
+            const matchedResult = results.find(r => r.url === url);
+            if (matchedResult) {
+                updateItemState(matchedResult.id, { status: 'loading', msg: message });
+            }
+        });
+
         window.api.onDownloadError(({ url, error }) => {
             updateSpotlightDownload(url, { status: 'error', msg: error });
             addLog(`❌ Error en descarga: ${error}`);
         });
-    }, [format, sampleRate]);
+    }, [format, sampleRate, results]);
 
 
 
@@ -509,6 +545,22 @@ export const App: React.FC = () => {
     if (isSpotlight) {
         return <SpotlightView theme={theme} />;
     }
+
+    const handleLoadMore = async () => {
+        if (isSearching || !query.trim() || results.length === 0) return;
+        setIsSearching(true);
+        try {
+            const more = await window.api.search(query, results.length, 12);
+            // Deduplicate results by ID
+            const existingIds = new Set(results.map(r => r.id));
+            const uniqueMore = more.filter(r => !existingIds.has(r.id));
+            setResults(prev => [...prev, ...uniqueMore]);
+        } catch (e: any) {
+            addLog("Error al cargar más: " + e.message);
+        } finally {
+            setIsSearching(false);
+        }
+    };
 
     return (
 
@@ -602,6 +654,7 @@ export const App: React.FC = () => {
                                 isPreviewLoading={isPreviewLoading}
                                 theme={theme}
                                 onStartDrag={() => setIsDragging(true)}
+                                onLoadMore={handleLoadMore}
                             />
 
                         )}
@@ -673,6 +726,8 @@ export const App: React.FC = () => {
                                 setMinimizeToTray={setMinimizeToTray}
                                 discogsToken={discogsToken}
                                 setDiscogsToken={setDiscogsToken}
+                                lowPowerMode={lowPowerMode}
+                                setLowPowerMode={setLowPowerMode}
                             />
 
                         )}
@@ -742,8 +797,14 @@ export const App: React.FC = () => {
                                 ref={audioRef}
                                 src={streamUrl}
                                 autoPlay
-                                onLoadStart={(e) => { e.currentTarget.volume = volume; }}
-                                onEnded={() => { setPlayingUrl(null); setStreamUrl(null); setIsPlaying(false); setActiveTrack(null); }}
+                                onLoadStart={(e) => {
+                                    e.currentTarget.volume = volume;
+                                    setIsPreviewLoading(true);
+                                }}
+                                onWaiting={() => setIsPreviewLoading(true)}
+                                onPlaying={() => setIsPreviewLoading(false)}
+                                onCanPlay={() => setIsPreviewLoading(false)}
+                                onEnded={() => { setPlayingUrl(null); setStreamUrl(null); setIsPlaying(false); setActiveTrack(null); setIsPreviewLoading(false); }}
                                 onPlay={() => setIsPlaying(true)}
                                 onPause={() => setIsPlaying(false)}
                                 style={{ display: 'none' }}

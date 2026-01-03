@@ -17,6 +17,7 @@ interface ResultCardProps {
 
 
 import { useTranslation } from "react-i18next";
+import { Waveform } from "./Waveform";
 
 export const ResultCard: React.FC<ResultCardProps> = ({
     result,
@@ -34,6 +35,16 @@ export const ResultCard: React.FC<ResultCardProps> = ({
     const isDownloading = state.status === 'loading';
     const isSuccess = state.status === 'success' || inHistory;
     const { t } = useTranslation();
+
+    const [cachedPeaks, setCachedPeaks] = React.useState<any>(null);
+
+    React.useEffect(() => {
+        if (isPlaying && !cachedPeaks) {
+            (window as any).api.getCachedPeaks(result.url).then((peaks: any) => {
+                if (peaks) setCachedPeaks(peaks);
+            });
+        }
+    }, [isPlaying, result.url]);
 
     return (
         <div
@@ -74,6 +85,21 @@ export const ResultCard: React.FC<ResultCardProps> = ({
                 </div>
                 <h4 className={`font-bold text-sm mb-0.5 truncate leading-tight transition-colors ${isDark ? "text-white" : "text-black"}`}>{result.title}</h4>
                 <p className="text-wv-gray text-[10px] font-medium mb-4 uppercase tracking-wider">{result.channel}</p>
+
+                {isPlaying && (
+                    <div className="mb-4">
+                        <Waveform
+                            url={result.url}
+                            height={24}
+                            theme={theme}
+                            peaks={cachedPeaks}
+                            onPeaksGenerated={(peaks) => {
+                                (window as any).api.savePeaks('cache', result.url, peaks);
+                                setCachedPeaks(peaks);
+                            }}
+                        />
+                    </div>
+                )}
 
                 <div className={`pt-4 border-t ${isDark ? "border-white/[0.08]" : "border-black/[0.08]"}`}>
                     {isSuccess ? (

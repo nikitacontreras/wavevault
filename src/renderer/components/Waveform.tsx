@@ -17,6 +17,8 @@ interface WaveformProps {
     isLooping?: boolean;
     onLoopToggle?: () => void;
     theme?: 'light' | 'dark';
+    peaks?: number[][];
+    onPeaksGenerated?: (peaks: number[][]) => void;
 }
 
 export const Waveform: React.FC<WaveformProps> = ({
@@ -32,7 +34,9 @@ export const Waveform: React.FC<WaveformProps> = ({
     onZoomChange,
     isLooping = false,
     onLoopToggle,
-    theme = 'dark'
+    theme = 'dark',
+    peaks,
+    onPeaksGenerated
 }) => {
     const isDark = theme === 'dark';
     const containerRef = useRef<HTMLDivElement>(null);
@@ -45,6 +49,11 @@ export const Waveform: React.FC<WaveformProps> = ({
     const activeWaveColor = waveColor || (isDark ? '#374151' : '#e5e7eb');
     const activeProgressColor = progressColor || (isDark ? '#ffffff' : '#000000');
 
+    const isLoopingRef = useRef(isLooping);
+    useEffect(() => {
+        isLoopingRef.current = isLooping;
+    }, [isLooping]);
+
     useEffect(() => {
         if (wavesurferRef.current) {
             wavesurferRef.current.zoom(zoom);
@@ -52,13 +61,36 @@ export const Waveform: React.FC<WaveformProps> = ({
     }, [zoom]);
 
     const handleWheel = useCallback((e: WheelEvent) => {
-        if (!useRegions || !onZoomChange) return;
+        if (!onZoomChange || !wavesurferRef.current) return;
         if (e.ctrlKey || e.metaKey) {
             e.preventDefault();
-            const delta = e.deltaY > 0 ? -10 : 10;
-            onZoomChange(Math.max(0, Math.min(500, zoom + delta)));
+            const ws = wavesurferRef.current;
+            const container = containerRef.current;
+            if (!container) return;
+
+            const rect = container.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+
+            // Calculate time under cursor before zoom
+            const scrollLeft = container.scrollLeft;
+            const wrapperWidth = (ws as any).renderer.wrapper.scrollWidth;
+            const duration = ws.getDuration();
+            const timeAtCursor = ((scrollLeft + x) / wrapperWidth) * duration;
+
+            const delta = e.deltaY > 0 ? -20 : 20;
+            const newZoom = Math.max(0, Math.min(2000, zoom + delta));
+            onZoomChange(newZoom);
+
+            // The scroll adjustment needs to happen after the zoom effect takes place
+            // because the wrapper width changes. We can do it in a small timeout or 
+            // another effect, but here we can try to predict it.
+            setTimeout(() => {
+                const newWrapperWidth = (ws as any).renderer.wrapper.scrollWidth;
+                const newScrollLeft = (timeAtCursor / duration) * newWrapperWidth - x;
+                container.scrollLeft = newScrollLeft;
+            }, 0);
         }
-    }, [zoom, onZoomChange, useRegions]);
+    }, [zoom, onZoomChange]);
 
     useEffect(() => {
         const container = containerRef.current;
@@ -87,6 +119,11 @@ export const Waveform: React.FC<WaveformProps> = ({
             barRadius: 2,
             url: url.startsWith('/') || url.includes(':\\') ? `file://${url}` : url,
             normalize: true,
+            backend: 'MediaElement',
+            pixelRatio: 1,
+            minPxPerSec: 1,
+            dragToSeek: true,
+            peaks: peaks, // Use provided peaks if any
         });
 
         if (useRegions) {
@@ -122,7 +159,7 @@ export const Waveform: React.FC<WaveformProps> = ({
                         const currentTime = ws.getCurrentTime();
                         if (activeRegionRef.current) {
                             if (currentTime >= activeRegionRef.current.end) {
-                                if (isLooping) {
+                                if (isLoopingRef.current) {
                                     ws.setTime(activeRegionRef.current.start);
                                 } else {
                                     ws.pause();
@@ -138,6 +175,19 @@ export const Waveform: React.FC<WaveformProps> = ({
         ws.on('ready', () => {
             wavesurferRef.current = ws;
             if (onReady) onReady(ws);
+
+            // Export peaks if not provided and callback exists
+            if (!peaks && onPeaksGenerated) {
+                try {
+                    // exportPeaks returns the peak data
+                    const generatedPeaks = (ws as any).exportPeaks();
+                    if (generatedPeaks && generatedPeaks.length > 0) {
+                        onPeaksGenerated(generatedPeaks);
+                    }
+                } catch (e) {
+                    console.warn("Failed to export peaks:", e);
+                }
+            }
         });
 
         ws.on('play', () => setIsPlaying(true));
@@ -152,7 +202,7 @@ export const Waveform: React.FC<WaveformProps> = ({
         return () => {
             ws.destroy();
         };
-    }, [url, height, activeWaveColor, activeProgressColor, useRegions, isLooping, isDark]);
+    }, [url, height, activeWaveColor, activeProgressColor, useRegions, isDark]);
 
     const handleToggle = (e: React.MouseEvent) => {
         e.stopPropagation();

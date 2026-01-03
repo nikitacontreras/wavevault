@@ -87,7 +87,7 @@ import { config, saveConfig, resetKeybinds } from "./config";
 import { scanProjects } from "./projects";
 import { indexLocalConnect } from "./localLibrary";
 import { convertFile, ConversionJob } from "./converter";
-import { getFullProjectDB, createAlbumDB, createTrackDB, moveVersionToTrackDB, updateTrackMetaDB, deleteTrackDB, updateAlbumDB, deleteAlbumDB, deleteVersionDB, setConfigDB, getConfigDB, getWorkspacesDB, addWorkspaceDB, removeWorkspaceDB, getLocalFoldersDB, removeLocalFolderDB, getLocalFilesDB } from "./db";
+import { getFullProjectDB, createAlbumDB, createTrackDB, moveVersionToTrackDB, updateTrackMetaDB, deleteTrackDB, updateAlbumDB, deleteAlbumDB, deleteVersionDB, setConfigDB, getConfigDB, getWorkspacesDB, addWorkspaceDB, removeWorkspaceDB, getLocalFoldersDB, removeLocalFolderDB, getLocalFilesDB, saveWaveformDB, saveWaveformCacheDB, getWaveformCacheDB } from "./db";
 
 
 // ...
@@ -245,6 +245,15 @@ function broadcastDownloadStarted(url: string, title: string) {
     windows.forEach(w => {
         if (!w.isDestroyed()) {
             w.webContents.send("download-started", { url, title });
+        }
+    });
+}
+
+function broadcastDownloadProgress(url: string, message: string) {
+    const windows = BrowserWindow.getAllWindows();
+    windows.forEach(w => {
+        if (!w.isDestroyed()) {
+            w.webContents.send("download-progress", { url, message });
         }
     });
 }
@@ -520,7 +529,8 @@ ipcMain.handle("download", async (_evt: any, url: string, format: string, bitrat
             sampleRate: sampleRate as any,
             normalize,
             signal: controller.signal,
-            smartOrganize // Pass the new flag
+            smartOrganize,
+            onProgress: (msg) => broadcastDownloadProgress(url, msg)
         });
 
         broadcastDownloadSuccess(url, result);
@@ -557,8 +567,8 @@ ipcMain.handle("getStreamUrl", async (_evt: any, url: string) => {
 
 
 // IPC: búsqueda
-ipcMain.handle("search", async (_evt: any, query: string) => {
-    return await searchYoutube(query);
+ipcMain.handle("search", async (_evt: any, query: string, offset: number = 0, limit: number = 10) => {
+    return await searchYoutube(query, offset, limit);
 });
 
 ipcMain.handle("batch-search-and-stream", async (_evt: any, queries: string[]) => {
@@ -588,6 +598,18 @@ ipcMain.handle("pick-file", async (_evt, filters: any[]) => {
         filters: filters || []
     });
     return r.canceled ? null : r.filePaths[0];
+});
+
+ipcMain.handle("save-peaks", async (_evt, type: 'sample' | 'local' | 'track' | 'cache', id: string, peaks: any) => {
+    if (type === 'cache') {
+        return saveWaveformCacheDB(id, JSON.stringify(peaks));
+    }
+    return saveWaveformDB(type, id, JSON.stringify(peaks));
+});
+
+ipcMain.handle("get-cached-peaks", async (_evt, id: string) => {
+    const raw = getWaveformCacheDB(id);
+    return raw ? JSON.parse(raw) : null;
 });
 
 ipcMain.handle("update-config", async (_evt: any, newConfig: Partial<typeof config>) => {

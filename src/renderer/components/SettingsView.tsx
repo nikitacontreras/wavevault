@@ -41,6 +41,8 @@ interface SettingsViewProps {
     setMinimizeToTray: (val: boolean) => void;
     discogsToken: string;
     setDiscogsToken: (val: string) => void;
+    lowPowerMode: boolean;
+    setLowPowerMode: (val: boolean) => void;
 }
 
 
@@ -92,7 +94,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     theme,
     smartOrganize, setSmartOrganize,
     minimizeToTray, setMinimizeToTray,
-    discogsToken, setDiscogsToken
+    discogsToken, setDiscogsToken,
+    lowPowerMode, setLowPowerMode
 }) => {
     const isDark = theme === 'dark';
     const [devices, setDevices] = React.useState<MediaDeviceInfo[]>([]);
@@ -192,6 +195,26 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                 />
                                 <div className={`w-10 h-6 rounded-full transition-colors ${minimizeToTray ? "bg-blue-600" : (isDark ? "bg-white/10" : "bg-black/10")}`} />
                                 <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${minimizeToTray ? "translate-x-4" : ""}`} />
+                            </div>
+                        </label>
+
+                        <label className="flex items-center justify-between cursor-pointer group">
+                            <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-2">
+                                    <span className={`text-[11px] font-bold uppercase tracking-wider ${isDark ? "text-white" : "text-black"}`}>{t('settings.lowPowerMode')}</span>
+                                    <span className="text-[8px] bg-amber-500/20 text-amber-500 px-1.5 py-0.5 rounded font-bold uppercase tracking-tighter">Performance</span>
+                                </div>
+                                <span className="text-[9px] text-wv-gray uppercase font-medium tracking-widest opacity-60">{t('settings.lowPowerModeDesc')}</span>
+                            </div>
+                            <div className="relative">
+                                <input
+                                    type="checkbox"
+                                    className="sr-only"
+                                    checked={lowPowerMode}
+                                    onChange={(e) => setLowPowerMode(e.target.checked)}
+                                />
+                                <div className={`w-10 h-6 rounded-full transition-colors ${lowPowerMode ? "bg-amber-500" : (isDark ? "bg-white/10" : "bg-black/10")}`} />
+                                <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${lowPowerMode ? "translate-x-4" : ""}`} />
                             </div>
                         </label>
 

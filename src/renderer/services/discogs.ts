@@ -108,6 +108,21 @@ export async function getRandomDiscogs(
     return searchDiscogs(token, params);
 }
 
+export async function getDiscogsRelease(token: string, id: number): Promise<any> {
+    const response = await fetch(`${DISCOGS_API_BASE}/releases/${id}`, {
+        headers: {
+            'Authorization': `Discogs token=${token}`,
+            'User-Agent': USER_AGENT
+        }
+    });
+
+    if (!response.ok) {
+        throw new Error(`Discogs API error: ${response.status}`);
+    }
+
+    return await response.json();
+}
+
 // Common Discogs genres for filtering UI
 export const DISCOGS_GENRES = [
     'Blues', 'Brass & Military', 'Children\'s', 'Classical', 'Electronic',

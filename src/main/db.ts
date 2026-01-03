@@ -120,17 +120,36 @@ export function initDB() {
     `).run();
 
     // --- MIGRATIONS ---
-    // Check if versions table has workspaceId column
-    const tableInfo = db.prepare("PRAGMA table_info(versions)").all() as any[];
-    const hasWorkspaceId = tableInfo.some(col => col.name === 'workspaceId');
-    if (!hasWorkspaceId) {
+    const tableInfoVersions = db.prepare("PRAGMA table_info(versions)").all() as any[];
+    if (!tableInfoVersions.some(col => col.name === 'workspaceId')) {
         try {
             db.prepare("ALTER TABLE versions ADD COLUMN workspaceId TEXT").run();
             console.log("Database Migration: Added workspaceId to versions table.");
-        } catch (e) {
-            console.error("Migration failed:", e);
-        }
+        } catch (e) { console.error("Migration failed:", e); }
     }
+
+    // Waveform caching migrations
+    const tableInfoTracks = db.prepare("PRAGMA table_info(tracks)").all() as any[];
+    if (!tableInfoTracks.some(col => col.name === 'waveform')) {
+        try { db.prepare("ALTER TABLE tracks ADD COLUMN waveform TEXT").run(); } catch (e) { }
+    }
+    const tableInfoSamples = db.prepare("PRAGMA table_info(samples)").all() as any[];
+    if (!tableInfoSamples.some(col => col.name === 'waveform')) {
+        try { db.prepare("ALTER TABLE samples ADD COLUMN waveform TEXT").run(); } catch (e) { }
+    }
+    const tableInfoLocalFiles = db.prepare("PRAGMA table_info(local_files)").all() as any[];
+    if (!tableInfoLocalFiles.some(col => col.name === 'waveform')) {
+        try { db.prepare("ALTER TABLE local_files ADD COLUMN waveform TEXT").run(); } catch (e) { }
+    }
+
+    // Waveform Cache Table for external URLs
+    db.prepare(`
+        CREATE TABLE IF NOT EXISTS waveform_cache (
+            url_id TEXT PRIMARY KEY,
+            waveform TEXT,
+            updatedAt INTEGER
+        )
+    `).run();
 }
 
 // Config Helpers
@@ -295,6 +314,27 @@ export function getLocalFilesDB(folderId?: string) {
         return db.prepare('SELECT * FROM local_files WHERE folderId = ?').all(folderId) as any[];
     }
     return db.prepare('SELECT * FROM local_files').all() as any[];
+}
+
+export function saveWaveformDB(type: 'sample' | 'local' | 'track', id: string, waveform: string) {
+    if (type === 'sample') {
+        db.prepare('UPDATE samples SET waveform = ? WHERE id = ?').run(waveform, id);
+    } else if (type === 'local') {
+        db.prepare('UPDATE local_files SET waveform = ? WHERE id = ?').run(waveform, id);
+    } else if (type === 'track') {
+        db.prepare('UPDATE tracks SET waveform = ? WHERE id = ?').run(waveform, id);
+    }
+    return true;
+}
+
+export function saveWaveformCacheDB(urlId: string, waveform: string) {
+    db.prepare('INSERT OR REPLACE INTO waveform_cache (url_id, waveform, updatedAt) VALUES (?, ?, ?)').run(urlId, waveform, Date.now());
+    return true;
+}
+
+export function getWaveformCacheDB(urlId: string) {
+    const row = db.prepare('SELECT waveform FROM waveform_cache WHERE url_id = ?').get(urlId) as { waveform: string } | undefined;
+    return row ? row.waveform : null;
 }
 
 initDB();

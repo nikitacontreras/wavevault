@@ -62,6 +62,8 @@ contextBridge.exposeInMainWorld("api", {
     getLocalFolders: () => ipcRenderer.invoke("get-local-folders"),
     removeLocalFolder: (id: string) => ipcRenderer.invoke("remove-local-folder", id),
     getLocalFiles: (folderId?: string) => ipcRenderer.invoke("get-local-files", folderId),
+    getLocalFilesGrouped: () => ipcRenderer.invoke("get-local-files-grouped"),
+    getLocalFilesByCategory: (category: string) => ipcRenderer.invoke("get-local-files-by-category", category),
     getPlaylistMeta: (url: string) => ipcRenderer.invoke('get-playlist-meta', url),
     batchSearchAndStream: (queries: string[]) => ipcRenderer.invoke('batch-search-and-stream', queries),
     backupDB: () => ipcRenderer.invoke("backup-db"),
@@ -69,6 +71,14 @@ contextBridge.exposeInMainWorld("api", {
     convertFile: (job: any) => ipcRenderer.invoke("convert-file", job),
     savePeaks: (type: string, id: string, peaks: any) => ipcRenderer.invoke("save-peaks", type, id, peaks),
     getCachedPeaks: (id: string) => ipcRenderer.invoke("get-cached-peaks", id),
+
+    on: (channel: string, callback: (data: any) => void) => {
+        const subscription = (_event: any, data: any) => callback(data);
+        ipcRenderer.on(channel, subscription);
+        return () => {
+            ipcRenderer.removeListener(channel, subscription);
+        };
+    },
 
     platform: process.platform
 });

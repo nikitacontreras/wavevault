@@ -134,7 +134,7 @@ export async function searchYoutube(query: string, offset: number = 0, limit: nu
                             : (e.duration || "Video"),
                         url: e.url || `https://www.youtube.com/watch?v=${e.id}`,
                         streamUrl: isRealStream ? e.streamUrl : undefined
-                    };
+                    } as SearchResult;
                 } catch (err) {
                     return null;
                 }

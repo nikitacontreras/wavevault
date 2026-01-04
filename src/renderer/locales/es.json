@@ -224,6 +224,8 @@
         "discogsTokenPlaceholder": "Tu token personal de Discogs",
         "minimizeTray": "Minimizar al Tray",
         "minimizeTrayDesc": "Seguir funcionando en segundo plano al cerrar",
+        "lowPowerMode": "Modo de Rendimiento",
+        "lowPowerModeDesc": "Desactiva efectos visuales (blurs, sombras) para ahorrar CPU/GPU",
         "deviceId": "Dispositivo de Salida",
         "defaultDevice": "Dispositivo por Defecto",
         "systemMusic": "Música del Sistema",

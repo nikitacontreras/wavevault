@@ -148,6 +148,8 @@
         "system": "시스템",
         "minimizeTray": "트레이로 최소화",
         "minimizeTrayDesc": "닫아도 백그라운드에서 계속 실행",
+        "lowPowerMode": "성능 모드",
+        "lowPowerModeDesc": "CPU/GPU 부하를 줄이기 위해 시각 효과(블러, 그림자)를 비활성화합니다",
         "deviceId": "출력 장치",
         "defaultDevice": "기본 장치",
         "systemMusic": "시스템 음악",

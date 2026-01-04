@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { HistoryItem } from "../types";
 import { LibraryItemModal } from "./LibraryItemModal";
-import { Search, Filter, Folder, Music, Play, Pause, ExternalLink, Tag, Clock, Loader2, Trash2, HardDrive, Plus, RefreshCw, CircleArrowLeft } from "lucide-react";
+import { Search, Filter, Folder, Music, Play, Pause, ExternalLink, Tag, Clock, Loader2, Trash2, HardDrive, Plus, RefreshCw, CircleArrowLeft, Edit2, ArrowRight } from "lucide-react";
 
 import { Waveform } from "./Waveform";
 import { VirtualizedItem } from "./VirtualizedItem";
@@ -11,13 +11,14 @@ interface LibraryViewProps {
     history: HistoryItem[];
     onClearHistory: () => void;
     onOpenItem: (path: string) => void;
-    onTogglePreview: (url: string) => void;
+    onTogglePreview: (url: string, metadata?: any) => void;
     onUpdateItem: (id: string, updates: Partial<HistoryItem>) => void;
     onRemoveItem: (id: string) => void;
     playingUrl: string | null;
     isPreviewLoading: boolean;
     theme: 'light' | 'dark';
     onStartDrag: () => void;
+    audioMediaElement: HTMLAudioElement | null;
 }
 
 export const LibraryView: React.FC<LibraryViewProps> = ({
@@ -30,7 +31,8 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
     playingUrl,
     isPreviewLoading,
     theme,
-    onStartDrag
+    onStartDrag,
+    audioMediaElement
 }) => {
     const isDark = theme === 'dark';
     const { t } = useTranslation();
@@ -64,30 +66,95 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
     const [folderFiles, setFolderFiles] = useState<any[]>([]);
     const [isLoadingLocal, setIsLoadingLocal] = useState(false);
     const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
+    const [scanningFolders, setScanningFolders] = useState<Map<string, any>>(new Map());
+
+    // New Categories State
+    const [activeLocalView, setActiveLocalView] = useState<'folders' | 'categories'>('folders');
+    const [categories, setCategories] = useState<any[]>([]);
+    const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
     React.useEffect(() => {
         if (activeFolderId) {
             loadFolderFiles(activeFolderId);
+        } else if (activeCategory) {
+            loadCategoryFiles(activeCategory);
         } else {
             setFolderFiles([]);
         }
+    }, [activeFolderId, activeCategory]);
+
+    React.useEffect(() => {
+        const removeListener = (window as any).api.on('local-library-progress', (data: any) => {
+            setScanningFolders(prev => {
+                const next = new Map(prev);
+                if (data.status === 'completed') {
+                    next.delete(data.folderId);
+                    // Refresh if this folder was active or just finished
+                    loadLocalFolders();
+                    loadCategories(); // Refresh categories too
+                    if (activeFolderId === data.folderId) loadFolderFiles(activeFolderId);
+                } else {
+                    next.set(data.folderId, data);
+                }
+                return next;
+            });
+        });
+        return () => removeListener();
     }, [activeFolderId]);
 
+    const loadLocalFolders = async () => {
+        if (activeTab === 'local') {
+            setIsLoadingLocal(true);
+            try {
+                const folders = await (window as any).api.getLocalFolders();
+                setLocalFolders(folders);
+            } catch (e) {
+                console.error(e);
+            } finally {
+                setIsLoadingLocal(false);
+            }
+        }
+    };
+
+    const loadCategories = async () => {
+        try {
+            const cats = await (window as any).api.getLocalFilesGrouped();
+            setCategories(cats);
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
     const loadFolderFiles = async (id: string) => {
-        const files = await (window as any).api.getLocalFiles(id);
-        setFolderFiles(files);
+        setIsLoadingLocal(true);
+        try {
+            const files = await (window as any).api.getLocalFiles(id);
+            setFolderFiles(files);
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setIsLoadingLocal(false);
+        }
+    };
+
+    const loadCategoryFiles = async (category: string) => {
+        setIsLoadingLocal(true);
+        try {
+            const files = await (window as any).api.getLocalFilesByCategory(category);
+            setFolderFiles(files);
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setIsLoadingLocal(false);
+        }
     };
 
     React.useEffect(() => {
         if (activeTab === 'local') {
             loadLocalFolders();
+            loadCategories();
         }
     }, [activeTab]);
-
-    const loadLocalFolders = async () => {
-        const folders = await (window as any).api.getLocalFolders();
-        setLocalFolders(folders);
-    };
 
     const handleAddFolder = async () => {
         const path = await (window as any).api.pickDir();
@@ -113,8 +180,32 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
     };
 
     const selectedItem = useMemo(() => {
+        if (!selectedId) return null;
+        if (selectedId.startsWith('LOCAL:')) {
+            const realId = selectedId.replace('LOCAL:', '');
+            const localFile = folderFiles.find(f => f.id === realId);
+            if (!localFile) return null;
+            return {
+                id: localFile.id,
+                title: localFile.filename,
+                channel: "Local Library",
+                thumbnail: "", // TODO: generate or use icon
+                path: localFile.path,
+                date: "",
+                format: localFile.filename.split('.').pop() || "wav",
+                sampleRate: "44100",
+                bpm: localFile.bpm,
+                key: localFile.key,
+                source: "Local",
+                description: "",
+                tags: localFile.tags ? JSON.parse(localFile.tags) : [],
+                duration: new Date(localFile.duration * 1000).toISOString().substr(14, 5),
+                category: localFile.type,
+                instrument: localFile.instrument
+            } as HistoryItem;
+        }
         return history.find(item => item.id === selectedId) || null;
-    }, [history, selectedId]);
+    }, [history, selectedId, folderFiles]);
 
 
     const filteredHistory = useMemo(() => {
@@ -265,7 +356,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                                                 window.api.startDrag(item.path, item.thumbnail);
                                             }}
                                         >
-                                            <div className="relative aspect-video overflow-hidden" onClick={(e) => { e.stopPropagation(); onTogglePreview(item.path); }}>
+                                            <div className="relative aspect-video overflow-hidden" onClick={(e) => { e.stopPropagation(); onTogglePreview(item.path, item); }}>
                                                 <img src={item.thumbnail} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt="" />
                                                 <div className={`absolute inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center transition-opacity duration-300 opacity-0 group-hover:opacity-100 ${isPlaying ? 'opacity-100' : ''}`}>
                                                     <div className="bg-white text-black p-3 rounded-full shadow-2xl transform transition-transform group-hover:scale-110">
@@ -317,6 +408,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                                                                 (window as any).api.savePeaks('sample', item.id, peaks);
                                                                 onUpdateItem(item.id, { waveform: JSON.stringify(peaks) });
                                                             }}
+                                                            audioMediaElement={audioMediaElement}
                                                         />
                                                     </div>
                                                 )}
@@ -356,18 +448,20 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
 
             {activeTab === 'local' && (
                 <div className="min-h-[50vh]">
-                    {activeFolderId ? (
+                    {(activeFolderId || activeCategory) ? (
                         <div className="space-y-6">
                             <div className="flex items-center gap-4">
                                 <button
-                                    onClick={() => setActiveFolderId(null)}
+                                    onClick={() => { setActiveFolderId(null); setActiveCategory(null); }}
                                     className={`p-2 rounded-lg transition-colors ${isDark ? "hover:bg-white/10" : "hover:bg-black/10"}`}
                                 >
                                     <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest">
                                         <CircleArrowLeft size={16} /> Back
                                     </div>
                                 </button>
-                                <span className="text-xl font-bold">{localFolders.find(f => f.id === activeFolderId)?.name}</span>
+                                <span className="text-xl font-bold">
+                                    {activeCategory || localFolders.find(f => f.id === activeFolderId)?.name}
+                                </span>
                             </div>
 
                             <div className="grid grid-cols-1 gap-2">
@@ -377,7 +471,11 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                                         <div
                                             key={file.id}
                                             className={`group flex items-center justify-between p-3 rounded-lg border transition-all ${isDark ? "bg-wv-surface border-white/5 hover:bg-white/10" : "bg-white border-black/5 hover:bg-black/5"}`}
-                                            onClick={() => onTogglePreview(file.path)}
+                                            onClick={() => onTogglePreview(file.path, {
+                                                title: file.filename,
+                                                artist: "Local Library",
+                                                thumbnail: null // Local files don't have thumbnails yet
+                                            })}
                                         >
                                             <div className="flex items-center gap-4">
                                                 <button className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${isDark ? "bg-white/10 group-hover:bg-white text-black" : "bg-black/10 group-hover:bg-black text-white"}`}>
@@ -404,11 +502,23 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                                                                 (window as any).api.savePeaks('local', file.id, peaks);
                                                                 setFolderFiles(prev => prev.map(f => f.id === file.id ? { ...f, waveform: JSON.stringify(peaks) } : f));
                                                             }}
+                                                            audioMediaElement={audioMediaElement}
                                                         />
                                                     </div>
                                                 )}
                                                 {file.bpm > 0 && <span className={`text-[10px] px-2 py-1 rounded ${isDark ? "bg-white/5" : "bg-black/5"}`}>{file.bpm} BPM</span>}
                                                 {file.key && <span className={`text-[10px] px-2 py-1 rounded ${isDark ? "bg-white text-black" : "bg-black text-white"}`}>{file.key}</span>}
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        // Hacky: construct a HistoryItem-like object for the modal
+                                                        // We need a way to distinguish, maybe use ID prefix
+                                                        setSelectedId(`LOCAL:${file.id}`);
+                                                    }}
+                                                    className={`p-1.5 rounded-md opacity-0 group-hover:opacity-100 transition-all ${isDark ? "hover:bg-white/20 text-white" : "hover:bg-black/10 text-black"}`}
+                                                >
+                                                    <Edit2 size={12} />
+                                                </button>
                                             </div>
                                         </div>
                                     );
@@ -434,7 +544,28 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                     ) : (
                         <div className="space-y-6">
                             <div className="flex items-center justify-between">
-                                <h3 className="text-xs font-bold uppercase tracking-widest text-wv-gray">{t('library.local.stats', { count: localFolders.reduce((acc, f) => acc + (f.fileCount || 0), 0) })}</h3>
+                                <h3 className="text-xs font-bold uppercase tracking-widest text-wv-gray">
+                                    {activeLocalView === 'folders'
+                                        ? t('library.local.stats', { count: localFolders.reduce((acc, f) => acc + (f.fileCount || 0), 0) })
+                                        : `${categories.length} CATEGORIES`
+                                    }
+                                </h3>
+
+                                <div className="flex bg-black/5 dark:bg-white/5 p-1 rounded-lg">
+                                    <button
+                                        onClick={() => setActiveLocalView('folders')}
+                                        className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${activeLocalView === 'folders' ? (isDark ? 'bg-white text-black' : 'bg-black text-white') : 'text-wv-gray'}`}
+                                    >
+                                        FOLDERS
+                                    </button>
+                                    <button
+                                        onClick={() => setActiveLocalView('categories')}
+                                        className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${activeLocalView === 'categories' ? (isDark ? 'bg-white text-black' : 'bg-black text-white') : 'text-wv-gray'}`}
+                                    >
+                                        CATEGORIES
+                                    </button>
+                                </div>
+
                                 <button
                                     onClick={handleAddFolder}
                                     className={`p-2 rounded-lg transition-colors ${isDark ? "hover:bg-white/10" : "hover:bg-black/10"}`}
@@ -443,29 +574,81 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                                 </button>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {localFolders.map(folder => (
-                                    <div
-                                        key={folder.id}
-                                        onClick={() => setActiveFolderId(folder.id)}
-                                        className={`p-4 rounded-xl border transition-all cursor-pointer group relative ${isDark ? "bg-wv-sidebar border-white/5 hover:border-white/20" : "bg-white border-black/5 hover:border-black/20"}`}
-                                    >
-                                        <div className="flex items-start justify-between mb-3">
-                                            <div className={`p-2.5 rounded-lg ${isDark ? "bg-white/5" : "bg-black/5"}`}>
-                                                <Folder size={20} className={isDark ? "text-white" : "text-black"} />
-                                            </div>
-                                            <button
-                                                onClick={(e) => handleRemoveFolder(folder.id, e)}
-                                                className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-red-500/10 hover:text-red-500 rounded transition-all text-wv-gray"
+                            {activeLocalView === 'folders' ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {localFolders.map(folder => {
+                                        const scanData = scanningFolders.get(folder.id);
+                                        const isScanning = !!scanData;
+                                        const progress = isScanning && scanData.stats && scanData.stats.total > 0
+                                            ? (scanData.stats.processed / scanData.stats.total) * 100
+                                            : 0;
+
+                                        return (
+                                            <div
+                                                key={folder.id}
+                                                onClick={() => !isScanning && setActiveFolderId(folder.id)}
+                                                className={`p-4 rounded-xl border transition-all group relative ${isScanning ? "opacity-80 cursor-wait" : "cursor-pointer"} ${isDark ? "bg-wv-sidebar border-white/5 hover:border-white/20" : "bg-white border-black/5 hover:border-black/20"}`}
                                             >
-                                                <Trash2 size={14} />
+                                                <div className="flex items-start justify-between mb-3">
+                                                    <div className={`p-2.5 rounded-lg ${isDark ? "bg-white/5" : "bg-black/5"}`}>
+                                                        {isScanning ? <Loader2 size={20} className="animate-spin text-blue-500" /> : <Folder size={20} className={isDark ? "text-white" : "text-black"} />}
+                                                    </div>
+                                                    <button
+                                                        onClick={(e) => handleRemoveFolder(folder.id, e)}
+                                                        className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-red-500/10 hover:text-red-500 rounded transition-all text-wv-gray"
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                </div>
+                                                <h4 className={`font-bold text-sm mb-1 truncate ${isDark ? "text-white" : "text-black"}`}>{folder.name}</h4>
+
+                                                {isScanning ? (
+                                                    <div className="space-y-2 mt-2">
+                                                        <div className="w-full h-1 bg-gray-700/20 rounded-full overflow-hidden">
+                                                            <div className="h-full bg-blue-500 transition-all duration-300" style={{ width: `${progress}%` }} />
+                                                        </div>
+                                                        <div className="flex justify-between text-[9px] font-bold uppercase text-wv-gray">
+                                                            <span>{scanData.stats?.currentFile || 'Scanning...'}</span>
+                                                            <span>{Math.round(progress)}%</span>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex flex-col">
+                                                        <p className="text-[10px] text-wv-gray font-mono truncate opacity-60">{folder.path}</p>
+                                                        <span className="text-[10px] font-bold text-wv-accent mt-1">{folder.fileCount || 0} files</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5">
+                                    {categories.map(cat => (
+                                        <div
+                                            key={cat.category}
+                                            onClick={() => setActiveCategory(cat.category)}
+                                            className={`p-3 rounded-2xl border transition-all cursor-pointer group ${isDark ? "bg-white/5 border-white/5 hover:bg-white/10" : "bg-white border-black/5 shadow-sm hover:border-black/10"}`}
+                                        >
+                                            <div className="flex items-center gap-2.5 mb-3">
+                                                <div className={`p-1.5 rounded-lg shrink-0 ${isDark ? "bg-blue-500/20 text-blue-400" : "bg-blue-500/10 text-blue-600"}`}>
+                                                    <Music size={14} />
+                                                </div>
+                                                <div className="min-w-0 flex-1">
+                                                    <h3 className={`text-[10px] font-black truncate uppercase tracking-tight leading-none mb-1 ${isDark ? "text-white" : "text-black"}`}>{cat.category}</h3>
+                                                    <p className="text-[7px] text-wv-gray font-black uppercase opacity-60">{cat.count} SAMPLES</p>
+                                                </div>
+                                            </div>
+
+                                            <button
+                                                className={`w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${isDark ? "bg-white/5 text-wv-gray group-hover:bg-blue-500 group-hover:text-white" : "bg-black/5 text-black group-hover:bg-blue-600 group-hover:text-white"}`}
+                                            >
+                                                OPEN <ArrowRight size={10} />
                                             </button>
                                         </div>
-                                        <h4 className={`font-bold text-sm mb-1 truncate ${isDark ? "text-white" : "text-black"}`}>{folder.name}</h4>
-                                        <p className="text-[10px] text-wv-gray font-mono truncate opacity-60">{folder.path}</p>
-                                    </div>
-                                ))}
-                            </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>

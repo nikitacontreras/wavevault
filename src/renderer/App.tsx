@@ -232,8 +232,15 @@ export const App: React.FC = () => {
                 if (trackInfo) {
                     setActiveTrack({
                         title: trackInfo.title,
-                        artist: (trackInfo as any).channel || (trackInfo as any).uploader || "Unknown",
+                        artist: (trackInfo as any).channel || (trackInfo as any).uploader || (trackInfo as any).artist || "Unknown",
                         thumbnail: trackInfo.thumbnail
+                    });
+                } else {
+                    // Fallback for files without metadata coverage
+                    setActiveTrack({
+                        title: url.split('/').pop() || "Unknown File",
+                        artist: "Unknown Artist",
+                        thumbnail: null
                     });
                 }
             } catch (e: any) {
@@ -248,12 +255,21 @@ export const App: React.FC = () => {
     // Explicitly handle audio playback when streamUrl changes
     useEffect(() => {
         if (audioRef.current && streamUrl) {
+            audioRef.current.pause();
             audioRef.current.load();
-            audioRef.current.play().catch(err => {
-                console.error("Audio playback failed:", err);
-                setIsPlaying(false);
-            });
-            setIsPlaying(true);
+            if (audioRef.current.src) {
+                const playPromise = audioRef.current.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(err => {
+                        // Only log real errors, not aborts caused by rapid switching
+                        if (err.name !== 'AbortError') {
+                            console.error("Audio playback error:", err);
+                        }
+                        setIsPlaying(false);
+                    });
+                }
+                setIsPlaying(true);
+            }
         }
     }, [streamUrl]);
 
@@ -671,6 +687,7 @@ export const App: React.FC = () => {
                                 isPreviewLoading={isPreviewLoading}
                                 theme={theme}
                                 onStartDrag={() => setIsDragging(true)}
+                                audioMediaElement={audioRef.current}
                             />
 
 

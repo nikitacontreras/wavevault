@@ -576,8 +576,18 @@ ipcMain.handle("batch-search-and-stream", async (_evt: any, queries: string[]) =
 });
 
 
-ipcMain.handle("getMeta", async (_evt: any, url: string) => {
-    return await fetchMeta(url);
+ipcMain.handle("get-local-files", (_evt, folderId: string) => {
+    return getLocalFilesDB(folderId);
+});
+
+ipcMain.handle("get-local-files-grouped", (_evt) => {
+    const { getLocalFilesGroupedDB } = require("./db");
+    return getLocalFilesGroupedDB();
+});
+
+ipcMain.handle("get-local-files-by-category", (_evt, category: string) => {
+    const { getLocalFilesByCategoryDB } = require("./db");
+    return getLocalFilesByCategoryDB(category);
 });
 
 ipcMain.handle("get-playlist-meta", async (_evt: any, url: string) => {
@@ -892,9 +902,6 @@ ipcMain.handle("remove-local-folder", (_evt, id: string) => {
     return removeLocalFolderDB(id);
 });
 
-ipcMain.handle("get-local-files", (_evt, folderId?: string) => {
-    return getLocalFilesDB(folderId);
-});
 
 
 ipcMain.handle("window-minimize", () => {

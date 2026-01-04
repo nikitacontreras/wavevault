@@ -1,16 +1,18 @@
 {
   "name": "wavevault",
-  "version": "1.0.9",
+  "version": "1.0.17",
   "productName": "WaveVault",
   "description": "Premium YouTube Audio Downloader & Library Manager for Producers",
   "author": "Nikita Strike <nikita@strikemedia.com>",
   "main": "dist/main/main.js",
   "scripts": {
     "dev": "npm run electron",
-    "electron": "node scripts/build.js && electron src/main/boot.js",
+    "electron": "export NODE_ENV=development && node scripts/build.js && electron src/main/boot.js",
     "start": "npm run build && electron dist/main/main.js",
-    "build": "node scripts/build.js && tsc",
-    "dist": "electron-builder"
+    "build:python": "node scripts/build_python.js",
+    "build": "npm run build:python && node scripts/build.js && tsc",
+    "dist": "npm run build:python && electron-builder",
+    "release": "npm run build && npm version patch && npm run dist"
   },
   "build": {
     "appId": "com.strikemedia.wavevault",
@@ -25,6 +27,15 @@
       "**/node_modules/yt-dlp-exec/bin/**",
       "**/node_modules/ffmpeg-static/**",
       "**/node_modules/ffprobe-static/**"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/bin",
+        "to": "bin",
+        "filter": [
+          "**/*"
+        ]
+      }
     ],
     "publish": {
       "provider": "github",

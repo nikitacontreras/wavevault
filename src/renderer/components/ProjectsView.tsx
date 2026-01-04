@@ -342,11 +342,10 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
     const filteredVersions = db.allVersions.filter(v => {
         const matchesSearch = v.name.toLowerCase().includes(projectSearch.toLowerCase());
         if (!matchesSearch) return false;
-        if (filterMode === 'raw') {
-            if (v.isUnorganized !== 1) return false;
-            if (selectedWorkspaceId && v.workspaceId !== selectedWorkspaceId) return false;
-            return true;
-        }
+
+        if (selectedWorkspaceId && v.workspaceId !== selectedWorkspaceId) return false;
+
+        if (filterMode === 'raw') return v.isUnorganized === 1;
         if (filterMode === 'nested') return v.trackId != null;
         return true;
     });

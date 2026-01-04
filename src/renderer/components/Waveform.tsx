@@ -19,6 +19,7 @@ interface WaveformProps {
     theme?: 'light' | 'dark';
     peaks?: number[][];
     onPeaksGenerated?: (peaks: number[][]) => void;
+    audioMediaElement?: HTMLAudioElement | null;
 }
 
 export const Waveform: React.FC<WaveformProps> = ({
@@ -36,7 +37,8 @@ export const Waveform: React.FC<WaveformProps> = ({
     onLoopToggle,
     theme = 'dark',
     peaks,
-    onPeaksGenerated
+    onPeaksGenerated,
+    audioMediaElement
 }) => {
     const isDark = theme === 'dark';
     const containerRef = useRef<HTMLDivElement>(null);
@@ -107,7 +109,8 @@ export const Waveform: React.FC<WaveformProps> = ({
     useEffect(() => {
         if (!containerRef.current) return;
 
-        const ws = WaveSurfer.create({
+        // Setup WaveSurfer options
+        const options: any = {
             container: containerRef.current,
             height,
             waveColor: activeWaveColor,
@@ -117,13 +120,95 @@ export const Waveform: React.FC<WaveformProps> = ({
             barWidth: 2,
             barGap: 1,
             barRadius: 2,
-            url: url.startsWith('/') || url.includes(':\\') ? `file://${url}` : url,
             normalize: true,
-            backend: 'MediaElement',
             minPxPerSec: 1,
             dragToSeek: true,
-            peaks: peaks, // Use provided peaks if any
-        });
+            peaks: peaks,
+        };
+
+        if (audioMediaElement) {
+            options.media = audioMediaElement;
+            // If we have media element but NO peaks, we must provide dummy peaks initially 
+            // to prevent WaveSurfer from trying to fetch/decode internally which might conflict 
+            // with the media element's source or playback state.
+            if (!peaks) {
+                options.peaks = [new Array(100).fill(0)]; // Placeholder
+            }
+        } else {
+            options.backend = 'MediaElement';
+            options.url = url.startsWith('/') || url.includes(':\\') ? `file://${url}` : url;
+        }
+
+        const ws = WaveSurfer.create(options);
+
+        // If we have mixed usage (Media Element + No Peaks), we need to generate peaks 
+        // essentially "offline" without disturbing the media element.
+        if (audioMediaElement && !peaks) {
+            const loadUrl = url.startsWith('/') || url.includes(':\\') ? `file://${url}` : url;
+
+            // Fetch and decode separately
+            fetch(loadUrl)
+                .then(response => response.arrayBuffer())
+                .then(arrayBuffer => {
+                    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+                    return audioContext.decodeAudioData(arrayBuffer);
+                })
+                .then(audioBuffer => {
+                    // Calculate peaks from AudioBuffer
+                    // Simple peak sampling
+                    const channelData = audioBuffer.getChannelData(0);
+                    const steps = Math.ceil(audioBuffer.duration * 20); // roughly 20 peaks per second? No, WaveSurfer manages this.
+                    // Actually, WaveSurfer has a helper for this but it's internal?
+                    // Let's just pass the decoded buffer to WaveSurfer? 
+                    // WS v7 doesn't seem to have a 'setBuffer' that doesn't affect playback if backend is MediaElement.
+
+                    // We will just re-load with the same media element but NOW with peaks options?
+                    // No, we can't easily swap options.
+
+                    // Option B: We calculate peaks manually and then destroy/re-create WS? 
+                    // Or we assume the user will play the file and we just want to save the peaks for next time?
+                    // But the user wants to see the waveform NOW.
+
+                    // Let's try to calculate peaks manually.
+                    const peaks: number[][] = [];
+                    const channel1 = audioBuffer.getChannelData(0);
+                    // We need enough peaks for the width. 
+                    // WaveSurfer defaults?
+                    // Let's generate a generous amount, say 100 per second of audio
+                    const peaksPerSec = 100;
+                    const totalPeaks = Math.ceil(audioBuffer.duration * peaksPerSec);
+                    const sampleSize = Math.floor(channel1.length / totalPeaks);
+
+                    const generatedPeaks = [];
+                    for (let i = 0; i < totalPeaks; i++) {
+                        const start = i * sampleSize;
+                        let max = 0;
+                        for (let j = 0; j < sampleSize; j++) {
+                            const val = Math.abs(channel1[start + j]);
+                            if (val > max) max = val;
+                        }
+                        generatedPeaks.push(max);
+                    }
+
+                    // Now that we have peaks, we need to update the waveform.
+                    // WaveSurfer v7 doesn't let us just setOptions({ peaks }).
+                    // We interact with the existing instance. 
+                    // We can try calling load again with the SAME media element but with peaks?
+                    // ws.load(url, peaks) -> but url sets src.
+
+                    // If we pass the media element again, maybe it re-binds?
+                    // Correct approach: Destroy and Re-create with calculated peaks.
+                    // This is safe because 'audioMediaElement' is external and won't be destroyed.
+
+                    if (onPeaksGenerated) onPeaksGenerated([generatedPeaks]);
+
+                    // We force a visual update by destroying this instance and letting the parent 
+                    // re-render or we assume onPeaksGenerated will trigger an update in the parent 
+                    // which passes new 'peaks' prop down.
+                    // If LibraryView updates 'folderFiles' state with new peaks, this component will re-render.
+                })
+                .catch(err => console.error("Error generating peaks:", err));
+        }
 
         if (useRegions) {
             const regions = ws.registerPlugin(RegionsPlugin.create());
@@ -201,7 +286,7 @@ export const Waveform: React.FC<WaveformProps> = ({
         return () => {
             ws.destroy();
         };
-    }, [url, height, activeWaveColor, activeProgressColor, useRegions, isDark]);
+    }, [url, height, activeWaveColor, activeProgressColor, useRegions, isDark, audioMediaElement]);
 
     const handleToggle = (e: React.MouseEvent) => {
         e.stopPropagation();

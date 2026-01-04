@@ -11,7 +11,8 @@
     "start": "npm run build && electron dist/main/main.js",
     "build:python": "node scripts/build_python.js",
     "build": "npm run build:python && node scripts/build.js && tsc",
-    "dist": "npm run build:python && electron-builder"
+    "dist": "npm run build:python && electron-builder",
+    "release": "npm run build && npm version patch && npm run dist"
   },
   "build": {
     "appId": "com.strikemedia.wavevault",

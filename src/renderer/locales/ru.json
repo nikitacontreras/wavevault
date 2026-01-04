@@ -224,6 +224,8 @@
         "discogsTokenPlaceholder": "Ваш личный токен Discogs",
         "minimizeTray": "Сворачивать в трей",
         "minimizeTrayDesc": "Продолжать работу в фоне после закрытия",
+        "lowPowerMode": "Режим производительности",
+        "lowPowerModeDesc": "Отключает визуальные эффекты (размытие, тени) для экономии ресурсов CPU/GPU",
         "deviceId": "Устройство вывода",
         "defaultDevice": "Устройство по умолчанию",
         "systemMusic": "Системная музыка",

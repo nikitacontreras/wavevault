@@ -57,6 +57,10 @@ export const useSettings = () => {
         return localStorage.getItem('discogsToken') || '';
     });
 
+    const [lowPowerMode, setLowPowerMode] = useState<boolean>(() => {
+        return localStorage.getItem('lowPowerMode') === 'true';
+    });
+
 
 
 
@@ -126,6 +130,10 @@ export const useSettings = () => {
     useEffect(() => {
         localStorage.setItem('discogsToken', discogsToken);
     }, [discogsToken]);
+
+    useEffect(() => {
+        localStorage.setItem('lowPowerMode', lowPowerMode.toString());
+    }, [lowPowerMode]);
 
 
 
@@ -212,7 +220,8 @@ export const useSettings = () => {
         theme, setTheme,
         smartOrganize, setSmartOrganize,
         minimizeToTray, setMinimizeToTray,
-        discogsToken, setDiscogsToken
+        discogsToken, setDiscogsToken,
+        lowPowerMode, setLowPowerMode
     };
 
 };

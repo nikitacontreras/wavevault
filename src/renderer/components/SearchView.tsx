@@ -1,6 +1,7 @@
 import React from "react";
 import { SearchResult, ItemState } from "../types";
 import { ResultCard } from "./ResultCard";
+import { VirtualizedItem } from "./VirtualizedItem";
 import { Search, Music, Loader2, Sparkles } from "lucide-react";
 
 interface SearchViewProps {
@@ -18,10 +19,12 @@ interface SearchViewProps {
     isPreviewLoading: boolean;
     theme: 'light' | 'dark';
     onStartDrag: () => void;
+    onLoadMore: () => void;
 }
 
 
 import { useTranslation } from "react-i18next";
+import { useEffect, useRef } from "react";
 
 export const SearchView: React.FC<SearchViewProps> = ({
     query,
@@ -37,10 +40,33 @@ export const SearchView: React.FC<SearchViewProps> = ({
     playingUrl,
     isPreviewLoading,
     theme,
-    onStartDrag
+    onStartDrag,
+    onLoadMore
 }) => {
     const isDark = theme === 'dark';
     const { t } = useTranslation();
+    const loaderRef = useRef<HTMLDivElement>(null);
+
+    // Infinite scroll observer
+    useEffect(() => {
+        const observer = new IntersectionObserver((entries) => {
+            const first = entries[0];
+            if (first.isIntersecting && results.length > 0 && !isSearching) {
+                onLoadMore();
+            }
+        }, { threshold: 0.1 });
+
+        const currentLoader = loaderRef.current;
+        if (currentLoader) {
+            observer.observe(currentLoader);
+        }
+
+        return () => {
+            if (currentLoader) {
+                observer.unobserve(currentLoader);
+            }
+        };
+    }, [results.length, isSearching, onLoadMore]);
 
     return (
         <div className="flex-1 overflow-y-auto px-8 py-8 custom-scrollbar bg-wv-bg">
@@ -84,29 +110,38 @@ export const SearchView: React.FC<SearchViewProps> = ({
                         </p>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-8">
-                        {results.map((r, i) => {
-                            const state = itemStates[r.id] || { status: 'idle' as const };
-                            const inHistory = history.some(h => h.id === r.id);
+                    <>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-8">
+                            {results.map((r, i) => {
+                                const state = itemStates[r.id] || { status: 'idle' as const };
+                                const inHistory = history.some(h => h.id === r.id);
 
-                            return (
-                                <ResultCard
-                                    key={r.id + i}
-                                    result={r}
-                                    state={state}
-                                    inHistory={inHistory}
-                                    onDownload={onDownload}
-                                    onOpenItem={onOpenItem}
-                                    onTogglePreview={onTogglePreview}
-                                    isPlaying={playingUrl === r.url}
-                                    isPreviewLoading={isPreviewLoading}
-                                    theme={theme}
-                                    onStartDrag={onStartDrag}
-                                />
+                                return (
+                                    <VirtualizedItem key={r.id + i} id={r.id} minHeight={320}>
+                                        <ResultCard
+                                            result={r}
+                                            state={state}
+                                            inHistory={inHistory}
+                                            onDownload={onDownload}
+                                            onOpenItem={onOpenItem}
+                                            onTogglePreview={onTogglePreview}
+                                            isPlaying={playingUrl === r.url}
+                                            isPreviewLoading={isPreviewLoading}
+                                            theme={theme}
+                                            onStartDrag={onStartDrag}
+                                        />
+                                    </VirtualizedItem>
+                                );
+                            })}
+                        </div>
 
-                            );
-                        })}
-                    </div>
+                        {/* Sentry for infinite scroll */}
+                        <div ref={loaderRef} className="h-20 flex items-center justify-center">
+                            {isSearching && results.length > 0 && (
+                                <Loader2 className="animate-spin text-wv-gray opacity-30" size={32} />
+                            )}
+                        </div>
+                    </>
                 )}
 
                 {isSearching && results.length === 0 && (

@@ -3,7 +3,7 @@ const { contextBridge, ipcRenderer } = require("electron");
 contextBridge.exposeInMainWorld("api", {
     download: (url: string, format: string, bitrate: string, sampleRate: string, normalize: boolean, outDir?: string, smartOrganize?: boolean) =>
         ipcRenderer.invoke("download", url, format, bitrate, sampleRate, normalize, outDir, smartOrganize),
-    search: (query: string) => ipcRenderer.invoke("search", query),
+    search: (query: string, offset?: number, limit?: number) => ipcRenderer.invoke("search", query, offset, limit),
     getMeta: (url: string) => ipcRenderer.invoke("getMeta", url),
     getStreamUrl: (url: string) => ipcRenderer.invoke("getStreamUrl", url),
     pickDir: () => ipcRenderer.invoke("pick-dir"),
@@ -20,6 +20,7 @@ contextBridge.exposeInMainWorld("api", {
     onDownloadStarted: (cb: (val: any) => void) => ipcRenderer.on("download-started", (_evt: any, value: any) => cb(value)),
     onDownloadSuccess: (cb: (val: any) => void) => ipcRenderer.on("download-success", (_evt: any, value: any) => cb(value)),
     onDownloadError: (cb: (val: any) => void) => ipcRenderer.on("download-error", (_evt: any, value: any) => cb(value)),
+    onDownloadProgress: (cb: (val: { url: string, message: string }) => void) => ipcRenderer.on("download-progress", (_evt: any, value: any) => cb(value)),
 
     cancelDownload: (url: string) => ipcRenderer.invoke("cancel-download", url),
     closeSpotlight: () => ipcRenderer.invoke("close-spotlight"),
@@ -66,6 +67,8 @@ contextBridge.exposeInMainWorld("api", {
     backupDB: () => ipcRenderer.invoke("backup-db"),
     restoreDB: () => ipcRenderer.invoke("restore-db"),
     convertFile: (job: any) => ipcRenderer.invoke("convert-file", job),
+    savePeaks: (type: string, id: string, peaks: any) => ipcRenderer.invoke("save-peaks", type, id, peaks),
+    getCachedPeaks: (id: string) => ipcRenderer.invoke("get-cached-peaks", id),
 
     platform: process.platform
 });

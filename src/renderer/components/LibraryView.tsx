@@ -4,6 +4,7 @@ import { LibraryItemModal } from "./LibraryItemModal";
 import { Search, Filter, Folder, Music, Play, Pause, ExternalLink, Tag, Clock, Loader2, Trash2, HardDrive, Plus, RefreshCw, CircleArrowLeft } from "lucide-react";
 
 import { Waveform } from "./Waveform";
+import { VirtualizedItem } from "./VirtualizedItem";
 import { useTranslation } from "react-i18next";
 
 interface LibraryViewProps {
@@ -37,13 +38,26 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
 
     // -- HISTORY / WEB STATE --
     const [searchTerm, setSearchTerm] = useState("");
+    const [debouncedSearch, setDebouncedSearch] = useState("");
     const [formatFilter, setFormatFilter] = useState("all");
     const [bpmMin, setBpmMin] = useState("");
     const [bpmMax, setBpmMax] = useState("");
     const [keyFilter, setKeyFilter] = useState("all");
     const [categoryFilter, setCategoryFilter] = useState("all");
     const [tagSearch, setTagSearch] = useState("");
+    const [debouncedTagSearch, setDebouncedTagSearch] = useState("");
     const [selectedId, setSelectedId] = useState<string | null>(null);
+
+    // Debounce effects
+    React.useEffect(() => {
+        const timer = setTimeout(() => setDebouncedSearch(searchTerm), 300);
+        return () => clearTimeout(timer);
+    }, [searchTerm]);
+
+    React.useEffect(() => {
+        const timer = setTimeout(() => setDebouncedTagSearch(tagSearch), 300);
+        return () => clearTimeout(timer);
+    }, [tagSearch]);
 
     // -- LOCAL STATE --
     const [localFolders, setLocalFolders] = useState<any[]>([]);
@@ -105,18 +119,18 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
 
     const filteredHistory = useMemo(() => {
         return [...history].reverse().filter(item => {
-            const matchesSearch = item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                item.channel.toLowerCase().includes(searchTerm.toLowerCase());
+            const matchesSearch = item.title.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+                item.channel.toLowerCase().includes(debouncedSearch.toLowerCase());
             const matchesFormat = formatFilter === "all" || item.format === formatFilter;
             const matchesBpmMin = bpmMin === "" || (item.bpm && item.bpm >= parseInt(bpmMin));
             const matchesBpmMax = bpmMax === "" || (item.bpm && item.bpm <= parseInt(bpmMax));
             const matchesKey = keyFilter === "all" || item.key === keyFilter;
             const matchesCategory = categoryFilter === "all" || item.category === categoryFilter;
-            const matchesTags = tagSearch === "" || (item.tags && item.tags.some(t => t.toLowerCase().includes(tagSearch.toLowerCase())));
+            const matchesTags = debouncedTagSearch === "" || (item.tags && item.tags.some(t => t.toLowerCase().includes(debouncedTagSearch.toLowerCase())));
 
             return matchesSearch && matchesFormat && matchesBpmMin && matchesBpmMax && matchesKey && matchesCategory && matchesTags;
         });
-    }, [history, searchTerm, formatFilter, bpmMin, bpmMax, keyFilter, categoryFilter, tagSearch]);
+    }, [history, debouncedSearch, formatFilter, bpmMin, bpmMax, keyFilter, categoryFilter, debouncedTagSearch]);
 
     return (
         <div className="flex-1 overflow-y-auto px-8 py-8 custom-scrollbar bg-wv-bg">
@@ -238,83 +252,100 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                             {filteredHistory.map((item, i) => {
                                 const isPlaying = playingUrl && (playingUrl === item.path || playingUrl === `file://${item.path}`);
                                 return (
-                                    <div
-                                        key={item.id + i}
-                                        className={`border rounded-2xl overflow-hidden transition-all group cursor-pointer shadow-sm hover:shadow-md ${isDark ? "bg-wv-sidebar border-white/5 hover:border-white/10" : "bg-white border-black/5 hover:border-black/10"}`}
-                                        onClick={() => setSelectedId(item.id)}
-                                        draggable
-                                        onDragStart={(e) => {
-                                            e.preventDefault();
-                                            onStartDrag();
-                                            window.api.startDrag(item.path, item.thumbnail);
-                                        }}
-                                    >
+                                    <VirtualizedItem key={item.id + i} id={item.id} minHeight={350}>
+                                        <div
+                                            className={`rounded-2xl overflow-hidden transition-all group cursor-pointer border h-full flex flex-col ${isDark
+                                                ? "bg-[#0d0d0d] border-white/[0.05] hover:border-white/10 hover:shadow-2xl hover:shadow-black"
+                                                : "bg-white border-black/[0.08] hover:border-black/20 shadow-sm hover:shadow-md"}`}
+                                            onClick={() => setSelectedId(item.id)}
+                                            draggable
+                                            onDragStart={(e) => {
+                                                e.preventDefault();
+                                                onStartDrag();
+                                                window.api.startDrag(item.path, item.thumbnail);
+                                            }}
+                                        >
+                                            <div className="relative aspect-video overflow-hidden" onClick={(e) => { e.stopPropagation(); onTogglePreview(item.path); }}>
+                                                <img src={item.thumbnail} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt="" />
+                                                <div className={`absolute inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center transition-opacity duration-300 opacity-0 group-hover:opacity-100 ${isPlaying ? 'opacity-100' : ''}`}>
+                                                    <div className="bg-white text-black p-3 rounded-full shadow-2xl transform transition-transform group-hover:scale-110">
+                                                        {isPlaying && isPreviewLoading ? (
+                                                            <Loader2 size={20} className="animate-spin" />
+                                                        ) : isPlaying ? (
+                                                            <Pause size={20} fill="currentColor" />
+                                                        ) : (
+                                                            <Play size={20} className="ml-0.5" fill="currentColor" />
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
 
-                                        <div className="relative aspect-video overflow-hidden" onClick={(e) => { e.stopPropagation(); onTogglePreview(item.path); }}>
-                                            <img src={item.thumbnail} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" alt="" />
-                                            <div className={`absolute inset-0 bg-black/30 backdrop-blur-[2px] flex items-center justify-center transition-opacity duration-200 opacity-0 group-hover:opacity-100 ${isPlaying ? 'opacity-100' : ''}`}>
-                                                <div className="bg-white text-black p-3 rounded-full shadow-lg">
-                                                    {isPlaying && isPreviewLoading ? (
-                                                        <Loader2 size={18} className="animate-spin" />
-                                                    ) : isPlaying ? (
-                                                        <Pause size={18} fill="currentColor" />
-                                                    ) : (
-                                                        <Play size={18} className="ml-0.5" fill="currentColor" />
+                                            <div className="p-5 flex-1 flex flex-col">
+                                                <div className="mb-3">
+                                                    <h4 className={`font-bold text-sm mb-1 truncate leading-tight tracking-tight ${isDark ? "text-white" : "text-black"}`}>
+                                                        {item.title}
+                                                    </h4>
+                                                    <p className={`text-[10px] font-bold uppercase tracking-[0.1em] ${isDark ? "text-wv-gray" : "text-black/40"}`}>
+                                                        {item.channel}
+                                                    </p>
+                                                </div>
+
+                                                <div className="flex flex-wrap gap-2 mb-4 mt-1">
+                                                    {item.bpm && (
+                                                        <span className={`text-[9px] font-bold px-2 py-1 rounded-md ${isDark ? "bg-white/5 border border-white/5 text-wv-gray" : "bg-black/[0.03] border border-black/[0.05] text-black/60"}`}>
+                                                            {item.bpm} BPM
+                                                        </span>
                                                     )}
+                                                    {item.key && (
+                                                        <span className={`text-[9px] font-bold px-2 py-1 rounded-md shadow-sm ${isDark ? "bg-white text-black" : "bg-black text-white"}`}>
+                                                            {item.key}
+                                                        </span>
+                                                    )}
+                                                    <span className={`text-[9px] font-bold px-2 py-1 rounded-md ${isDark ? "bg-white/5 border border-white/5 text-wv-gray/60" : "bg-black/[0.03] border border-black/[0.05] text-black/40"}`}>
+                                                        {item.format.toUpperCase()}
+                                                    </span>
+                                                </div>
+
+                                                {isPlaying && (
+                                                    <div className="mb-4 animate-in fade-in duration-500">
+                                                        <Waveform
+                                                            url={item.path}
+                                                            height={24}
+                                                            theme={theme}
+                                                            peaks={item.waveform ? JSON.parse(item.waveform) : undefined}
+                                                            onPeaksGenerated={(peaks) => {
+                                                                (window as any).api.savePeaks('sample', item.id, peaks);
+                                                                onUpdateItem(item.id, { waveform: JSON.stringify(peaks) });
+                                                            }}
+                                                        />
+                                                    </div>
+                                                )}
+
+                                                <div className={`mt-auto pt-4 border-t flex items-center justify-between ${isDark ? "border-white/[0.06]" : "border-black/[0.06]"}`}>
+                                                    <div className="flex items-center gap-2 text-wv-gray text-[10px] font-bold uppercase tracking-widest">
+                                                        <Clock size={12} className="opacity-50" />
+                                                        {item.duration || "N/A"}
+                                                    </div>
+                                                    <div className="flex items-center gap-1">
+                                                        <button
+                                                            className={`p-2 rounded-lg transition-all ${isDark ? "hover:bg-white/5 text-wv-gray hover:text-white" : "hover:bg-black/5 text-black/20 hover:text-black"}`}
+                                                            onClick={(e) => { e.stopPropagation(); onOpenItem(item.path); }}
+                                                            title={t('common.openFolder')}
+                                                        >
+                                                            <ExternalLink size={16} />
+                                                        </button>
+                                                        <button
+                                                            className={`p-2 rounded-lg transition-all ${isDark ? "hover:bg-red-500/10 text-wv-gray hover:text-red-400" : "hover:bg-red-500/10 text-black/20 hover:text-red-500"}`}
+                                                            onClick={(e) => { e.stopPropagation(); onRemoveItem(item.id); }}
+                                                            title={t('common.remove')}
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
-
-                                        <div className="p-4">
-                                            <h4 className={`font-bold text-sm mb-0.5 truncate leading-tight transition-colors ${isDark ? "text-white" : "text-black"}`}>{item.title}</h4>
-                                            <p className="text-wv-text opacity-40 text-[10px] font-medium mb-3 uppercase tracking-wider">{item.channel}</p>
-
-
-                                            <div className="flex flex-wrap gap-1.5 mb-4">
-                                                {item.bpm && <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${isDark ? "bg-white/5 border border-white/5 text-wv-gray" : "bg-black/[0.03] border border-black/[0.05] text-black/60"}`}>{item.bpm} BPM</span>}
-                                                {item.key && <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm ${isDark ? "bg-white text-black" : "bg-black text-white"}`}>{item.key}</span>}
-                                                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${isDark ? "bg-white/5 border border-white/5 text-wv-gray/60" : "bg-black/[0.03] border border-black/[0.05] text-black/40"}`}>{item.format.toUpperCase()}</span>
-                                            </div>
-
-
-                                            {isPlaying && (
-                                                <div className="mt-2 mb-4 px-2">
-                                                    <Waveform
-                                                        url={item.path}
-                                                        height={24}
-                                                        theme={theme}
-                                                    />
-
-
-                                                </div>
-                                            )}
-
-                                            <div className={`pt-3 border-t flex justify-between items-center mt-auto ${isDark ? "border-white/5" : "border-black/5"}`}>
-                                                <div className="flex items-center gap-1.5 text-wv-gray text-[9px] font-bold uppercase tracking-widest">
-                                                    <Clock size={10} />
-                                                    {item.duration || "N/A"}
-                                                </div>
-                                                <div className="flex items-center gap-1">
-                                                    <button
-                                                        className={`p-1 px-1.5 rounded-md transition-colors ${isDark ? "hover:bg-white/5 text-wv-gray hover:text-white" : "hover:bg-black/5 text-black/10 hover:text-black"}`}
-                                                        onClick={(e) => { e.stopPropagation(); onOpenItem(item.path); }}
-                                                        title={t('common.openFolder')}
-                                                    >
-                                                        <ExternalLink size={14} />
-                                                    </button>
-                                                    <button
-                                                        className={`p-1 px-1.5 rounded-md transition-colors ${isDark ? "hover:bg-red-500/10 text-wv-gray hover:text-red-400" : "hover:bg-red-500/10 text-black/10 hover:text-red-500"}`}
-                                                        onClick={(e) => { e.stopPropagation(); onRemoveItem(item.id); }}
-                                                        title={t('common.remove')}
-                                                    >
-                                                        <Trash2 size={14} />
-                                                    </button>
-
-                                                </div>
-
-                                            </div>
-                                        </div>
-                                    </div>
+                                    </VirtualizedItem>
                                 );
                             })}
                         </div>
@@ -362,6 +393,20 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                                             </div>
 
                                             <div className="flex items-center gap-3">
+                                                {isPlaying && (
+                                                    <div className="w-32 md:w-48 mr-4 hidden sm:block">
+                                                        <Waveform
+                                                            url={file.path}
+                                                            height={20}
+                                                            theme={theme}
+                                                            peaks={file.waveform ? JSON.parse(file.waveform) : undefined}
+                                                            onPeaksGenerated={(peaks) => {
+                                                                (window as any).api.savePeaks('local', file.id, peaks);
+                                                                setFolderFiles(prev => prev.map(f => f.id === file.id ? { ...f, waveform: JSON.stringify(peaks) } : f));
+                                                            }}
+                                                        />
+                                                    </div>
+                                                )}
                                                 {file.bpm > 0 && <span className={`text-[10px] px-2 py-1 rounded ${isDark ? "bg-white/5" : "bg-black/5"}`}>{file.bpm} BPM</span>}
                                                 {file.key && <span className={`text-[10px] px-2 py-1 rounded ${isDark ? "bg-white text-black" : "bg-black text-white"}`}>{file.key}</span>}
                                             </div>

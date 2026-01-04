@@ -3,14 +3,7 @@ import ffprobePath from "ffprobe-static";
 import ffmpeg from "fluent-ffmpeg";
 import path from "node:path";
 
-// Helper to fix ASAR paths for executables
-function fixAsarPath(p: string | null | undefined): string | null {
-    if (!p) return null;
-    if (p.includes("app.asar") && !p.includes("app.asar.unpacked")) {
-        return p.replace("app.asar", "app.asar.unpacked");
-    }
-    return p;
-}
+import { fixAsarPath } from "./binaries";
 
 // Function to update paths dynamically
 export function setupFfmpeg(customFfmpeg?: string | null, customFfprobe?: string | null) {

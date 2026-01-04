@@ -45,5 +45,6 @@ export interface HistoryItem {
     tags: string[];
     category?: string;
     duration?: string;
+    waveform?: string;
 }
 

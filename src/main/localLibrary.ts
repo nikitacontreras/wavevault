@@ -1,6 +1,7 @@
+import { Worker } from "worker_threads";
+import { app } from "electron";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { parseFile } from "music-metadata";
 import { addLocalFileDB, addLocalFolderDB } from "./db";
 
 // Supported Extensions
@@ -31,13 +32,34 @@ function guessType(duration: number, filename: string): 'One-Shot' | 'Loop' {
     return 'Loop';
 }
 
+// Worker Pool Simplified
+let worker: Worker | null = null;
+const workerPath = app.isPackaged
+    ? path.join(__dirname, 'index-worker.js')
+    : path.join(__dirname, 'index-worker.ts');
+
+function getWorker() {
+    if (!worker) {
+        // In dev, we need to register ts-node for the worker
+        if (!app.isPackaged) {
+            worker = new Worker(`
+                require('ts-node').register({ transpileOnly: true });
+                require('${workerPath}');
+            `, { eval: true });
+        } else {
+            worker = new Worker(workerPath);
+        }
+    }
+    return worker;
+}
+
 export async function indexLocalConnect(folderPath: string) {
     // 1. Register Folder
     const folderName = path.basename(folderPath);
     const folder = addLocalFolderDB(folderPath, folderName);
 
-    // 2. Start Scan (Async but we might await it for feedback)
-    await scanRecursive(folderPath, folder.id);
+    // 2. Start Scan (Async)
+    scanRecursive(folderPath, folder.id);
 
     return folder;
 }
@@ -60,38 +82,42 @@ async function scanRecursive(dir: string, folderId: string) {
         } else {
             const ext = path.extname(entry.name).toLowerCase();
             if (AUDIO_EXTENSIONS.has(ext)) {
-                try {
-                    const stats = await fs.stat(fullPath);
-                    let duration = 0;
-                    let bpm = 0;
-                    let key = null;
+                // Send to worker
+                const currentWorker = getWorker();
 
-                    try {
-                        const metadata = await parseFile(fullPath, { duration: true, skipCovers: true });
-                        duration = metadata.format.duration || 0;
-                        bpm = metadata.common.bpm || 0;
-                        key = metadata.common.key || null;
-                    } catch (err) {
-                        // console.warn("Metadata fail for", entry.name);
-                    }
+                const stats = await fs.stat(fullPath);
 
-                    const instrument = guessInstrument(entry.name);
-                    const type = guessType(duration, entry.name);
-
-                    addLocalFileDB({
-                        folderId,
-                        path: fullPath,
-                        filename: entry.name,
-                        type,
-                        instrument,
-                        key,
-                        bpm: Math.round(bpm),
-                        duration,
-                        size: stats.size
+                const processFile = (filePath: string): Promise<any> => {
+                    return new Promise((resolve) => {
+                        const onMessage = (res: any) => {
+                            if (res.path === filePath) {
+                                currentWorker.off('message', onMessage);
+                                resolve(res);
+                            }
+                        };
+                        currentWorker.on('message', onMessage);
+                        currentWorker.postMessage(filePath);
                     });
-                } catch (e) {
-                    console.error("Error indexing file:", fullPath, e);
-                }
+                };
+
+                processFile(fullPath).then(res => {
+                    if (res.success) {
+                        const instrument = guessInstrument(entry.name);
+                        const type = guessType(res.duration, entry.name);
+
+                        addLocalFileDB({
+                            folderId,
+                            path: fullPath,
+                            filename: entry.name,
+                            type,
+                            instrument,
+                            key: res.key,
+                            bpm: res.bpm,
+                            duration: res.duration,
+                            size: stats.size
+                        });
+                    }
+                }).catch(err => console.error("Worker error:", err));
             }
         }
     }

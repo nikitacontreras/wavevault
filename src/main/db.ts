@@ -141,8 +141,10 @@ export function initDB() {
     if (!tableInfoLocalFiles.some(col => col.name === 'waveform')) {
         try { db.prepare("ALTER TABLE local_files ADD COLUMN waveform TEXT").run(); } catch (e) { }
     }
+    if (!tableInfoLocalFiles.some(col => col.name === 'tags')) {
+        try { db.prepare("ALTER TABLE local_files ADD COLUMN tags TEXT").run(); } catch (e) { }
+    }
 
-    // Waveform Cache Table for external URLs
     db.prepare(`
         CREATE TABLE IF NOT EXISTS waveform_cache (
             url_id TEXT PRIMARY KEY,
@@ -150,6 +152,9 @@ export function initDB() {
             updatedAt INTEGER
         )
     `).run();
+
+    // Cleanup orphans from unorganized projects if they have no workspace
+    db.prepare('DELETE FROM versions WHERE isUnorganized = 1 AND workspaceId IS NULL').run();
 }
 
 // Config Helpers
@@ -172,7 +177,7 @@ export function getFullProjectDB() {
         FROM versions v 
         LEFT JOIN workspaces w ON v.workspaceId = w.id 
         ORDER BY v.lastModified DESC
-    `).all() as any[];
+        `).all() as any[];
 
     const result = {
         albums: albums.map(album => ({
@@ -203,12 +208,12 @@ export function createTrackDB(name: string, albumId: string) {
 export function addToUnorganizedDB(version: any, workspaceId?: string) {
     try {
         db.prepare(`
-            INSERT INTO versions (id, name, path, type, lastModified, isUnorganized, workspaceId)
-            VALUES (?, ?, ?, ?, ?, 1, ?)
-            ON CONFLICT(path) DO UPDATE SET 
-                lastModified = excluded.lastModified,
-                workspaceId = COALESCE(excluded.workspaceId, versions.workspaceId)
-        `).run(version.id, version.name, version.path, version.type, version.lastModified, workspaceId || null);
+            INSERT INTO versions(id, name, path, type, lastModified, isUnorganized, workspaceId)
+    VALUES(?, ?, ?, ?, ?, 1, ?)
+            ON CONFLICT(path) DO UPDATE SET
+    lastModified = excluded.lastModified,
+        workspaceId = COALESCE(excluded.workspaceId, versions.workspaceId)
+            `).run(version.id, version.name, version.path, version.type, version.lastModified, workspaceId || null);
     } catch (e) {
         console.error("DB Error adding to unorganized:", e);
     }
@@ -229,7 +234,7 @@ export function updateTrackMetaDB(trackId: string, updates: any) {
         return (typeof val === 'object') ? JSON.stringify(val) : val;
     });
 
-    db.prepare(`UPDATE tracks SET ${setClause} WHERE id = ?`).run(...values, trackId);
+    db.prepare(`UPDATE tracks SET ${setClause} WHERE id = ? `).run(...values, trackId);
     return true;
 }
 
@@ -243,7 +248,7 @@ export function updateAlbumDB(albumId: string, updates: any) {
     if (fields.length === 0) return false;
     const setClause = fields.map(f => `${f} = ?`).join(', ');
     const values = fields.map(f => updates[f]);
-    db.prepare(`UPDATE albums SET ${setClause} WHERE id = ?`).run(...values, albumId);
+    db.prepare(`UPDATE albums SET ${setClause} WHERE id = ? `).run(...values, albumId);
     return true;
 }
 
@@ -269,6 +274,9 @@ export function addWorkspaceDB(name: string, path: string) {
 }
 
 export function removeWorkspaceDB(id: string) {
+    // Delete all versions belonging to this workspace
+    db.prepare('DELETE FROM versions WHERE workspaceId = ?').run(id);
+    // Delete the workspace itself
     db.prepare('DELETE FROM workspaces WHERE id = ?').run(id);
     return true;
 }
@@ -281,7 +289,13 @@ export function addLocalFolderDB(path: string, name: string) {
 }
 
 export function getLocalFoldersDB() {
-    return db.prepare('SELECT * FROM local_folders ORDER BY name ASC').all() as any[];
+    return db.prepare(`
+        SELECT lf.*, COUNT(f.id) as fileCount 
+        FROM local_folders lf 
+        LEFT JOIN local_files f ON lf.id = f.folderId 
+        GROUP BY lf.id 
+        ORDER BY lf.name ASC
+    `).all() as any[];
 }
 
 export function removeLocalFolderDB(id: string) {
@@ -294,17 +308,17 @@ export function addLocalFileDB(file: any) {
     const id = "LFL-" + Math.random().toString(36).substr(2, 9);
     try {
         db.prepare(`
-            INSERT INTO local_files (id, folderId, path, filename, type, instrument, key, bpm, duration, size)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO local_files(id, folderId, path, filename, type, instrument, key, bpm, duration, size)
+    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(path) DO UPDATE SET
-                scannedAt = ? -- Just to touch it if needed, but we don't have scannedAt on file. Re-insert logic basically.
+    scannedAt = ? --Just to touch it if needed, but we don't have scannedAt on file. Re-insert logic basically.
         `).run(id, file.folderId, file.path, file.filename, file.type, file.instrument, file.key, file.bpm, file.duration, file.size);
     } catch (e) {
         // If conflict and we want to update metadata? For now ignore unique constraint if needed or REPLACE
         // Using replace for simple updates
         db.prepare(`
-             INSERT OR REPLACE INTO local_files (id, folderId, path, filename, type, instrument, key, bpm, duration, size)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             INSERT OR REPLACE INTO local_files(id, folderId, path, filename, type, instrument, key, bpm, duration, size)
+    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `).run(id, file.folderId, file.path, file.filename, file.type, file.instrument, file.key, file.bpm, file.duration, file.size);
     }
 }
@@ -314,6 +328,24 @@ export function getLocalFilesDB(folderId?: string) {
         return db.prepare('SELECT * FROM local_files WHERE folderId = ?').all(folderId) as any[];
     }
     return db.prepare('SELECT * FROM local_files').all() as any[];
+}
+
+export function getLocalFilesGroupedDB() {
+    // Determine thumbnail based on instrument?
+    // Group by instrument
+    return db.prepare(`
+        SELECT instrument as category, COUNT(id) as count, MIN(path) as samplePath
+        FROM local_files
+        WHERE instrument IS NOT NULL
+        GROUP BY instrument
+        ORDER BY count DESC
+    `).all() as any[];
+}
+
+export function getLocalFilesByCategoryDB(category: string) {
+    return db.prepare(`
+        SELECT * FROM local_files WHERE instrument = ?
+    `).all(category) as any[];
 }
 
 export function saveWaveformDB(type: 'sample' | 'local' | 'track', id: string, waveform: string) {

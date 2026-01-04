@@ -243,6 +243,7 @@ export async function getStreamUrl(url: string): Promise<string> {
     try {
         const { stdout } = await runYtDlp([
             url,
+            "--no-playlist",
             "-g",
             "-f", "bestaudio/best",
             "--no-check-certificate",
@@ -268,6 +269,7 @@ async function downloadBestAudio(url: string, outDir: string, signal?: AbortSign
     // Use --print filepath to get the exact final absolute path
     const { stdout } = await runYtDlp([
         url,
+        '--no-playlist',
         '-f', 'bestaudio/best',
         '-o', outputTemplate,
         '--no-check-certificate',

@@ -120,7 +120,6 @@ export const Waveform: React.FC<WaveformProps> = ({
             url: url.startsWith('/') || url.includes(':\\') ? `file://${url}` : url,
             normalize: true,
             backend: 'MediaElement',
-            pixelRatio: 1,
             minPxPerSec: 1,
             dragToSeek: true,
             peaks: peaks, // Use provided peaks if any

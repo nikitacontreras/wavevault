@@ -11,21 +11,10 @@ const lineReader = new EventEmitter();
 function getPythonProcess() {
     if (pythonProc && !pythonProc.killed) return pythonProc;
 
-    let binPath = '';
-    let args: string[] = [];
+    const { getClassifyAudioPath } = require('./binaries');
 
-    // process.defaultApp is true when running 'electron .' (dev mode)
-    // process.resourcesPath ends in Resources in dev on Mac too (inside node_modules), so that check was flawed for detection.
-    const isProd = process.env.NODE_ENV === 'production' && !(process as any).defaultApp;
-
-    if (isProd) {
-        const platform = process.platform;
-        const binaryName = platform === 'win32' ? 'classify_audio.exe' : 'classify_audio';
-        binPath = path.join((process as any).resourcesPath, 'bin', binaryName);
-    } else {
-        binPath = 'python3';
-        args = [path.join(__dirname, '../../scripts/classify_audio.py')];
-    }
+    const binPath = getClassifyAudioPath();
+    const args: string[] = []; // No script arg needed for the binary
 
     try {
         pythonProc = spawn(binPath, args, {

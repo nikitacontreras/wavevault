@@ -91,6 +91,8 @@ declare global {
             minimizeWindow: () => void;
             toggleMaximizeWindow: () => void;
             closeWindow: () => void;
+            separateStems: (filePath: string, outDir: string) => Promise<any>;
+            on: (channel: string, callback: (data: any) => void) => () => void;
             platform: string;
         }
     }
@@ -118,7 +120,9 @@ export const App: React.FC = () => {
     const { debugMode } = useDebugMode();
     const { logs, addLog, clearLogs } = useLogs();
     const { itemStates, updateItemState, resetItemStates } = useItemStates();
-    const { addSpotlightDownload, updateSpotlightDownload } = useActiveDownloads();
+    const {
+        activeDownloads, addSpotlightDownload, updateSpotlightDownload, removeSpotlightDownload
+    } = useActiveDownloads();
 
     const [version, setVersion] = useState("...");
     const [isDragging, setIsDragging] = useState(false);
@@ -129,15 +133,16 @@ export const App: React.FC = () => {
     });
 
     const {
-        playingUrl, isPlaying, isPreviewLoading, activeTrack, audioRef, handleTogglePreview
+        playingUrl, setPlayingUrl, streamUrl, setStreamUrl, isPlaying, setIsPlaying,
+        isPreviewLoading, setIsPreviewLoading, activeTrack, setActiveTrack, audioRef, handleTogglePreview
     } = useAudioPlayer(volume, audioDeviceId, addLog);
 
     const {
-        query, setQuery, results, isSearching, handleSearch, handleLoadMore
+        query, setQuery, results, setResults, isSearching, playlistUrl, setPlaylistUrl, handleSearch, handleLoadMore
     } = useSearchManager(addLog, resetItemStates);
 
     const {
-        handleDownload, handleDownloadFromUrl
+        handleDownload, handleBatchDownload, handleDownloadFromUrl
     } = useDownloadHandlers({
         options: { format, bitrate, sampleRate, normalize, outDir, smartOrganize },
         itemStates, updateItemState, addLog, addToHistory,

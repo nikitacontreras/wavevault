@@ -58,7 +58,6 @@ function updateAppIcon() {
         if (process.platform === 'darwin' && app.dock && fs.existsSync(dockIconPath)) {
             const img = nativeImage.createFromPath(dockIconPath);
             app.dock.setIcon(img);
-            console.log(`Dock icon set to: ${dockIconPath}`);
         }
 
         // About Panel (macOS) - can use SVG
@@ -132,6 +131,7 @@ import { scanProjects } from "./projects";
 import { indexLocalConnect } from "./localLibrary";
 import { convertFile, ConversionJob } from "./converter";
 import { getFullProjectDB, createAlbumDB, createTrackDB, moveVersionToTrackDB, updateTrackMetaDB, deleteTrackDB, updateAlbumDB, deleteAlbumDB, deleteVersionDB, setConfigDB, getConfigDB, getWorkspacesDB, addWorkspaceDB, removeWorkspaceDB, getLocalFoldersDB, removeLocalFolderDB, getLocalFilesDB, saveWaveformDB, saveWaveformCacheDB, getWaveformCacheDB } from "./db";
+import { separateStems } from "./stems";
 
 
 // ...
@@ -714,6 +714,10 @@ ipcMain.handle("convert-file", async (_evt: any, job: ConversionJob) => {
 ipcMain.handle("trim-audio", async (_evt: any, src: string, start: number, end: number) => {
     const { trimAudio } = require("./downloader");
     return await trimAudio(src, start, end);
+});
+
+ipcMain.handle("stems:separate", async (_evt: any, filePath: string, outDir: string) => {
+    return await separateStems(filePath, outDir);
 });
 
 

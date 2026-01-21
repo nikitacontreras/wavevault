@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld("api", {
     updateConfig: (config: any) => ipcRenderer.invoke("update-config", config),
     getKeybinds: () => ipcRenderer.invoke("get-keybinds"),
     resetKeybinds: () => ipcRenderer.invoke("reset-keybinds"),
+    separateStems: (filePath: string, outDir: string) => ipcRenderer.invoke("stems:separate", filePath, outDir),
 
     onStatus: (cb: (val: any) => void) => ipcRenderer.on("status", (_evt: any, value: any) => cb(value)),
     onCommand: (cb: (val: string) => void) => ipcRenderer.on("command", (_evt: any, value: string) => cb(value)),

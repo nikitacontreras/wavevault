@@ -92,7 +92,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                     // Refresh if this folder was active or just finished
                     loadLocalFolders();
                     loadCategories(); // Refresh categories too
-                    if (activeFolderId === data.folderId) loadFolderFiles(activeFolderId);
+                    if (activeFolderId === data.folderId) loadFolderFiles(data.folderId);
                 } else {
                     next.set(data.folderId, data);
                 }

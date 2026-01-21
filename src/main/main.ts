@@ -1,9 +1,9 @@
-import { app, BrowserWindow, globalShortcut, ipcMain, clipboard, dialog, shell, Menu, Notification, Tray, nativeImage } from "electron";
+import { app, BrowserWindow, globalShortcut, ipcMain, clipboard, dialog, shell, Menu, Notification, Tray, nativeImage, nativeTheme } from "electron";
 import { autoUpdater } from "electron-updater";
 import path from "node:path";
 import fs from "node:fs";
 
-
+// Initialize app name early
 process.title = "WaveVault";
 app.name = "WaveVault";
 if (app.setName) app.setName("WaveVault");
@@ -34,12 +34,56 @@ if (!app.isPackaged) {
     });
 }
 
-if (isMac) {
-    app.setAboutPanelOptions({
-        applicationName: "WaveVault",
-        applicationVersion: pkg.version
-    });
+function updateAppIcon() {
+    try {
+        const isDark = nativeTheme.shouldUseDarkColors;
+
+        // For Dock: use PNG (more reliable)
+        let dockIconPath = path.join(process.cwd(), 'build', 'icon.png');
+        if (!fs.existsSync(dockIconPath)) {
+            dockIconPath = path.join(__dirname, '../../build/icon.png');
+        }
+        if (!fs.existsSync(dockIconPath)) {
+            dockIconPath = path.join(process.cwd(), 'icon.png');
+        }
+
+        // For About panel: use SVG with theme support
+        const svgName = isDark ? 'wavevault-white.svg' : 'wavevault.svg';
+        let svgPath = path.join(__dirname, '..', svgName);
+        if (!fs.existsSync(svgPath)) {
+            svgPath = path.join(process.cwd(), 'dist', svgName);
+        }
+
+        // macOS Dock Icon
+        if (process.platform === 'darwin' && app.dock && fs.existsSync(dockIconPath)) {
+            const img = nativeImage.createFromPath(dockIconPath);
+            app.dock.setIcon(img);
+            console.log(`Dock icon set to: ${dockIconPath}`);
+        }
+
+        // About Panel (macOS) - can use SVG
+        if (isMac && fs.existsSync(svgPath)) {
+            app.setAboutPanelOptions({
+                applicationName: "WaveVault",
+                applicationVersion: pkg.version,
+                iconPath: svgPath
+            });
+        }
+
+        // Window Icon (Linux/Windows)
+        if (win && !win.isDestroyed() && fs.existsSync(dockIconPath)) {
+            const img = nativeImage.createFromPath(dockIconPath);
+            win.setIcon(img);
+        }
+    } catch (e) {
+        console.error('Error updating app icon:', e);
+    }
 }
+
+// Listen for theme changes
+nativeTheme.on('updated', () => {
+    updateAppIcon();
+});
 
 function broadcastStatus(ok: boolean, message: string) {
     const windows = BrowserWindow.getAllWindows()
@@ -481,6 +525,7 @@ app.whenReady().then(() => {
     registerShortcuts();
     createTray();
     setupAutoUpdater();
+    updateAppIcon();
 
     app.on("activate", () => {
         if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -569,6 +614,10 @@ ipcMain.handle("getStreamUrl", async (_evt: any, url: string) => {
 // IPC: búsqueda
 ipcMain.handle("search", async (_evt: any, query: string, offset: number = 0, limit: number = 10) => {
     return await searchYoutube(query, offset, limit);
+});
+
+ipcMain.handle("getMeta", async (_evt: any, url: string) => {
+    return await fetchMeta(url);
 });
 
 ipcMain.handle("batch-search-and-stream", async (_evt: any, queries: string[]) => {

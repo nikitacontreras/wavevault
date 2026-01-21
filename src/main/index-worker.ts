@@ -116,12 +116,12 @@ function askPython(filePath: string): Promise<any> {
         }, 5000); // 5 sec timeout per file
 
         lineReader.once('line', onLine);
-        proc.stdin.on('error', onStdinError);
+        proc.stdin!.on('error', onStdinError);
 
         try {
-            const ok = proc.stdin.write(filePath + '\n');
+            const ok = proc.stdin!.write(filePath + '\n');
             if (!ok) {
-                proc.stdin.once('drain', () => { });
+                proc.stdin!.once('drain', () => { });
             }
         } catch (e) {
             onStdinError(e as Error);

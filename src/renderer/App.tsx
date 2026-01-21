@@ -10,6 +10,10 @@ import { SettingsView } from "./components/SettingsView";
 import { ProjectsView } from "./components/ProjectsView";
 import { TitleBar } from "./components/TitleBar";
 import { useSettings, useHistory, useDebugMode, useLogs, useItemStates, useActiveDownloads } from "./hooks/useAppState";
+import { useAudioPlayer } from "./hooks/useAudioPlayer";
+import { useSearchManager } from "./hooks/useSearchManager";
+import { useDownloadHandlers } from "./hooks/useDownloadHandlers";
+import { useDependenciesManager } from "./hooks/useDependenciesManager";
 import "./App.css";
 import { SearchResult, HistoryItem } from "./types";
 import { Play, Pause, Volume2, X, Music2, Loader2, Music, PanelLeftClose, PanelLeftOpen } from "lucide-react";
@@ -92,9 +96,6 @@ declare global {
     }
 }
 
-
-
-
 import { DependencyChecker } from "./components/DependencyChecker";
 
 export const App: React.FC = () => {
@@ -102,63 +103,46 @@ export const App: React.FC = () => {
     const isSpotlight = window.location.hash === '#/spotlight';
     const [view, setView] = useState("search");
 
-    const [dependencies, setDependencies] = useState<{ python: boolean, ffmpeg: boolean, ffprobe: boolean } | null>(null);
-    const [query, setQuery] = useState("");
-
-    const [results, setResults] = useState<SearchResult[]>([]);
-    const [isSearching, setIsSearching] = useState(false);
-    const [playlistUrl, setPlaylistUrl] = useState<string | null>(null);
-    const [isPreviewLoading, setIsPreviewLoading] = useState(false);
-    const [playingUrl, setPlayingUrl] = useState<string | null>(null);
-
-    const [streamUrl, setStreamUrl] = useState<string | null>(null);
-    const [isPlaying, setIsPlaying] = useState(false);
-
-    const [activeTrack, setActiveTrack] = useState<{ title: string, artist: string, thumbnail?: string } | null>(null);
-
-    const audioRef = useRef<HTMLAudioElement | null>(null);
-
     const settings = useSettings();
     const {
-        format, setFormat,
-        bitrate, setBitrate,
-        sampleRate, setSampleRate,
-        normalize, setNormalize,
-        outDir, setOutDir,
-        pythonPath, setPythonPath,
-        ffmpegPath, setFfmpegPath,
-        ffprobePath, setFfprobePath,
-        keybinds, setKeybinds, updateKeybind,
-        spotlightShortcut, setSpotlightShortcut,
-        clipboardShortcut, setClipboardShortcut,
-        volume, setVolume,
-        sidebarCollapsed, setSidebarCollapsed,
-        audioDeviceId, setAudioDeviceId,
-        theme, setTheme,
-        smartOrganize, setSmartOrganize,
-        minimizeToTray, setMinimizeToTray,
-        discogsToken, setDiscogsToken,
-        lowPowerMode, setLowPowerMode
+        format, bitrate, sampleRate, normalize, outDir, setOutDir,
+        pythonPath, ffmpegPath, ffprobePath, setPythonPath, setFfmpegPath, setFfprobePath,
+        keybinds, updateKeybind, resetKeybinds, spotlightShortcut, setSpotlightShortcut,
+        clipboardShortcut, setClipboardShortcut, volume, setVolume,
+        sidebarCollapsed, setSidebarCollapsed, audioDeviceId, setAudioDeviceId,
+        theme, setTheme, smartOrganize, setSmartOrganize, minimizeToTray, setMinimizeToTray,
+        discogsToken, setDiscogsToken, lowPowerMode, setLowPowerMode
     } = settings;
 
-    const isDark = theme === 'dark';
-
-
-
-    const { resetKeybinds } = settings;
-
-
-
-
-
     const { history, clearHistory, addToHistory, updateHistoryItem, removeFromHistory } = useHistory();
-
-    const { debugMode, setDebugMode } = useDebugMode();
+    const { debugMode } = useDebugMode();
     const { logs, addLog, clearLogs } = useLogs();
     const { itemStates, updateItemState, resetItemStates } = useItemStates();
-    const { activeDownloads, addSpotlightDownload, updateSpotlightDownload, removeSpotlightDownload, clearSpotlightDownloads } = useActiveDownloads();
+    const { addSpotlightDownload, updateSpotlightDownload } = useActiveDownloads();
+
     const [version, setVersion] = useState("...");
     const [isDragging, setIsDragging] = useState(false);
+
+    // Custom Hooks
+    const { dependencies, checkDeps, hasAllDeps } = useDependenciesManager({
+        python: pythonPath, ffmpeg: ffmpegPath, ffprobe: ffprobePath
+    });
+
+    const {
+        playingUrl, isPlaying, isPreviewLoading, activeTrack, audioRef, handleTogglePreview
+    } = useAudioPlayer(volume, audioDeviceId, addLog);
+
+    const {
+        query, setQuery, results, isSearching, handleSearch, handleLoadMore
+    } = useSearchManager(addLog, resetItemStates);
+
+    const {
+        handleDownload, handleDownloadFromUrl
+    } = useDownloadHandlers({
+        options: { format, bitrate, sampleRate, normalize, outDir, smartOrganize },
+        itemStates, updateItemState, addLog, addToHistory,
+        addSpotlightDownload, updateSpotlightDownload
+    });
 
     useEffect(() => {
         window.api.getAppVersion().then(setVersion);
@@ -194,262 +178,8 @@ export const App: React.FC = () => {
     }, []);
 
 
-    const handleTogglePreview = async (url: string, metadata?: any) => {
-        const trackInfo = metadata || history.find(h => h.path === url) || results.find(r => r.url === url);
-
-        if (playingUrl === url) {
-            if (audioRef.current) {
-                if (isPlaying) {
-                    audioRef.current.pause();
-                    setIsPlaying(false);
-                } else {
-                    audioRef.current.play();
-                    setIsPlaying(true);
-                }
-            }
-        } else {
-            try {
-                // Set loading state and playing URL immediately so UI shows "loading" on the right card
-                setPlayingUrl(url);
-                setIsPreviewLoading(true);
-                setIsPlaying(false); // Reset playing while loading new one
-                addLog("Obteniendo stream para preview...");
-
-                let finalUrl = "";
-                if (url.startsWith('/') || url.includes(':\\')) {
-                    finalUrl = `file://${url}`;
-                } else if ((trackInfo as any)?.streamUrl) {
-                    // Use cached stream URL from search/discovery if available
-                    finalUrl = (trackInfo as any).streamUrl;
-                    addLog("Usando stream URL cacheado.");
-                } else {
-                    finalUrl = await window.api.getStreamUrl(url);
-                }
-
-                setStreamUrl(finalUrl);
-                // We keep isPreviewLoading as true until audio canPlay/onPlaying fires
-
-                if (trackInfo) {
-                    setActiveTrack({
-                        title: trackInfo.title,
-                        artist: (trackInfo as any).channel || (trackInfo as any).uploader || (trackInfo as any).artist || "Unknown",
-                        thumbnail: trackInfo.thumbnail
-                    });
-                } else {
-                    // Fallback for files without metadata coverage
-                    setActiveTrack({
-                        title: url.split('/').pop() || "Unknown File",
-                        artist: "Unknown Artist",
-                        thumbnail: null
-                    });
-                }
-            } catch (e: any) {
-                setPlayingUrl(null);
-                setIsPreviewLoading(false);
-                addLog("Error al obtener preview: " + e.message);
-            }
-
-        }
-    };
-
-    // Explicitly handle audio playback when streamUrl changes
-    useEffect(() => {
-        if (audioRef.current && streamUrl) {
-            audioRef.current.pause();
-            audioRef.current.load();
-            if (audioRef.current.src) {
-                const playPromise = audioRef.current.play();
-                if (playPromise !== undefined) {
-                    playPromise.catch(err => {
-                        // Only log real errors, not aborts caused by rapid switching
-                        if (err.name !== 'AbortError') {
-                            console.error("Audio playback error:", err);
-                        }
-                        setIsPlaying(false);
-                    });
-                }
-                setIsPlaying(true);
-            }
-        }
-    }, [streamUrl]);
-
-
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) {
-                return;
-            }
-            if (e.code === 'Space') {
-                e.preventDefault();
-                if (audioRef.current && playingUrl) {
-                    if (isPlaying) {
-                        audioRef.current.pause();
-                        setIsPlaying(false);
-                    } else {
-                        audioRef.current.play().catch(() => { });
-                        setIsPlaying(true);
-                    }
-                }
-            }
-            if (e.code === 'Escape') {
-                if (playingUrl) {
-                    audioRef.current?.pause();
-                    setPlayingUrl(null);
-                    setStreamUrl(null);
-                    setIsPlaying(false);
-                    setActiveTrack(null);
-                }
-            }
-        };
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [playingUrl, isPlaying]);
-
-    // Sync volume to audio element
-    useEffect(() => {
-        if (audioRef.current) {
-            audioRef.current.volume = volume;
-        }
-    }, [volume, streamUrl]);
-
-    useEffect(() => {
-        if (audioRef.current && (audioRef.current as any).setSinkId) {
-            (audioRef.current as any).setSinkId(audioDeviceId)
-                .catch((err: any) => console.error("Error setting audio output device:", err));
-        }
-    }, [audioDeviceId]);
-
-
-    const handleSearch = async (e?: React.FormEvent) => {
-        if (e) e.preventDefault();
-        if (!query.trim()) return;
-        setIsSearching(true);
-        setResults([]);
-        resetItemStates();
-        try {
-            if (query.match(/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.*[?&]list=([^#&?]+)/)) {
-                setPlaylistUrl(query);
-                setIsSearching(false);
-                return;
-            }
-
-            if (query.match(/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be|soundcloud\.com)\//)) {
-                addLog("URL detectada. Obteniendo metadatos...");
-                try {
-                    const meta: any = await window.api.getMeta(query);
-                    setResults([{
-                        id: meta.id,
-                        title: meta.title,
-                        channel: meta.uploader ?? meta.channel ?? "Desconocido",
-                        thumbnail: meta.thumbnail ?? "",
-                        duration: meta.duration ? (typeof meta.duration === 'number' ? new Date(meta.duration * 1000).toISOString().substr(14, 5) : meta.duration) : "Video",
-                        url: query,
-                        streamUrl: (meta as any).streamUrl
-                    }]);
-                } catch (err: any) {
-                    addLog("Error al obtener metadatos: " + err.message);
-                }
-            } else {
-                addLog(`Buscando: ${query}...`);
-                const res = await window.api.search(query);
-                setResults(res);
-            }
-        } catch (e: any) {
-            addLog("Error en búsqueda: " + e.message);
-        } finally {
-            setIsSearching(false);
-        }
-    };
-
-    const handleDownload = async (item: SearchResult) => {
-        const id = item.id;
-        const currentState = itemStates[id];
-        if (currentState?.status === 'loading') return;
-        updateItemState(id, { status: 'loading', msg: 'Iniciando...' });
-        addLog(`⏳ Iniciando descarga: ${item.title}...`);
-        try {
-            const { path: dest, bpm, key, source, description, duration } = await window.api.download(item.url, format, bitrate, sampleRate, normalize, outDir, smartOrganize);
-            updateItemState(id, { status: 'success', path: dest, msg: 'Completado' });
-            addLog(`✅ Descarga completada: ${item.title}`);
-            const newItem: HistoryItem = {
-                id: item.id,
-                title: item.title,
-                channel: item.channel,
-                thumbnail: item.thumbnail,
-                path: dest,
-                date: new Date().toISOString(),
-                format: format,
-                sampleRate: sampleRate,
-                bpm: bpm,
-                key: key,
-                source: source,
-                description: description,
-                tags: [],
-                duration: duration
-            };
-            addToHistory(newItem);
-        } catch (e: any) {
-            updateItemState(id, { status: 'error', msg: 'Error' });
-            addLog("❌ Error: " + e.message);
-        }
-    };
-
-    const handleBatchDownload = async (entries: any[]) => {
-        addLog(`📦 Iniciando descarga por lotes: ${entries.length} pistas`);
-        for (const entry of entries) {
-            handleDownload({
-                id: entry.id,
-                title: entry.title,
-                url: entry.url,
-                channel: entry.uploader || "Playlist",
-                thumbnail: `https://i.ytimg.com/vi/${entry.id}/mqdefault.jpg`,
-                duration: entry.duration ? new Date(entry.duration * 1000).toISOString().substr(14, 5) : "Video"
-            });
-            // Pequeño delay para no saturar el proceso
-            await new Promise(r => setTimeout(r, 500));
-        }
-    };
-
     const handleOpenItem = (path?: string) => {
         if (path) window.api.openItem(path);
-    };
-
-    const handleDownloadFromUrl = async (url: string, title: string) => {
-        const id = url;
-        if (itemStates[id]?.status === 'loading') return;
-
-        updateItemState(id, { status: 'loading', msg: 'Iniciando...' });
-        addLog(`⏳ Iniciando descarga: ${title}...`);
-
-        try {
-            const { path: dest, bpm, key, source, description, duration, thumbnail } = await window.api.download(
-                url, format, bitrate, sampleRate, normalize, outDir, smartOrganize
-            );
-
-            updateItemState(id, { status: 'success', path: dest, msg: 'Completado' });
-            addLog(`✅ Descarga completada: ${title}`);
-
-            const newItem: HistoryItem = {
-                id: id,
-                title: title,
-                channel: "Discovery",
-                thumbnail: thumbnail || "",
-                path: dest,
-                date: new Date().toISOString(),
-                format: format,
-                sampleRate: sampleRate,
-                bpm: bpm,
-                key: key,
-                source: source || "YouTube",
-                description: description,
-                tags: [],
-                duration: duration
-            };
-            addToHistory(newItem);
-        } catch (e: any) {
-            updateItemState(id, { status: 'error', msg: 'Error' });
-            addLog("❌ Error en descarga: " + e.message);
-        }
     };
 
     const handlePickDir = async () => {
@@ -457,96 +187,14 @@ export const App: React.FC = () => {
         if (path) setOutDir(path);
     };
 
-    useEffect(() => {
-        window.api.checkDependencies({
-            python: pythonPath || undefined,
-            ffmpeg: ffmpegPath || undefined,
-            ffprobe: ffprobePath || undefined
-        }).then(setDependencies);
-    }, [pythonPath, ffmpegPath, ffprobePath]);
+    const isDark = theme === 'dark';
 
     useEffect(() => {
-        window.api.onStatus(({ ok, message }) => {
+        const handleStatus = ({ ok, message }: { ok: boolean, message: string }) => {
             addLog(message);
-        });
-    }, []);
-
-    useEffect(() => {
-        window.api.onCommand((command) => {
-            if (command === 'playPause') {
-                if (audioRef.current && audioRef.current.src) {
-                    if (audioRef.current.paused) {
-                        audioRef.current.play().catch(console.error);
-                        setIsPlaying(true);
-                    } else {
-                        audioRef.current.pause();
-                        setIsPlaying(false);
-                    }
-                }
-            } else if (command === 'stop') {
-                setPlayingUrl(null);
-                setStreamUrl(null);
-                setIsPlaying(false);
-                setActiveTrack(null);
-                if (audioRef.current) {
-                    audioRef.current.pause();
-                    audioRef.current.src = "";
-                }
-            }
-        });
-    }, []);
-
-    useEffect(() => {
-        window.api.onDownloadStarted(({ url, title }) => {
-            addSpotlightDownload(url, title, url);
-            addLog(`⏳ Descarga iniciada externamente: ${title}`);
-        });
-
-        window.api.onDownloadSuccess(({ url, result }) => {
-            updateSpotlightDownload(url, { status: 'success', msg: 'Completado' });
-
-            // Reconstruct history item
-            const newItem: HistoryItem = {
-                id: result.id || Math.random().toString(36).substring(7),
-                title: result.title || "Unknown",
-                channel: result.channel || result.source || "Unknown",
-                thumbnail: result.thumbnail || "",
-                path: result.path,
-                date: new Date().toISOString(),
-                format: format,
-                sampleRate: sampleRate,
-                bpm: result.bpm,
-                key: result.key,
-                source: result.source || "YouTube",
-                description: result.description,
-                tags: [],
-                duration: result.duration
-            };
-            addToHistory(newItem);
-            addLog(`✅ Descarga completada: ${newItem.title}`);
-        });
-
-        window.api.onDownloadProgress(({ url, message }) => {
-            updateSpotlightDownload(url, { status: 'loading', msg: message });
-
-            // Critical: Update by URL directly (for direct URL downloads)
-            updateItemState(url, { status: 'loading', msg: message });
-
-            // Also update search results if they match the URL
-            const matchedResult = results.find(r => r.url === url);
-            if (matchedResult) {
-                updateItemState(matchedResult.id, { status: 'loading', msg: message });
-            }
-        });
-
-        window.api.onDownloadError(({ url, error }) => {
-            updateSpotlightDownload(url, { status: 'error', msg: error });
-            addLog(`❌ Error en descarga: ${error}`);
-        });
-    }, [format, sampleRate, results]);
-
-
-
+        };
+        window.api.onStatus(handleStatus);
+    }, [addLog]);
 
     if (!dependencies) {
         return (
@@ -556,27 +204,9 @@ export const App: React.FC = () => {
         );
     }
 
-    const hasAllDeps = dependencies.python && dependencies.ffmpeg && dependencies.ffprobe;
-
     if (isSpotlight) {
         return <SpotlightView theme={theme} />;
     }
-
-    const handleLoadMore = async () => {
-        if (isSearching || !query.trim() || results.length === 0) return;
-        setIsSearching(true);
-        try {
-            const more = await window.api.search(query, results.length, 12);
-            // Deduplicate results by ID
-            const existingIds = new Set(results.map(r => r.id));
-            const uniqueMore = more.filter(r => !existingIds.has(r.id));
-            setResults(prev => [...prev, ...uniqueMore]);
-        } catch (e: any) {
-            addLog("Error al cargar más: " + e.message);
-        } finally {
-            setIsSearching(false);
-        }
-    };
 
     return (
 
@@ -588,11 +218,7 @@ export const App: React.FC = () => {
             {!hasAllDeps && (
                 <DependencyChecker
                     dependencies={dependencies}
-                    onRetry={() => window.api.checkDependencies({
-                        python: pythonPath || undefined,
-                        ffmpeg: ffmpegPath || undefined,
-                        ffprobe: ffprobePath || undefined
-                    }).then(setDependencies)}
+                    onRetry={checkDeps}
                     pythonPath={pythonPath}
                     setPythonPath={setPythonPath}
                     ffmpegPath={ffmpegPath}
@@ -601,7 +227,6 @@ export const App: React.FC = () => {
                     setFfprobePath={setFfprobePath}
                     theme={theme}
                 />
-
             )}
 
 
@@ -665,7 +290,7 @@ export const App: React.FC = () => {
                                 onSearch={handleSearch}
                                 onDownload={handleDownload}
                                 onOpenItem={handleOpenItem}
-                                onTogglePreview={handleTogglePreview}
+                                onTogglePreview={(url, meta) => handleTogglePreview(url, meta, history, results)}
                                 playingUrl={playingUrl}
                                 isPreviewLoading={isPreviewLoading}
                                 theme={theme}
@@ -679,7 +304,7 @@ export const App: React.FC = () => {
                                 history={history}
                                 onClearHistory={clearHistory}
                                 onOpenItem={handleOpenItem}
-                                onTogglePreview={handleTogglePreview}
+                                onTogglePreview={(url, meta) => handleTogglePreview(url, meta, history, results)}
                                 onUpdateItem={updateHistoryItem}
                                 onRemoveItem={removeFromHistory}
 
@@ -701,7 +326,7 @@ export const App: React.FC = () => {
                                 history={history}
                                 onDownload={handleDownload}
                                 onOpenItem={handleOpenItem}
-                                onTogglePreview={handleTogglePreview}
+                                onTogglePreview={(url, meta) => handleTogglePreview(url, meta, history, results)}
                                 playingUrl={playingUrl}
                                 isPreviewLoading={isPreviewLoading}
                                 theme={theme}
@@ -778,7 +403,7 @@ export const App: React.FC = () => {
                             <button
                                 type="button"
                                 className={`h-10 w-10 rounded-full flex items-center justify-center hover:scale-105 transition-all disabled:opacity-50 ${isDark ? "bg-white text-black shadow-lg shadow-white/5" : "bg-black text-white shadow-lg shadow-black/10"}`}
-                                onClick={() => playingUrl && handleTogglePreview(playingUrl)}
+                                onClick={() => playingUrl && handleTogglePreview(playingUrl, undefined, history, results)}
                                 disabled={!playingUrl}
                             >
                                 {isPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={20} className="ml-0.5" fill="currentColor" />}

@@ -5,51 +5,10 @@ import { KeybindManager } from "./KeybindManager";
 import { useTranslation } from "react-i18next";
 
 
-interface SettingsViewProps {
-    format: TargetFormat;
-    setFormat: (format: TargetFormat) => void;
-    bitrate: Bitrate;
-    setBitrate: (bitrate: Bitrate) => void;
-    sampleRate: SampleRate;
-    setSampleRate: (sampleRate: SampleRate) => void;
-    normalize: boolean;
-    setNormalize: (val: boolean) => void;
-    outDir?: string;
-    onPickDir: () => void;
-    logs: string[];
-    onClearLogs: () => void;
-    debugMode: boolean;
-    pythonPath: string;
-    setPythonPath: (path: string) => void;
-    ffmpegPath: string;
-    setFfmpegPath: (path: string) => void;
-    ffprobePath: string;
-    setFfprobePath: (path: string) => void;
-    spotlightShortcut: string;
-    setSpotlightShortcut: (s: string) => void;
-    clipboardShortcut: string;
-    setClipboardShortcut: (s: string) => void;
-    keybinds: any[];
-    updateKeybind: (id: string, accelerator: string) => Promise<void>;
-    resetKeybinds: () => Promise<void>;
-    audioDeviceId: string;
-    setAudioDeviceId: (id: string) => void;
-    theme: 'light' | 'dark';
-    smartOrganize: boolean;
-    setSmartOrganize: (val: boolean) => void;
-    minimizeToTray: boolean;
-    setMinimizeToTray: (val: boolean) => void;
-    discogsToken: string;
-    setDiscogsToken: (val: string) => void;
-    lowPowerMode: boolean;
-    setLowPowerMode: (val: boolean) => void;
-}
+import { useSettings } from "../context/SettingsContext";
+import { useApp } from "../context/AppContext";
 
-
-
-
-const AdvancedPathInput = ({ label, value, onChange, placeholder, theme }: { label: string, value: string, onChange: (v: string) => void, placeholder: string, theme: 'light' | 'dark' }) => {
-    const isDark = theme === 'dark';
+const AdvancedPathInput = ({ label, value, onChange, placeholder, isDark }: { label: string, value: string, onChange: (v: string) => void, placeholder: string, isDark: boolean }) => {
     const { t } = useTranslation();
     const handlePick = async () => {
         const path = await window.api.pickFile();
@@ -58,14 +17,12 @@ const AdvancedPathInput = ({ label, value, onChange, placeholder, theme }: { lab
 
     return (
         <div className="flex flex-col gap-2">
-            <label className="text-[9px] font-bold text-wv-gray uppercase tracking-widest">
-                {label}
-            </label>
+            <label className="text-[9px] font-bold text-wv-gray uppercase tracking-widest">{label}</label>
             <div className="flex gap-3">
                 <input
                     type="text"
                     className={`flex-1 border rounded-lg px-3 py-2 text-xs outline-none transition-all ${isDark ? "bg-wv-bg border-white/5 text-white focus:border-white/20" : "bg-white border-black/[0.08] text-black focus:border-black/20"}`}
-                    value={value}
+                    value={value || ""}
                     onChange={e => onChange(e.target.value)}
                     placeholder={placeholder}
                 />
@@ -75,33 +32,46 @@ const AdvancedPathInput = ({ label, value, onChange, placeholder, theme }: { lab
                 >
                     {t('settings.browse')}
                 </button>
-
             </div>
         </div>
     );
 };
 
+export const SettingsView: React.FC = () => {
+    const { config, updateConfig, updateKeybind, resetKeybinds } = useSettings();
+    const { logs, clearLogs, debugMode } = useApp();
+    const { t, i18n } = useTranslation();
+    const isDark = config.theme === 'dark';
+    const theme = config.theme;
 
+    // Alias config values
+    const {
+        format, bitrate, sampleRate, normalize, outDir,
+        pythonPath, ffmpegPath, ffprobePath,
+        audioDeviceId, smartOrganize, minimizeToTray,
+        discogsToken, lowPowerMode, stemsQuality, keybinds
+    } = config;
 
-export const SettingsView: React.FC<SettingsViewProps> = ({
-    format, setFormat, bitrate, setBitrate, sampleRate, setSampleRate,
-    normalize, setNormalize, outDir, onPickDir,
-    logs, onClearLogs, debugMode,
-    pythonPath, setPythonPath, ffmpegPath, setFfmpegPath, ffprobePath, setFfprobePath,
-    spotlightShortcut, setSpotlightShortcut, clipboardShortcut, setClipboardShortcut,
-    keybinds, updateKeybind, resetKeybinds,
-    audioDeviceId, setAudioDeviceId,
-    theme,
-    smartOrganize, setSmartOrganize,
-    minimizeToTray, setMinimizeToTray,
-    discogsToken, setDiscogsToken,
-    lowPowerMode, setLowPowerMode
-}) => {
-    const isDark = theme === 'dark';
+    // Functions to wrap updateConfig
+    const setFormat = (f: any) => updateConfig({ format: f });
+    const setBitrate = (b: any) => updateConfig({ bitrate: b });
+    const setSampleRate = (s: any) => updateConfig({ sampleRate: s });
+    const setNormalize = (n: boolean) => updateConfig({ normalize: n });
+    const setPythonPath = (p: string) => updateConfig({ pythonPath: p });
+    const setFfmpegPath = (f: string) => updateConfig({ ffmpegPath: f });
+    const setFfprobePath = (f: string) => updateConfig({ ffprobePath: f });
+    const setAudioDeviceId = (d: string) => updateConfig({ audioDeviceId: d });
+    const setSmartOrganize = (s: boolean) => updateConfig({ smartOrganize: s });
+    const setMinimizeToTray = (m: boolean) => updateConfig({ minimizeToTray: m });
+    const setDiscogsToken = (t: string) => updateConfig({ discogsToken: t });
+    const setLowPowerMode = (l: boolean) => updateConfig({ lowPowerMode: l });
+    const setStemsQuality = (q: any) => updateConfig({ stemsQuality: q });
+    const onPickDir = async () => { const p = await window.api.pickDir(); if (p) updateConfig({ outDir: p }); };
+    const onClearLogs = clearLogs;
+
     const [devices, setDevices] = React.useState<MediaDeviceInfo[]>([]);
     const [appVersion, setAppVersion] = React.useState("...");
     const [platformInfo, setPlatformInfo] = React.useState("...");
-    const { t, i18n } = useTranslation();
 
     React.useEffect(() => {
         const fetchDevices = async () => {
@@ -416,6 +386,35 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             </div>
                         </label>
 
+                        <div className={`mt-4 pt-4 border-t ${isDark ? "border-white/5" : "border-black/5"}`}>
+                            <div className="flex flex-col gap-1 mb-4">
+                                <span className={`text-[11px] font-bold uppercase tracking-wider ${isDark ? "text-white" : "text-black"}`}>{t('settings.stemsQuality')}</span>
+                                <span className="text-[9px] text-wv-gray uppercase font-medium tracking-widest opacity-60">
+                                    {stemsQuality === 'best' ? t('settings.stemsQualityBest') : t('settings.stemsQualityStandard')}
+                                </span>
+                            </div>
+                            <div className={`flex p-1 rounded-xl gap-1 ${isDark ? "bg-black/20" : "bg-black/5"}`}>
+                                <button
+                                    onClick={() => setStemsQuality('standard')}
+                                    className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${stemsQuality === 'standard'
+                                        ? (isDark ? "bg-white/10 text-white shadow-sm" : "bg-white text-black shadow-sm")
+                                        : "text-wv-gray hover:text-wv-text"
+                                        }`}
+                                >
+                                    {t('common.standard') || 'Standard'}
+                                </button>
+                                <button
+                                    onClick={() => setStemsQuality('best')}
+                                    className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${stemsQuality === 'best'
+                                        ? (isDark ? "bg-amber-500 text-white shadow-sm" : "bg-amber-500 text-white shadow-sm")
+                                        : "text-wv-gray hover:text-wv-text"
+                                        }`}
+                                >
+                                    {t('common.best') || 'Best (AI+)'}
+                                </button>
+                            </div>
+                        </div>
+
                     </div>
                 </section>
 
@@ -442,21 +441,21 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             value={pythonPath}
                             onChange={setPythonPath}
                             placeholder={t('settings.autoDetect')}
-                            theme={theme}
+                            isDark={isDark}
                         />
                         <AdvancedPathInput
                             label={t('settings.ffmpegPath')}
                             value={ffmpegPath}
                             onChange={setFfmpegPath}
                             placeholder={t('settings.integratedBinary')}
-                            theme={theme}
+                            isDark={isDark}
                         />
                         <AdvancedPathInput
                             label={t('settings.ffprobePath')}
                             value={ffprobePath}
                             onChange={setFfprobePath}
                             placeholder={t('settings.integratedBinary')}
-                            theme={theme}
+                            isDark={isDark}
                         />
                     </div>
                 </section>

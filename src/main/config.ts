@@ -19,6 +19,7 @@ export interface AppConfig {
     projectPaths: string[];
     keybinds: KeybindConfig[];
     minimizeToTray: boolean;
+    stemsQuality: 'standard' | 'best';
 }
 
 export const DEFAULT_KEYBINDS: KeybindConfig[] = [
@@ -62,7 +63,8 @@ export const config: AppConfig = {
     ffprobePath: null,
     projectPaths: [],
     keybinds: JSON.parse(JSON.stringify(DEFAULT_KEYBINDS)),
-    minimizeToTray: true
+    minimizeToTray: true,
+    stemsQuality: 'standard'
 };
 
 const CONFIG_PATH = path.join(app.getPath("userData"), "config.json");

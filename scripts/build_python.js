@@ -6,48 +6,48 @@ const util = require('util');
 const execAsync = util.promisify(exec);
 
 async function buildPython() {
-    console.log('🚧 Setting up Python environment and building binary...');
+    console.log('🚧 Iniciando construcción de motores de IA (Versión Estable)...');
 
-    // Ensure resources/bin exists
-    const binDir = path.join(__dirname, '../resources/bin');
-    if (!fs.existsSync(binDir)) {
-        fs.mkdirSync(binDir, { recursive: true });
+    let pythonBin = 'python3';
+    const candidates = ['python3.11', 'python3.12', 'python3.10', 'python3'];
+    for (const cand of candidates) {
+        try {
+            const { stdout } = await execAsync(`${cand} --version`);
+            if (!stdout.includes('3.14')) { pythonBin = cand; break; }
+        } catch (e) { }
     }
+    console.log(`✅ Usando ${pythonBin} para el build.`);
+
+    const binDir = path.join(__dirname, '../resources/bin');
+    if (fs.existsSync(binDir)) {
+        console.log('🧹 Limpiando directorio de binarios...');
+        fs.rmSync(binDir, { recursive: true, force: true });
+    }
+    fs.mkdirSync(binDir, { recursive: true });
 
     try {
-        // 1. Install dependencies (assuming pip is available)
-        console.log('📦 Installing librosa, numpy, pyinstaller...');
-        // We use --user to avoid permission issues if not using venv, but actually venv is better.
-        // For simplicity in this script, we assume the user has a python env they can write to, or we use a temporary venv.
-        // Let's create a temporary venv to be safe.
-
         const venvPath = path.join(__dirname, '../.venv_build');
-        if (!fs.existsSync(venvPath)) {
-            await execAsync(`python3 -m venv "${venvPath}"`);
-        }
+        if (!fs.existsSync(venvPath)) await execAsync(`${pythonBin} -m venv "${venvPath}"`);
 
         const pip = path.join(venvPath, 'bin', 'pip');
-        const python = path.join(venvPath, 'bin', 'python');
         const pyinstaller = path.join(venvPath, 'bin', 'pyinstaller');
 
-        await execAsync(`"${pip}" install librosa numpy pyinstaller`);
+        console.log('📦 Instalando dependencias estables (Torch 2.4.1)...');
+        await execAsync(`"${pip}" install numpy==1.26.4 torch==2.4.1 torchaudio==2.4.1 soundfile lameenc demucs pyinstaller`, { timeout: 600000 });
 
-        // 2. Build the binary with PyInstaller
-        console.log('🔨 Compiling classify_audio.py to binary...');
-        const scriptPath = path.join(__dirname, '../scripts/classify_audio.py');
+        console.log('🔨 Compilando separate_stems...');
+        const stemsScript = path.join(__dirname, '../scripts/separate_stems.py');
 
-        // --onefile: single executable
-        // --distpath: output directory
-        // --name: output name
-        await execAsync(`"${pyinstaller}" --clean --onefile --distpath "${binDir}" --name classify_audio "${scriptPath}"`);
+        await execAsync(`"${pyinstaller}" --clean --noconfirm --onedir --distpath "${binDir}" --name separate_stems --collect-all demucs --collect-all torchaudio --copy-metadata torch --copy-metadata torchaudio --copy-metadata demucs "${stemsScript}"`);
 
-        console.log(`✅ Binary built successfully at: ${path.join(binDir, 'classify_audio')}`);
+        console.log('🔨 Compilando classify_audio...');
+        const classifyScript = path.join(__dirname, '../scripts/classify_audio.py');
+        await execAsync(`"${pyinstaller}" --clean --noconfirm --onedir --distpath "${binDir}" --name classify_audio --collect-all demucs --copy-metadata torch --copy-metadata demucs "${classifyScript}"`);
 
-        // Cleanup venv? Optional. Maybe keep for cache.
+        console.log(`✅ Motores listos en: ${binDir}`);
 
     } catch (e) {
-        console.error('❌ Build failed:', e.message);
-        console.error('Make sure python3 is installed and available in PATH.');
+        console.error('❌ Error en el build:', e.message);
         process.exit(1);
     }
 }

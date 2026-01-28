@@ -26,6 +26,7 @@ def classify_audio(file_path):
         y, sr = librosa.load(file_path, sr=22050, duration=2.0)
         
         # Calculate features
+        # Calculate features
         spec_cent = librosa.feature.spectral_centroid(y=y, sr=sr)
         zcr = librosa.feature.zero_crossing_rate(y)
         spec_flat = librosa.feature.spectral_flatness(y=y)
@@ -33,6 +34,27 @@ def classify_audio(file_path):
         onset_env = librosa.onset.onset_strength(y=y, sr=sr)
         bpm = librosa.beat.tempo(onset_envelope=onset_env, sr=sr)
         
+        # Key Detection
+        # Compute the mean chroma across time
+        chroma_mean = np.mean(chroma, axis=1)
+        
+        # Define key profiles (simplified)
+        major_profile = np.array([6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88])
+        minor_profile = np.array([6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17])
+        
+        keys = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
+        
+        major_corrs = [np.corrcoef(chroma_mean, np.roll(major_profile, i))[0, 1] for i in range(12)]
+        minor_corrs = [np.corrcoef(chroma_mean, np.roll(minor_profile, i))[0, 1] for i in range(12)]
+        
+        best_major = np.argmax(major_corrs)
+        best_minor = np.argmax(minor_corrs)
+        
+        if major_corrs[best_major] > minor_corrs[best_minor]:
+            detected_key = f"{keys[best_major]} Major"
+        else:
+            detected_key = f"{keys[best_minor]} Minor"
+
         # Mean values
         cent_mean = np.mean(spec_cent)
         zcr_mean = np.mean(zcr)
@@ -70,10 +92,11 @@ def classify_audio(file_path):
             # Refinements
             if "Hi-Hat" in category:
                 if duration > 0.5: category = "Cymbal" # Longer hi-hat usually cymbal/crash
-
+        
         return {
             "success": True,
             "category": category,
+            "key": detected_key,
             "features": {
                 "centroid": float(cent_mean),
                 "zcr": float(zcr_mean),

@@ -1,4 +1,5 @@
-/* Base WaveVault Styles - Managed by Tailwind primarily */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
 .drag-region {
   -webkit-app-region: drag;
 }
@@ -21,11 +22,7 @@ textarea,
   -webkit-user-select: text;
 }
 
-
-@font-face {
-  font-family: 'Inter';
-  src: url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
-}
+/* Base WaveVault Styles - Managed by Tailwind primarily */
 
 :root {
   --wv-bg: #ffffff;
@@ -104,12 +101,30 @@ input[type="range"].volume-slider::-webkit-slider-thumb:hover {
 }
 
 /* PERFORMANCE / LOW POWER MODE OVERRIDES */
-.low-power * {
+/* PERFORMANCE / LOW POWER MODE OVERRIDES */
+/* Avoid universal selector * as it is very expensive for the renderer */
+.low-power .backdrop-blur-md,
+.low-power .backdrop-blur-sm,
+.low-power .backdrop-blur-lg,
+.low-power [class*="backdrop-blur"] {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
+}
+
+.low-power .transition-all,
+.low-power .transition,
+.low-power [class*="transition-"] {
+  transition-duration: 0ms !important;
+  animation-duration: 0ms !important;
+}
+
+.low-power .shadow-sm,
+.low-power .shadow,
+.low-power .shadow-md,
+.low-power .shadow-lg,
+.low-power .shadow-xl,
+.low-power .shadow-2xl {
   box-shadow: none !important;
-  transition-duration: 0.01ms !important;
-  animation-duration: 0.01ms !important;
 }
 
 /* Ensure background is solid when blur is disabled */
@@ -129,4 +144,41 @@ input[type="range"].volume-slider::-webkit-slider-thumb:hover {
 
 .low-power.dark .bg-wv-sidebar\/80 {
   background-color: var(--wv-sidebar) !important;
+}
+
+/* Audio Progress Bar Styling */
+.audio-progress {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+}
+
+.audio-progress::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  background: white;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+.group:hover .audio-progress::-webkit-slider-thumb {
+  opacity: 1;
+}
+
+.audio-progress::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+.dark .audio-progress::-webkit-slider-thumb {
+  background: white;
+}
+
+.light .audio-progress::-webkit-slider-thumb {
+  background: black;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
 }

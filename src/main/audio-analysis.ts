@@ -8,10 +8,21 @@ import { getFFmpegPath, getFFprobePath } from "./config";
 
 export async function analyzeBPM(filePath: string): Promise<number | undefined> {
     try {
+        const scriptPath = path.join(process.cwd(), 'scripts', 'classify_audio.py');
+        const { PythonShell } = require('./python-shell');
+        const result = await PythonShell.run(scriptPath, [filePath]);
+        const data = JSON.parse(result.stdout);
+
+        if (data.success && data.features && data.features.bpm) {
+            return Math.round(data.features.bpm);
+        }
+    } catch (e) {
+        console.warn("Python BPM analysis failed, falling back to MusicTempo:", e);
+    }
+
+    try {
         const { stdout } = await execa(getFFmpegPath(), [
             '-i', filePath,
-
-
             '-f', 's16le',
             '-ac', '1',
             '-ar', '44100',
@@ -34,6 +45,20 @@ export async function analyzeBPM(filePath: string): Promise<number | undefined> 
 }
 
 export async function analyzeKey(filePath: string): Promise<string | undefined> {
+    try {
+        const scriptPath = path.join(process.cwd(), 'scripts', 'classify_audio.py');
+        const { PythonShell } = require('./python-shell');
+        const result = await PythonShell.run(scriptPath, [filePath]);
+        const data = JSON.parse(result.stdout);
+
+        if (data.success && data.key) {
+            return data.key;
+        }
+    } catch (e) {
+        console.warn("Python key analysis failed, falling back to regex:", e);
+    }
+
+    // Fallback Regex Logic
     const fileName = path.basename(filePath).toLowerCase();
     const keys = ["c", "c#", "db", "d", "d#", "eb", "e", "f", "f#", "gb", "g", "g#", "ab", "a", "a#", "bb", "b"];
     const modes = ["major", "minor", "maj", "min", "m"];

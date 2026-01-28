@@ -62,9 +62,11 @@ async function build() {
   fs.writeFileSync('dist/renderer/index.html', htmlContent);
   if (fs.existsSync('wavevault-white.svg')) {
     fs.copyFileSync('wavevault-white.svg', 'dist/renderer/wavevault-white.svg');
+    fs.copyFileSync('wavevault-white.svg', 'dist/wavevault-white.svg');
   }
   if (fs.existsSync('wavevault.svg')) {
     fs.copyFileSync('wavevault.svg', 'dist/renderer/wavevault.svg');
+    fs.copyFileSync('wavevault.svg', 'dist/wavevault.svg');
   }
 }
 

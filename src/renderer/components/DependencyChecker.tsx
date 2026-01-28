@@ -1,33 +1,17 @@
-import React from "react";
-import { AlertCircle, CheckCircle2, XCircle, RefreshCw, Cpu, Download, Info, Settings } from "lucide-react";
-
-interface DependencyCheckerProps {
-    dependencies: {
-        python: boolean;
-        ffmpeg: boolean;
-        ffprobe: boolean;
-    };
-    onRetry: () => void;
-    pythonPath: string;
-    setPythonPath: (v: string) => void;
-    ffmpegPath: string;
-    setFfmpegPath: (v: string) => void;
-    ffprobePath: string;
-    setFfprobePath: (v: string) => void;
-    theme: 'light' | 'dark';
-}
-
-
-import { useState } from "react";
+import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { AlertCircle, CheckCircle2, XCircle, RefreshCw, Cpu, Download, Info, Settings } from "lucide-react";
+import { useSettings } from "../context/SettingsContext";
 
-export const DependencyChecker: React.FC<DependencyCheckerProps> = ({
-    dependencies, onRetry,
-    pythonPath, setPythonPath,
-    ffmpegPath, setFfmpegPath,
-    ffprobePath, setFfprobePath,
-    theme
+export const DependencyChecker: React.FC<{ dependencies: any, onRetry: () => void }> = ({
+    dependencies, onRetry
 }) => {
+    const { config, updateConfig } = useSettings();
+    const { pythonPath, ffmpegPath, ffprobePath, theme } = config;
+
+    const setPythonPath = (p: string) => updateConfig({ pythonPath: p });
+    const setFfmpegPath = (f: string) => updateConfig({ ffmpegPath: f });
+    const setFfprobePath = (f: string) => updateConfig({ ffprobePath: f });
     const isDark = theme === 'dark';
     const [showConfig, setShowConfig] = useState(false);
     const { t } = useTranslation();

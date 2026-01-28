@@ -44,12 +44,25 @@ jobs:
       - name: Generate Changelog
         id: changelog
         shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           NEW_TAG=${{ steps.bump.outputs.new_tag }}
-          # Obtener el tag anterior (el penúltimo en la lista ordenada por versión)
-          PREV_TAG=$(git tag --sort=-v:refname | sed -n '2p')
           
-          echo "Generating changelog for $NEW_TAG (Previous: $PREV_TAG)"
+          # Intentar encontrar la última release EXITOSA (con assets/binarios)
+          # Esto evita que si una build falla, la siguiente release tenga changelog vacío
+          echo "Looking for last successful release..."
+          LAST_SUCCESSFUL=$(gh release list --limit 20 --json tagName,assets --exclude-drafts | jq -r '[.[] | select(.assets | length > 0)][0].tagName')
+          
+          if [ "$LAST_SUCCESSFUL" != "null" ] && [ ! -z "$LAST_SUCCESSFUL" ]; then
+            echo "Found last successful release: $LAST_SUCCESSFUL"
+            PREV_TAG=$LAST_SUCCESSFUL
+          else
+            echo "No successful previous release found via API. Falling back to git tags."
+            PREV_TAG=$(git tag --sort=-v:refname | sed -n '2p')
+          fi
+          
+          echo "Generating changelog for $NEW_TAG (comparing against $PREV_TAG)"
           
           echo "## Cambios en $NEW_TAG" > release_notes.md
           echo "" >> release_notes.md
@@ -105,7 +118,7 @@ jobs:
         if: runner.os == 'Windows'
         uses: actions/setup-python@v5
         with:
-          python-version: '3.x'
+          python-version: '3.11'
 
       - name: Install System Dependencies (Linux)
         if: runner.os == 'Linux'

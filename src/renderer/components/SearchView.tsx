@@ -1,8 +1,11 @@
-import React from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { SearchResult, ItemState } from "../types";
 import { ResultCard } from "./ResultCard";
 import { VirtualizedItem } from "./VirtualizedItem";
 import { Search, Music, Loader2, Sparkles } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { usePlayback } from "../context/PlaybackContext";
+import { useSettings } from "../context/SettingsContext";
 
 interface SearchViewProps {
     query: string;
@@ -14,36 +17,17 @@ interface SearchViewProps {
     onSearch: (e?: React.FormEvent) => void;
     onDownload: (result: SearchResult) => void;
     onOpenItem: (path?: string) => void;
-    onTogglePreview: (url: string) => void;
-    playingUrl: string | null;
-    isPreviewLoading: boolean;
-    theme: 'light' | 'dark';
     onStartDrag: () => void;
     onLoadMore: () => void;
 }
 
-
-import { useTranslation } from "react-i18next";
-import { useEffect, useRef } from "react";
-
 export const SearchView: React.FC<SearchViewProps> = ({
-    query,
-    setQuery,
-    isSearching,
-    results,
-    itemStates,
-    history,
-    onSearch,
-    onDownload,
-    onOpenItem,
-    onTogglePreview,
-    playingUrl,
-    isPreviewLoading,
-    theme,
-    onStartDrag,
-    onLoadMore
+    query, setQuery, isSearching, results, itemStates, history,
+    onSearch, onDownload, onOpenItem, onStartDrag, onLoadMore
 }) => {
-    const isDark = theme === 'dark';
+    const { config } = useSettings();
+    const { playingUrl, isPreviewLoading, handleTogglePreview: onTogglePreview } = usePlayback();
+    const isDark = config.theme === 'dark';
     const { t } = useTranslation();
     const loaderRef = useRef<HTMLDivElement>(null);
 
@@ -117,7 +101,7 @@ export const SearchView: React.FC<SearchViewProps> = ({
                                 const inHistory = history.some(h => h.id === r.id);
 
                                 return (
-                                    <VirtualizedItem key={r.id + i} id={r.id} minHeight={320}>
+                                    <VirtualizedItem key={r.id} id={r.id} minHeight={320}>
                                         <ResultCard
                                             result={r}
                                             state={state}

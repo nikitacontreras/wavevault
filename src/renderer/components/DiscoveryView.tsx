@@ -14,6 +14,11 @@ import {
     DiscogsRelease
 } from "../services/discogs";
 
+import { usePlayback } from "../context/PlaybackContext";
+import { useSettings } from "../context/SettingsContext";
+import { useLibrary } from "../context/LibraryContext";
+import { useDownloadHandlers } from "../hooks/useDownloadHandlers";
+
 interface EnrichedRelease extends DiscogsRelease {
     youtubeUrl?: string;
     streamUrl?: string;
@@ -25,34 +30,18 @@ interface EnrichedRelease extends DiscogsRelease {
 }
 
 interface DiscoveryViewProps {
-    itemStates: Record<string, ItemState>;
-    history: any[];
-    onDownload: (item: any) => void;
-    onOpenItem: (path?: string) => void;
-    onTogglePreview: (url: string, metadata?: any) => void;
-    playingUrl: string | null;
-    isPreviewLoading: boolean;
-    theme: 'light' | 'dark';
     onStartDrag: () => void;
-    discogsToken: string;
-    onDownloadFromUrl?: (url: string, title: string) => void;
 }
 
-export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
-    itemStates,
-    history,
-    onDownload,
-    onOpenItem,
-    onTogglePreview,
-    playingUrl,
-    isPreviewLoading,
-    theme,
-    onStartDrag,
-    discogsToken,
-    onDownloadFromUrl
-}) => {
-    const isDark = theme === 'dark';
+export const DiscoveryView: React.FC<DiscoveryViewProps> = ({ onStartDrag }) => {
+    const { itemStates, history } = useLibrary();
+    const { config } = useSettings();
+    const { playingUrl, isPreviewLoading, handleTogglePreview: onTogglePreview } = usePlayback();
+    const { handleDownload: onDownload, handleDownloadFromUrl: onDownloadFromUrl } = useDownloadHandlers();
+    const isDark = config.theme === 'dark';
     const { t } = useTranslation();
+    const onOpenItem = (path?: string) => path && window.api.openItem(path);
+    const discogsToken = config.discogsToken;
 
     // Enriched Discogs results with YouTube data
     const [releases, setReleases] = useState<EnrichedRelease[]>([]);

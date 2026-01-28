@@ -11,14 +11,14 @@ const useSpotlightDownloads = () => {
     // Escuchar eventos de descarga desde el main process
     useEffect(() => {
         if (window.api) {
-            window.api.onDownloadStarted(({ url, title }) => {
+            const unsubStarted = window.api.onDownloadStarted(({ url, title }) => {
                 setDownloads(prev => [
                     ...prev.filter(d => d.url !== url),
                     { id: url, title, url, state: { status: 'loading', msg: 'Iniciando...' } }
                 ]);
             });
 
-            window.api.onDownloadSuccess(({ url, result }) => {
+            const unsubSuccess = window.api.onDownloadSuccess(({ url, result }) => {
                 setDownloads(prev =>
                     prev.map(d =>
                         d.url === url
@@ -33,7 +33,7 @@ const useSpotlightDownloads = () => {
                 }, 3000);
             });
 
-            window.api.onDownloadError(({ url, error }) => {
+            const unsubError = window.api.onDownloadError(({ url, error }) => {
                 setDownloads(prev =>
                     prev.map(d =>
                         d.url === url
@@ -42,6 +42,12 @@ const useSpotlightDownloads = () => {
                     )
                 );
             });
+
+            return () => {
+                unsubStarted();
+                unsubSuccess();
+                unsubError();
+            };
         }
     }, []);
 

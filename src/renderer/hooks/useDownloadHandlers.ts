@@ -102,12 +102,12 @@ export const useDownloadHandlers = () => {
 
     // IPC Download Listeners
     useEffect(() => {
-        const unsubStarted = window.api.onDownloadStarted(({ url, title }) => {
+        const unsubStarted = window.api.onDownloadStarted(({ url, title }: any) => {
             addActiveDownload(url, title, url);
             addLog(`⏳ Descarga iniciada externamente: ${title}`);
         });
 
-        const unsubSuccess = window.api.onDownloadSuccess(({ url, result }) => {
+        const unsubSuccess = window.api.onDownloadSuccess(({ url, result }: any) => {
             updateActiveDownload(url, { status: 'success', msg: 'Completado' });
 
             const newItem: HistoryItem = {
@@ -130,12 +130,12 @@ export const useDownloadHandlers = () => {
             addLog(`✅ Descarga completada: ${newItem.title}`);
         });
 
-        const unsubProgress = window.api.onDownloadProgress(({ url, message }) => {
+        const unsubProgress = window.api.onDownloadProgress(({ url, message }: any) => {
             updateActiveDownload(url, { status: 'loading', msg: message });
             updateItemState(url, { status: 'loading', msg: message });
         });
 
-        const unsubError = window.api.onDownloadError(({ url, error }) => {
+        const unsubError = window.api.onDownloadError(({ url, error }: any) => {
             updateActiveDownload(url, { status: 'error', msg: error });
             addLog(`❌ Error en descarga: ${error}`);
         });

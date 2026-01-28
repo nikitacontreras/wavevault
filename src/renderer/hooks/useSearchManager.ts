@@ -58,7 +58,7 @@ export const useSearchManager = () => {
         try {
             const more = await window.api.search(query, results.length, 12);
             const existingIds = new Set(results.map(r => r.id));
-            const uniqueMore = more.filter(r => !existingIds.has(r.id));
+            const uniqueMore = more.filter((r: any) => !existingIds.has(r.id));
             setResults(prev => [...prev, ...uniqueMore]);
         } catch (e: any) {
             addLog("Error al cargar más: " + e.message);

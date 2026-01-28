@@ -38,16 +38,17 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({ onStartDrag }) => 
     const { config } = useSettings();
     const { playingUrl, isPreviewLoading, handleTogglePreview: onTogglePreview } = usePlayback();
     const { handleDownload: onDownload, handleDownloadFromUrl: onDownloadFromUrl } = useDownloadHandlers();
-    const isDark = config.theme === 'dark';
     const { t } = useTranslation();
     const onOpenItem = (path?: string) => path && window.api.openItem(path);
     const discogsToken = config.discogsToken;
 
     // Enriched Discogs results with YouTube data
-    const [releases, setReleases] = useState<EnrichedRelease[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [releases, setReleases] = useState<DiscogsRelease[]>([]);
     const [error, setError] = useState<string | null>(null);
-
+    const [page, setPage] = useState(1);
+    const theme = config.theme;
+    const isDark = theme === 'dark';
     // Detail modal
     const [selectedRelease, setSelectedRelease] = useState<EnrichedRelease | null>(null);
 

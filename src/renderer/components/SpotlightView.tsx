@@ -11,14 +11,14 @@ const useSpotlightDownloads = () => {
     // Escuchar eventos de descarga desde el main process
     useEffect(() => {
         if (window.api) {
-            const unsubStarted = window.api.onDownloadStarted(({ url, title }) => {
+            const unsubStarted = window.api.onDownloadStarted(({ url, title }: any) => {
                 setDownloads(prev => [
                     ...prev.filter(d => d.url !== url),
                     { id: url, title, url, state: { status: 'loading', msg: 'Iniciando...' } }
                 ]);
             });
 
-            const unsubSuccess = window.api.onDownloadSuccess(({ url, result }) => {
+            const unsubSuccess = window.api.onDownloadSuccess(({ url, result }: any) => {
                 setDownloads(prev =>
                     prev.map(d =>
                         d.url === url
@@ -33,7 +33,7 @@ const useSpotlightDownloads = () => {
                 }, 3000);
             });
 
-            const unsubError = window.api.onDownloadError(({ url, error }) => {
+            const unsubError = window.api.onDownloadError(({ url, error }: any) => {
                 setDownloads(prev =>
                     prev.map(d =>
                         d.url === url
@@ -111,7 +111,7 @@ export const SpotlightView: React.FC<SpotlightViewProps> = ({ theme = 'dark' }) 
 
         const handleKeys = (e: KeyboardEvent) => {
             if (e.key === 'Escape') {
-                (window as any).api.closeSpotlight();
+                window.api.closeSpotlight();
             }
         };
 
@@ -138,7 +138,7 @@ export const SpotlightView: React.FC<SpotlightViewProps> = ({ theme = 'dark' }) 
             height += Math.min(downloadsHeight, 160);
         }
 
-        (window as any).api.resizeSpotlight(height);
+        window.api.resizeSpotlight(height);
     }, [status, downloads, isSearching, searchResults]);
 
 

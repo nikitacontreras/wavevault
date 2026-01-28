@@ -379,18 +379,34 @@ export const LibraryView: React.FC<{ onStartDrag?: () => void }> = ({ onStartDra
                                                     </span>
                                                 </div>
 
+                                                <div className="mb-6 animate-in fade-in duration-500 delay-200">
+                                                    <div className="flex items-center gap-2 mb-2 text-[9px] font-bold text-wv-gray uppercase tracking-widest">
+                                                        <Activity size={10} />
+                                                        {t('common.preview')}
+                                                    </div>
+                                                    <Waveform
+                                                        url={selectedItem.path}
+                                                        height={48}
+                                                        theme={config.theme}
+                                                        peaks={selectedItem.waveform ? JSON.parse(selectedItem.waveform) : undefined}
+                                                        onPeaksGenerated={(peaks) => {
+                                                            (window as any).api.savePeaks('sample', selectedItem.id, peaks);
+                                                            onUpdateItem(selectedItem.id, { waveform: JSON.stringify(peaks) });
+                                                        }}
+                                                        audioMediaElement={audioMediaElement}
+                                                    />
+                                                </div>
                                                 {isPlaying && (
                                                     <div className="mb-4 animate-in fade-in duration-500">
                                                         <Waveform
                                                             url={item.path}
                                                             height={24}
-                                                            theme={theme}
+                                                            theme={config.theme}
                                                             peaks={item.waveform ? JSON.parse(item.waveform) : undefined}
                                                             onPeaksGenerated={(peaks) => {
                                                                 (window as any).api.savePeaks('sample', item.id, peaks);
                                                                 onUpdateItem(item.id, { waveform: JSON.stringify(peaks) });
                                                             }}
-                                                            audioMediaElement={audioMediaElement}
                                                         />
                                                     </div>
                                                 )}

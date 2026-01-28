@@ -52,7 +52,7 @@ jobs:
           # Intentar encontrar la última release EXITOSA (con assets/binarios)
           # Usamos gh api directamente porque gh release list a veces no expone 'assets'
           echo "Looking for last successful release..."
-          LAST_SUCCESSFUL=$(gh api repos/${{ github.repository }}/releases --per-page 20 --jq '[.[] | select(.assets | length > 0)][0].tag_name')
+          LAST_SUCCESSFUL=$(gh api repos/${{ github.repository }}/releases -F per_page=20 --jq '[.[] | select(.assets | length > 0)][0].tag_name')
           
           if [ "$LAST_SUCCESSFUL" != "null" ] && [ ! -z "$LAST_SUCCESSFUL" ]; then
             echo "Found last successful release: $LAST_SUCCESSFUL"

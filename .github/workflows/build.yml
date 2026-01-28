@@ -37,10 +37,40 @@ jobs:
       - name: Bump version
         id: bump
         run: |
-          # Incrementa la versión, crea commit y tag
           VERSION=$(npm version patch -m "chore: bump version to %s [skip ci]")
           git push origin HEAD --follow-tags
           echo "new_tag=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Generate Changelog
+        id: changelog
+        shell: bash
+        run: |
+          NEW_TAG=${{ steps.bump.outputs.new_tag }}
+          # Obtener el tag anterior (el penúltimo en la lista ordenada por versión)
+          PREV_TAG=$(git tag --sort=-v:refname | sed -n '2p')
+          
+          echo "Generating changelog for $NEW_TAG (Previous: $PREV_TAG)"
+          
+          echo "## Cambios en $NEW_TAG" > release_notes.md
+          echo "" >> release_notes.md
+          
+          if [ -z "$PREV_TAG" ]; then
+            git log --pretty=format:"- %s (%h)" $NEW_TAG >> release_notes.md
+          else
+            git log --pretty=format:"- %s (%h)" $PREV_TAG..$NEW_TAG >> release_notes.md
+          fi
+          
+          cat release_notes.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.bump.outputs.new_tag }}
+          name: Release ${{ steps.bump.outputs.new_tag }}
+          body_path: release_notes.md
+          token: ${{ secrets.GITHUB_TOKEN }}
+          draft: false
+          prerelease: false
 
   build:
     name: Build (${{ matrix.os }})

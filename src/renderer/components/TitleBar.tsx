@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import { AudioWaveform as WaveIcon, Minus, Square, X } from 'lucide-react';
 
-interface TitleBarProps {
-    theme: 'light' | 'dark';
-    version: string;
-}
+import { useSettings } from '../context/SettingsContext';
+import { useApp } from '../context/AppContext';
 
-export const TitleBar: React.FC<TitleBarProps> = ({ theme, version }) => {
-    const isDark = theme === 'dark';
-    const isMac = window.api.platform === 'darwin';
+export const TitleBar: React.FC = () => {
+    const { config } = useSettings();
+    const { version } = useApp();
+    const isDark = config.theme === 'dark';
+    const isMac = (window as any).api.platform === 'darwin';
 
     return (
         <div className={`h-10 flex items-center justify-between select-none drag-region transition-all duration-300 border-b ${isDark ? "bg-wv-sidebar border-white/5" : "bg-wv-surface border-black/5"}`}>

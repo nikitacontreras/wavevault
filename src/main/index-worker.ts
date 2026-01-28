@@ -1,62 +1,34 @@
 import { parentPort } from 'worker_threads';
 import { parseFile } from 'music-metadata';
 import path from 'path';
-import { spawn, ChildProcess } from 'child_process';
+import { ChildProcess } from 'child_process';
 import EventEmitter from 'events';
+import { PythonShell } from './python-shell';
 
 // Persistent Python Process Manager
-let pythonProc: ChildProcess | null = null;
 const lineReader = new EventEmitter();
 
 function getPythonProcess() {
-    if (pythonProc && !pythonProc.killed) return pythonProc;
+    const { getClassifyAudioPath } = require('./binaries');
+    const binPath = getClassifyAudioPath();
 
-    let binPath = '';
-    let args: string[] = [];
+    const proc = PythonShell.getPersistent('classify', binPath);
 
-    // process.defaultApp is true when running 'electron .' (dev mode)
-    // process.resourcesPath ends in Resources in dev on Mac too (inside node_modules), so that check was flawed for detection.
-    const isProd = process.env.NODE_ENV === 'production' && !(process as any).defaultApp;
-
-    if (isProd) {
-        const platform = process.platform;
-        const binaryName = platform === 'win32' ? 'classify_audio.exe' : 'classify_audio';
-        binPath = path.join((process as any).resourcesPath, 'bin', binaryName);
-    } else {
-        binPath = 'python3';
-        args = [path.join(__dirname, '../../scripts/classify_audio.py')];
-    }
-
-    try {
-        pythonProc = spawn(binPath, args, {
-            stdio: ['pipe', 'pipe', 'pipe'] // stdin, stdout, stderr
-        });
-
-        // Handle stdout (line by line)
+    // Only attach listeners once or handle properly
+    if (proc.stdout && !proc.stdout.listenerCount('data')) {
         let buffer = '';
-        pythonProc.stdout?.on('data', (data) => {
+        proc.stdout.on('data', (data) => {
             buffer += data.toString();
             let lines = buffer.split('\n');
-            buffer = lines.pop() || ''; // Keep unfinished line
+            buffer = lines.pop() || '';
 
             for (const line of lines) {
                 if (line.trim()) lineReader.emit('line', line.trim());
             }
         });
-
-        pythonProc.stderr?.on('data', (data) => {
-            // console.error("PY_ERR:", data.toString());
-        });
-
-        pythonProc.on('exit', () => {
-            pythonProc = null;
-        });
-
-    } catch (e) {
-        console.error("Failed to spawn python:", e);
     }
 
-    return pythonProc;
+    return proc;
 }
 
 // Helper to send query and wait for response
@@ -130,10 +102,7 @@ function askPython(filePath: string): Promise<any> {
 }
 
 function killPython() {
-    if (pythonProc) {
-        try { pythonProc.kill(); } catch (e) { }
-        pythonProc = null;
-    }
+    PythonShell.killPersistent('classify');
 }
 
 /**

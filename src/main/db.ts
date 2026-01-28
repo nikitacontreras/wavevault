@@ -155,6 +155,61 @@ export function initDB() {
 
     // Cleanup orphans from unorganized projects if they have no workspace
     db.prepare('DELETE FROM versions WHERE isUnorganized = 1 AND workspaceId IS NULL').run();
+
+    migrateOldData();
+}
+
+function migrateOldData() {
+    const oldDbPath = path.join(app.getPath("userData"), "projects_v2.json");
+    if (!fs.existsSync(oldDbPath)) return;
+
+    // Check if we already migrated
+    const row = db.prepare('SELECT value FROM config WHERE id = ?').get('migrated_v2') as { value: string } | undefined;
+    if (row && JSON.parse(row.value) === true) return;
+
+    console.log("Migrating data from projects_v2.json to SQLite...");
+    try {
+        const data = JSON.parse(fs.readFileSync(oldDbPath, 'utf8'));
+
+        db.transaction(() => {
+            // 1. Migrate Albums
+            const albums = data.albums || [];
+            for (const album of albums) {
+                db.prepare('INSERT OR IGNORE INTO albums (id, name, artist, createdAt) VALUES (?, ?, ?, ?)').run(
+                    album.id, album.name, album.artist, Date.now()
+                );
+
+                // 2. Migrate Tracks
+                const tracks = album.tracks || [];
+                for (const track of tracks) {
+                    db.prepare('INSERT OR IGNORE INTO tracks (id, albumId, name, status, bpm, key, tags, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(
+                        track.id, album.id, track.name, track.status || 'Idea', track.bpm || null, track.key || null, JSON.stringify(track.tags || []), Date.now()
+                    );
+
+                    // 3. Migrate Versions
+                    const versions = track.versions || [];
+                    for (const ver of versions) {
+                        db.prepare('INSERT OR IGNORE INTO versions (id, trackId, name, path, type, lastModified, isUnorganized) VALUES (?, ?, ?, ?, ?, ?, ?)').run(
+                            ver.id, track.id, ver.name, ver.path, ver.type, ver.lastModified, 0
+                        );
+                    }
+                }
+            }
+
+            // 4. Migrate Unorganized
+            const unorganized = data.unorganized || data.inbox || data.looseTracks || [];
+            for (const ver of unorganized) {
+                db.prepare('INSERT OR IGNORE INTO versions (id, name, path, type, lastModified, isUnorganized) VALUES (?, ?, ?, ?, ?, 1)').run(
+                    ver.id || "VER-" + Math.random().toString(36).substr(2, 9), ver.name, ver.path, ver.type, ver.lastModified
+                );
+            }
+
+            db.prepare('INSERT OR REPLACE INTO config (id, value) VALUES (?, ?)').run('migrated_v2', JSON.stringify(true));
+        })();
+        console.log("Migration successful!");
+    } catch (e) {
+        console.error("Migration failed:", e);
+    }
 }
 
 // Config Helpers
@@ -279,6 +334,17 @@ export function removeWorkspaceDB(id: string) {
     // Delete the workspace itself
     db.prepare('DELETE FROM workspaces WHERE id = ?').run(id);
     return true;
+}
+
+// DAW Helpers
+export function getDAWPathsDB() {
+    return db.prepare('SELECT * FROM daw_paths').all() as any[];
+}
+
+export function saveDAWPathDB(daw: any) {
+    const id = daw.id || "DAW-" + Date.now();
+    db.prepare('INSERT OR REPLACE INTO daw_paths (id, name, path, version) VALUES (?, ?, ?, ?)').run(id, daw.name, daw.path, daw.version || '');
+    return { id, ...daw };
 }
 
 // Local Library Helpers

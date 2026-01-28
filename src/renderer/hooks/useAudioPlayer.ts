@@ -13,7 +13,39 @@ export const useAudioPlayer = (volume: number, audioDeviceId: string, addLog: (m
     const [isPlaying, setIsPlaying] = useState(false);
     const [isPreviewLoading, setIsPreviewLoading] = useState(false);
     const [activeTrack, setActiveTrack] = useState<ActiveTrack | null>(null);
+    const [currentTime, setCurrentTime] = useState(0);
+    const [duration, setDuration] = useState(0);
     const audioRef = useRef<HTMLAudioElement | null>(null);
+
+    const seek = useCallback((time: number) => {
+        if (audioRef.current) {
+            audioRef.current.currentTime = time;
+            setCurrentTime(time);
+        }
+    }, []);
+
+    // Effect to handle time updates and duration
+    useEffect(() => {
+        const audio = audioRef.current;
+        if (!audio) return;
+
+        const handleTimeUpdate = () => setCurrentTime(audio.currentTime);
+        const handleDurationChange = () => setDuration(audio.duration);
+        const handleReset = () => {
+            setCurrentTime(0);
+            setDuration(0);
+        };
+
+        audio.addEventListener('timeupdate', handleTimeUpdate);
+        audio.addEventListener('durationchange', handleDurationChange);
+        audio.addEventListener('loadstart', handleReset);
+
+        return () => {
+            audio.removeEventListener('timeupdate', handleTimeUpdate);
+            audio.removeEventListener('durationchange', handleDurationChange);
+            audio.removeEventListener('loadstart', handleReset);
+        };
+    }, [streamUrl]);
 
     const handleTogglePreview = useCallback(async (url: string, metadata?: any, history: HistoryItem[] = [], results: SearchResult[] = []) => {
         const trackInfo = metadata || history.find(h => h.path === url) || results.find(r => r.url === url);
@@ -33,6 +65,8 @@ export const useAudioPlayer = (volume: number, audioDeviceId: string, addLog: (m
                 setPlayingUrl(url);
                 setIsPreviewLoading(true);
                 setIsPlaying(false);
+                setCurrentTime(0);
+                setDuration(0);
                 addLog("Obteniendo stream para preview...");
 
                 let finalUrl = "";
@@ -140,7 +174,7 @@ export const useAudioPlayer = (volume: number, audioDeviceId: string, addLog: (m
 
     // Command listener
     useEffect(() => {
-        const removeListener = window.api.onCommand((command) => {
+        return window.api.onCommand((command) => {
             if (command === 'playPause') {
                 if (audioRef.current && audioRef.current.src) {
                     if (audioRef.current.paused) {
@@ -162,8 +196,6 @@ export const useAudioPlayer = (volume: number, audioDeviceId: string, addLog: (m
                 }
             }
         });
-        // Note: Assuming onCommand returns a way to unsubscribe if needed, but App.tsx didn't have one.
-        // Actually window.api.onCommand usually takes a callback and doesn't return anything in the current definition.
     }, []);
 
     const stopPlayback = useCallback(() => {
@@ -185,8 +217,11 @@ export const useAudioPlayer = (volume: number, audioDeviceId: string, addLog: (m
         isPreviewLoading,
         setIsPreviewLoading,
         activeTrack,
+        currentTime,
+        duration,
         audioRef,
         handleTogglePreview,
-        stopPlayback
+        stopPlayback,
+        seek
     };
 };

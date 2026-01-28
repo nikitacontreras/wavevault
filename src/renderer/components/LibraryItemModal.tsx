@@ -1,17 +1,22 @@
 import React, { useState, useRef } from "react";
 import { HistoryItem } from "../types";
-import { X, FolderOpen, Tag, Info, Calendar, Database, Activity, Scissors, Check, Loader2, ZoomIn, ZoomOut } from "lucide-react";
+import { X, FolderOpen, Tag, Info, Calendar, Database, Activity, Scissors, Check, Loader2, ZoomIn, ZoomOut, Layers, Music2 } from "lucide-react";
 import { Waveform } from "./Waveform";
+import { useStems } from "../hooks/useStems";
+import { useLibrary } from "../context/LibraryContext";
+import { useSettings } from "../context/SettingsContext";
 
 interface LibraryItemModalProps {
     item: HistoryItem;
     onClose: () => void;
     onOpenItem: (path: string) => void;
     onUpdateItem: (id: string, updates: Partial<HistoryItem>) => void;
-    theme: 'light' | 'dark';
 }
 
-export const LibraryItemModal: React.FC<LibraryItemModalProps> = ({ item, onClose, onOpenItem, onUpdateItem, theme }) => {
+export const LibraryItemModal: React.FC<LibraryItemModalProps> = ({ item, onClose, onOpenItem, onUpdateItem }) => {
+    const { config } = useSettings();
+    const { addStemsTask } = useLibrary();
+    const theme = config.theme;
     const isDark = theme === 'dark';
     const [tagInput, setTagInput] = useState("");
     const [isChopping, setIsChopping] = useState(false);
@@ -22,6 +27,18 @@ export const LibraryItemModal: React.FC<LibraryItemModalProps> = ({ item, onClos
     const [zoom, setZoom] = useState(0);
     const [isLooping, setIsLooping] = useState(false);
     const wavesurferRef = useRef<any>(null);
+    const { isSeparating, progress, stems: stemsResult, error: stemsError, separate } = useStems();
+
+    const handleSeparateStems = async () => {
+        try {
+            addStemsTask(item.path, item.title);
+            // Use same directory as the original file but in a 'Stems' subfolder
+            const outDir = item.path.substring(0, item.path.lastIndexOf(window.api.platform === 'win32' ? '\\' : '/'));
+            await separate(item.path, outDir);
+        } catch (err) {
+            console.error(err);
+        }
+    };
 
 
     const categories = ["Drums", "Bass", "Synth", "Keys", "Vocals", "Loop", "FX", "Other"];
@@ -83,6 +100,14 @@ export const LibraryItemModal: React.FC<LibraryItemModalProps> = ({ item, onClos
                         <h2 className={`text-xs font-bold uppercase tracking-widest ${isDark ? "text-white/80" : "text-black/80"}`}>Información del Sample</h2>
                     </div>
                     <div className="flex items-center gap-4">
+                        <button
+                            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${isSeparating ? (isDark ? 'bg-blue-500 text-white' : 'bg-blue-600 text-white') : (isDark ? 'bg-white/5 hover:bg-white/10 text-white/60' : 'bg-black/5 hover:bg-black/10 text-black/60')}`}
+                            onClick={handleSeparateStems}
+                            disabled={isSeparating}
+                        >
+                            {isSeparating ? <Loader2 size={12} className="animate-spin" /> : <Layers size={12} />}
+                            {isSeparating ? 'Separando...' : 'Separar Stems (AI)'}
+                        </button>
                         <button
                             className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${isChopping ? (isDark ? 'bg-white text-black' : 'bg-black text-white') : (isDark ? 'bg-white/5 hover:bg-white/10 text-white/60' : 'bg-black/5 hover:bg-black/10 text-black/60')}`}
                             onClick={() => setIsChopping(!isChopping)}
@@ -155,6 +180,45 @@ export const LibraryItemModal: React.FC<LibraryItemModalProps> = ({ item, onClos
                                     Finalizar Chop y Guardar
                                 </button>
                                 <p className="text-center text-[9px] text-wv-gray mt-3 uppercase tracking-wider opacity-50">El audio se guardará como un nuevo archivo en tu carpeta de música</p>
+                            </div>
+                        )}
+
+                        {isSeparating && (
+                            <div className={`p-4 rounded-xl border animate-in slide-in-from-top-4 ${isDark ? "bg-blue-500/10 border-blue-500/20" : "bg-blue-50/50 border-blue-200"}`}>
+                                <div className="flex items-center gap-3 mb-3">
+                                    <Loader2 size={16} className={`animate-spin ${isDark ? "text-blue-400" : "text-blue-600"}`} />
+                                    <span className="text-xs font-bold uppercase tracking-widest">IA Procesando Audio...</span>
+                                </div>
+                                <div className={`font-mono text-[10px] p-3 rounded-lg overflow-hidden whitespace-pre-wrap ${isDark ? "bg-black/40 text-blue-300" : "bg-white text-blue-700 border border-blue-100"}`}>
+                                    {progress}
+                                </div>
+                                <p className="text-[9px] text-wv-gray mt-2 uppercase tracking-widest opacity-60">Esto puede tardar un par de minutos según la duración del archivo</p>
+                            </div>
+                        )}
+
+                        {stemsResult && (
+                            <div className={`p-4 rounded-xl border animate-in zoom-in-95 ${isDark ? "bg-green-500/10 border-green-500/20" : "bg-green-50/50 border-green-200"}`}>
+                                <div className="flex items-center gap-3 mb-4">
+                                    <div className={`p-1.5 rounded-lg ${isDark ? "bg-green-500/20 text-green-400" : "bg-green-100 text-green-700"}`}>
+                                        <Check size={14} />
+                                    </div>
+                                    <span className="text-xs font-bold uppercase tracking-widest">¡Separación Completada!</span>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {Object.entries(stemsResult).map(([name, path]) => (
+                                        <button
+                                            key={name}
+                                            onClick={() => window.api.openItem(path as string)}
+                                            className={`flex items-center justify-between p-2.5 rounded-lg border transition-all ${isDark ? "bg-black/20 border-white/5 hover:bg-white/10" : "bg-white border-black/5 hover:bg-black/10"}`}
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <Music2 size={12} className="text-wv-gray" />
+                                                <span className="text-[10px] font-bold uppercase tracking-wider">{name}</span>
+                                            </div>
+                                            <FolderOpen size={10} className="text-wv-gray opacity-50" />
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
                         )}
                     </div>

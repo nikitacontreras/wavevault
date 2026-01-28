@@ -81,10 +81,6 @@ export const CursorTrail: React.FC<{ isDragging: boolean }> = ({ isDragging }) =
                     ctx.strokeStyle = `rgba(59, 130, 246, ${opacity * 0.5})`;
                     ctx.lineWidth = size;
                     ctx.stroke();
-
-                    // Add a glow
-                    ctx.shadowBlur = 10;
-                    ctx.shadowColor = 'rgba(59, 130, 246, 0.3)';
                 }
             }
 

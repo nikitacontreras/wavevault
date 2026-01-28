@@ -87,6 +87,14 @@ jobs:
           # Importante: descargar el código con el bump ya hecho
           ref: ${{ needs.bump-version.outputs.new_tag }}
 
+      - name: Free Disk Space (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf "/usr/local/share/boost"
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:

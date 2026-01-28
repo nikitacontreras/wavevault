@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { HistoryItem } from "../types";
 import { LibraryItemModal } from "./LibraryItemModal";
-import { Search, Filter, Folder, Music, Play, Pause, ExternalLink, Tag, Clock, Loader2, Trash2, HardDrive, Plus, RefreshCw, CircleArrowLeft, Edit2, ArrowRight } from "lucide-react";
+import { Search, Filter, Folder, Music, Play, Pause, ExternalLink, Tag, Clock, Loader2, Trash2, HardDrive, Plus, RefreshCw, CircleArrowLeft, Edit2, ArrowRight, Activity } from "lucide-react";
 
 import { Waveform } from "./Waveform";
 import { VirtualizedItem } from "./VirtualizedItem";
@@ -334,7 +334,7 @@ export const LibraryView: React.FC<{ onStartDrag?: () => void }> = ({ onStartDra
                                             draggable
                                             onDragStart={(e) => {
                                                 e.preventDefault();
-                                                onStartDrag();
+                                                onStartDrag?.();
                                                 window.api.startDrag(item.path, item.thumbnail);
                                             }}
                                         >
@@ -379,23 +379,6 @@ export const LibraryView: React.FC<{ onStartDrag?: () => void }> = ({ onStartDra
                                                     </span>
                                                 </div>
 
-                                                <div className="mb-6 animate-in fade-in duration-500 delay-200">
-                                                    <div className="flex items-center gap-2 mb-2 text-[9px] font-bold text-wv-gray uppercase tracking-widest">
-                                                        <Activity size={10} />
-                                                        {t('common.preview')}
-                                                    </div>
-                                                    <Waveform
-                                                        url={selectedItem.path}
-                                                        height={48}
-                                                        theme={config.theme}
-                                                        peaks={selectedItem.waveform ? JSON.parse(selectedItem.waveform) : undefined}
-                                                        onPeaksGenerated={(peaks) => {
-                                                            (window as any).api.savePeaks('sample', selectedItem.id, peaks);
-                                                            onUpdateItem(selectedItem.id, { waveform: JSON.stringify(peaks) });
-                                                        }}
-                                                        audioMediaElement={audioMediaElement}
-                                                    />
-                                                </div>
                                                 {isPlaying && (
                                                     <div className="mb-4 animate-in fade-in duration-500">
                                                         <Waveform
@@ -494,13 +477,12 @@ export const LibraryView: React.FC<{ onStartDrag?: () => void }> = ({ onStartDra
                                                         <Waveform
                                                             url={file.path}
                                                             height={20}
-                                                            theme={theme}
+                                                            theme={config.theme}
                                                             peaks={file.waveform ? JSON.parse(file.waveform) : undefined}
                                                             onPeaksGenerated={(peaks) => {
                                                                 (window as any).api.savePeaks('local', file.id, peaks);
                                                                 setFolderFiles(prev => prev.map(f => f.id === file.id ? { ...f, waveform: JSON.stringify(peaks) } : f));
                                                             }}
-                                                            audioMediaElement={audioMediaElement}
                                                         />
                                                     </div>
                                                 )}

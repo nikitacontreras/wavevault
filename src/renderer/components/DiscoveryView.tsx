@@ -44,7 +44,7 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({ onStartDrag }) => 
 
     // Enriched Discogs results with YouTube data
     const [loading, setLoading] = useState(false);
-    const [releases, setReleases] = useState<DiscogsRelease[]>([]);
+    const [releases, setReleases] = useState<EnrichedRelease[]>([]);
     const [error, setError] = useState<string | null>(null);
     const [page, setPage] = useState(1);
     const theme = config.theme;
@@ -68,7 +68,7 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({ onStartDrag }) => 
             return;
         }
 
-        setIsLoading(true);
+        setLoading(true);
         setError(null);
         setReleases([]);
 
@@ -118,10 +118,10 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({ onStartDrag }) => 
 
             // Set initial results with loading state
             setReleases(detailedReleases.map(r => ({ ...r, isLoadingStream: true })));
-            setIsLoading(false);
+            setLoading(false);
 
             // BATCH ENRICHMENT: One single yt-dlp process for ALL queries
-            const queries = detailedReleases.map(r => r.youtubeSearchQuery);
+            const queries = detailedReleases.map((r: any) => r.youtubeSearchQuery);
             const ytResults = await (window as any).api.batchSearchAndStream(queries);
 
             // Update releases with the batch results
@@ -147,7 +147,7 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({ onStartDrag }) => 
 
         } catch (e: any) {
             setError(e.message || 'Failed to fetch from Discogs');
-            setIsLoading(false);
+            setLoading(false);
         }
     };
 
@@ -183,7 +183,7 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({ onStartDrag }) => 
             {/* Header / Intro */}
             <div className={`border rounded-2xl p-8 mb-8 transition-all flex flex-col items-center text-center ${isDark ? "bg-wv-surface border-white/[0.05]" : "bg-wv-surface border-black/[0.08]"}`}>
                 <div className={`p-4 rounded-3xl mb-4 ${isDark ? "bg-white/5" : "bg-black/5"}`}>
-                    <Disc size={40} className={`text-wv-text ${isLoading ? "animate-spin" : ""}`} strokeWidth={1.5} />
+                    <Disc size={40} className={`text-wv-text ${loading ? "animate-spin" : ""}`} strokeWidth={1.5} />
                 </div>
 
                 <h2 className="text-2xl font-black uppercase tracking-tight mb-2">{t('discovery.title')}</h2>
@@ -204,7 +204,7 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({ onStartDrag }) => 
 
                     <button
                         onClick={handleDig}
-                        disabled={isLoading || !discogsToken}
+                        disabled={loading || !discogsToken}
                         className={`
                             group relative overflow-hidden px-10 py-3 rounded-xl font-black uppercase tracking-widest text-[11px] transition-all
                             ${isDark ? "bg-white text-black hover:bg-white/90" : "bg-black text-white hover:bg-black/90 shadow-xl"}
@@ -212,8 +212,8 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({ onStartDrag }) => 
                         `}
                     >
                         <span className="flex items-center gap-3">
-                            {isLoading ? <Loader2 className="animate-spin" size={16} /> : <Shuffle size={16} />}
-                            {isLoading ? t('discovery.digging') : t('discovery.digDeeper')}
+                            {loading ? <Loader2 className="animate-spin" size={16} /> : <Shuffle size={16} />}
+                            {loading ? t('discovery.digging') : t('discovery.digDeeper')}
                         </span>
                     </button>
                 </div>

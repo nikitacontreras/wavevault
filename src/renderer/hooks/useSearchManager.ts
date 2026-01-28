@@ -54,6 +54,10 @@ export const useSearchManager = () => {
 
     const handleLoadMore = useCallback(async () => {
         if (isSearching || !query.trim() || results.length === 0) return;
+
+        // Don't load more if query is a URL
+        if (query.match(/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be|soundcloud\.com)\//)) return;
+
         setIsSearching(true);
         try {
             const more = await window.api.search(query, results.length, 12);

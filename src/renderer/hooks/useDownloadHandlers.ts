@@ -16,6 +16,7 @@ export const useDownloadHandlers = () => {
         const id = item.id;
         if (itemStates[id]?.status === 'loading') return;
         updateItemState(id, { status: 'loading', msg: 'Iniciando...' });
+        addActiveDownload(item.url, item.title, item.url);
         addLog(`⏳ Iniciando descarga: ${item.title}...`);
 
         try {
@@ -23,6 +24,7 @@ export const useDownloadHandlers = () => {
                 item.url, config.format, config.bitrate, config.sampleRate, config.normalize, config.outDir || undefined, config.smartOrganize
             );
             updateItemState(id, { status: 'success', path: dest, msg: 'Completado' });
+            updateActiveDownload(item.url, { status: 'success', msg: 'Completado' });
             addLog(`✅ Descarga completada: ${item.title}`);
             const newItem: HistoryItem = {
                 id: item.id,
@@ -43,9 +45,10 @@ export const useDownloadHandlers = () => {
             addToHistory(newItem);
         } catch (e: any) {
             updateItemState(id, { status: 'error', msg: 'Error' });
+            updateActiveDownload(item.url, { status: 'error', msg: 'Error' });
             addLog("❌ Error: " + e.message);
         }
-    }, [config, itemStates, updateItemState, addLog, addToHistory]);
+    }, [config, itemStates, updateItemState, addLog, addToHistory, addActiveDownload, updateActiveDownload]);
 
     const handleBatchDownload = useCallback(async (entries: any[]) => {
         addLog(`📦 Iniciando descarga por lotes: ${entries.length} pistas`);
@@ -67,6 +70,7 @@ export const useDownloadHandlers = () => {
         if (itemStates[id]?.status === 'loading') return;
 
         updateItemState(id, { status: 'loading', msg: 'Iniciando...' });
+        addActiveDownload(url, title, url);
         addLog(`⏳ Iniciando descarga: ${title}...`);
 
         try {
@@ -75,6 +79,7 @@ export const useDownloadHandlers = () => {
             );
 
             updateItemState(id, { status: 'success', path: dest, msg: 'Completado' });
+            updateActiveDownload(url, { status: 'success', msg: 'Completado' });
             addLog(`✅ Descarga completada: ${title}`);
 
             const newItem: HistoryItem = {
@@ -96,9 +101,10 @@ export const useDownloadHandlers = () => {
             addToHistory(newItem);
         } catch (e: any) {
             updateItemState(id, { status: 'error', msg: 'Error' });
+            updateActiveDownload(url, { status: 'error', msg: 'Error' });
             addLog("❌ Error en descarga: " + e.message);
         }
-    }, [config, itemStates, updateItemState, addLog, addToHistory]);
+    }, [config, itemStates, updateItemState, addLog, addToHistory, addActiveDownload, updateActiveDownload]);
 
     // IPC Download Listeners
     useEffect(() => {

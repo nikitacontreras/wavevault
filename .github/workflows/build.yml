@@ -50,9 +50,9 @@ jobs:
           NEW_TAG=${{ steps.bump.outputs.new_tag }}
           
           # Intentar encontrar la última release EXITOSA (con assets/binarios)
-          # Esto evita que si una build falla, la siguiente release tenga changelog vacío
+          # Usamos gh api directamente porque gh release list a veces no expone 'assets'
           echo "Looking for last successful release..."
-          LAST_SUCCESSFUL=$(gh release list --limit 20 --json tagName,assets --exclude-drafts | jq -r '[.[] | select(.assets | length > 0)][0].tagName')
+          LAST_SUCCESSFUL=$(gh api repos/${{ github.repository }}/releases --per-page 20 --jq '[.[] | select(.assets | length > 0)][0].tag_name')
           
           if [ "$LAST_SUCCESSFUL" != "null" ] && [ ! -z "$LAST_SUCCESSFUL" ]; then
             echo "Found last successful release: $LAST_SUCCESSFUL"

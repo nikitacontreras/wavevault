@@ -9,7 +9,7 @@ async function buildPython() {
     console.log('🚧 Iniciando construcción de motores de IA (Versión Estable)...');
 
     let pythonBin = 'python3';
-    const candidates = ['python3.11', 'python3.12', 'python3.10', 'python3'];
+    const candidates = ['python3.11', 'python3.12', 'python3.10', 'python3', 'python'];
     for (const cand of candidates) {
         try {
             const { stdout } = await execAsync(`${cand} --version`);
@@ -29,8 +29,10 @@ async function buildPython() {
         const venvPath = path.join(__dirname, '../.venv_build');
         if (!fs.existsSync(venvPath)) await execAsync(`${pythonBin} -m venv "${venvPath}"`);
 
-        const pip = path.join(venvPath, 'bin', 'pip');
-        const pyinstaller = path.join(venvPath, 'bin', 'pyinstaller');
+        const isWin = process.platform === 'win32';
+        const binFolder = isWin ? 'Scripts' : 'bin';
+        const pip = path.join(venvPath, binFolder, 'pip');
+        const pyinstaller = path.join(venvPath, binFolder, 'pyinstaller');
 
         console.log('📦 Instalando dependencias estables (Torch 2.4.1)...');
         await execAsync(`"${pip}" install numpy==1.26.4 torch==2.4.1 torchaudio==2.4.1 soundfile lameenc demucs pyinstaller`, { timeout: 600000 });

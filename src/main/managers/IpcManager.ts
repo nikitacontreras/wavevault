@@ -30,8 +30,9 @@ export function setupIpcHandlers() {
         try {
             const result = await processJob({
                 url, outDir: outDir || app.getPath("music"),
-                format, bitrate, sampleRate, normalize, smartOrganize
-            }, new AbortController());
+                format, bitrate, sampleRate, normalize, smartOrganize,
+                signal: new AbortController().signal
+            });
             return createSuccessResponse(result);
         } catch (e: any) {
             return createErrorResponse(e.message);

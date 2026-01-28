@@ -73,11 +73,12 @@ export class ShortcutManager {
                     url: text,
                     outDir: app.getPath("music"),
                     format: 'mp3',
-                    bitrate: '320',
+                    bitrate: '320k',
                     sampleRate: '44100',
                     normalize: false,
-                    smartOrganize: true
-                }, new AbortController());
+                    smartOrganize: true,
+                    signal: new AbortController().signal
+                });
             }
         } catch (e) {
             console.error("Failed to process clipboard link:", e);

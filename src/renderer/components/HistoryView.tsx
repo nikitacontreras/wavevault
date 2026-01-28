@@ -264,7 +264,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                     onClose={() => setSelectedId(null)}
                     onOpenItem={onOpenItem}
                     onUpdateItem={onUpdateItem}
-                    theme={theme}
+                // Theme is now handled via context in the modal itself if needed, or passed if the modal still requires specific handling (checking LibraryItemModal definition is safer but I will follow the pattern of removing prop drilling)
                 />
 
 

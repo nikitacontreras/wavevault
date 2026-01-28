@@ -52,7 +52,7 @@ export const useAudioPlayer = (volume: number, audioDeviceId: string, addLog: (m
 
         if (playingUrl === url) {
             if (audioRef.current) {
-                if (isPlaying) {
+                if (!audioRef.current.paused) {
                     audioRef.current.pause();
                     setIsPlaying(false);
                 } else {
@@ -83,6 +83,7 @@ export const useAudioPlayer = (volume: number, audioDeviceId: string, addLog: (m
                 }
 
                 setStreamUrl(finalUrl);
+                setIsPreviewLoading(false); // Stop loading spinner
 
                 if (trackInfo) {
                     setActiveTrack({
@@ -110,18 +111,20 @@ export const useAudioPlayer = (volume: number, audioDeviceId: string, addLog: (m
         if (audioRef.current && streamUrl) {
             audioRef.current.pause();
             audioRef.current.load();
-            if (audioRef.current.src) {
-                const playPromise = audioRef.current.play();
-                if (playPromise !== undefined) {
-                    playPromise.catch(err => {
-                        if (err.name !== 'AbortError') {
-                            console.error("Audio playback error:", err);
-                        }
-                        setIsPlaying(false);
-                    });
+
+            const playAudio = async () => {
+                try {
+                    await audioRef.current?.play();
+                    setIsPlaying(true);
+                } catch (err: any) {
+                    if (err.name !== 'AbortError') {
+                        console.error("Audio playback error:", err);
+                    }
+                    setIsPlaying(false);
                 }
-                setIsPlaying(true);
-            }
+            };
+
+            playAudio();
         }
     }, [streamUrl]);
 

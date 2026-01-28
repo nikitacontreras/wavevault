@@ -50,12 +50,10 @@ export const PlaybackProvider: React.FC<{ children: ReactNode }> = ({ children }
     const handleTogglePreview = useCallback(async (url: string, metadata?: any) => {
         if (playingUrl === url) {
             if (audioRef.current) {
-                if (isPlaying) {
+                if (!audioRef.current.paused) {
                     audioRef.current.pause();
-                    setIsPlaying(false);
                 } else {
-                    audioRef.current.play().catch(() => { });
-                    setIsPlaying(true);
+                    audioRef.current.play().catch(console.error);
                 }
             }
             return;
@@ -78,6 +76,7 @@ export const PlaybackProvider: React.FC<{ children: ReactNode }> = ({ children }
             }
 
             setStreamUrl(finalUrl);
+            setIsPreviewLoading(false);
 
             const trackInfo = metadata || history.find(h => h.id === url || h.path === url);
             if (trackInfo) {
@@ -94,6 +93,19 @@ export const PlaybackProvider: React.FC<{ children: ReactNode }> = ({ children }
             stopPlayback();
         }
     }, [playingUrl, isPlaying, history, addLog, stopPlayback]);
+
+    // Auto-play when streamUrl changes
+    useEffect(() => {
+        if (streamUrl && audioRef.current) {
+            // Slight delay to ensure DOM update
+            const playPromise = audioRef.current.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(error => {
+                    if (error.name !== 'AbortError') console.error("Auto-play failed:", error);
+                });
+            }
+        }
+    }, [streamUrl]);
 
     // Keyboard Shortcuts
     useEffect(() => {

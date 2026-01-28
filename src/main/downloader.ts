@@ -35,10 +35,10 @@ async function runYtDlp(args: string[], options: any = {}) {
             });
         } catch (e: any) {
             const stderr = e.stderr || "";
-            // If it's a 403 error and we haven't tried the alternative client yet, retry
-            if (stderr.includes("403: Forbidden") && !runArgs.includes("youtube:player-client=web,ios")) {
-                console.warn("[runYtDlp] 403 Forbidden detected. Retrying with web,ios player clients...");
-                const retryArgs = [...runArgs, "--extractor-args", "youtube:player-client=web,ios"];
+            // If it's a 403 error or format issue and we haven't tried the alternative client yet, retry
+            if ((stderr.includes("403: Forbidden") || stderr.includes("Requested format is not available")) && !runArgs.includes("youtube:player-client=android")) {
+                console.warn("[runYtDlp] 403/Format error. Retrying with android player client...");
+                const retryArgs = [...runArgs, "--extractor-args", "youtube:player-client=android"];
                 return await run(retryArgs);
             }
 

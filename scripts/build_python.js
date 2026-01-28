@@ -40,11 +40,11 @@ async function buildPython() {
         console.log('🔨 Compilando separate_stems...');
         const stemsScript = path.join(__dirname, '../scripts/separate_stems.py');
 
-        await execAsync(`"${pyinstaller}" --clean --noconfirm --onedir --distpath "${binDir}" --name separate_stems --collect-all demucs --collect-all torchaudio --copy-metadata torch --copy-metadata torchaudio --copy-metadata demucs "${stemsScript}"`);
+        await execAsync(`"${pyinstaller}" --clean --noconfirm --onefile --distpath "${binDir}" --name separate_stems --collect-all demucs --collect-all torchaudio --copy-metadata torch --copy-metadata torchaudio --copy-metadata demucs "${stemsScript}"`);
 
         console.log('🔨 Compilando classify_audio...');
         const classifyScript = path.join(__dirname, '../scripts/classify_audio.py');
-        await execAsync(`"${pyinstaller}" --clean --noconfirm --onedir --distpath "${binDir}" --name classify_audio --collect-all demucs --copy-metadata torch --copy-metadata demucs "${classifyScript}"`);
+        await execAsync(`"${pyinstaller}" --clean --noconfirm --onefile --distpath "${binDir}" --name classify_audio --collect-all demucs --copy-metadata torch --copy-metadata demucs "${classifyScript}"`);
 
         console.log(`✅ Motores listos en: ${binDir}`);
 

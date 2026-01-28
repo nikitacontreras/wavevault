@@ -230,7 +230,11 @@
         "english": "English",
         "spanish": "Spanish",
         "korean": "Korean",
-        "russian": "Russian"
+        "russian": "Russian",
+        "stems": "Stem Separation (AI)",
+        "stemsQuality": "Separation Quality",
+        "stemsQualityStandard": "Standard (Fast)",
+        "stemsQualityBest": "Best (Fine-tuned + Slow)"
     },
     "deps": {
         "title": "System Check",
@@ -269,7 +273,9 @@
         "format": "Format",
         "any": "Any",
         "openFolder": "Open Folder",
-        "remove": "Remove"
+        "remove": "Remove",
+        "standard": "Standard",
+        "best": "Best (AI+)"
     },
     "filters": {
         "tags": "Tags",

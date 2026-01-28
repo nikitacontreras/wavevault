@@ -243,7 +243,11 @@
         "english": "English",
         "spanish": "Español",
         "korean": "Coreano",
-        "russian": "Ruso"
+        "russian": "Ruso",
+        "stems": "Separación de Pistas (AI)",
+        "stemsQuality": "Calidad de Separación",
+        "stemsQualityStandard": "Estándar (Rápido)",
+        "stemsQualityBest": "Mejor (Fine-tuned + Lento)"
     },
     "deps": {
         "title": "Verificando Sistema",
@@ -282,7 +286,9 @@
         "format": "Formato",
         "any": "Cualquiera",
         "openFolder": "Abrir Carpeta",
-        "remove": "Eliminar"
+        "remove": "Eliminar",
+        "standard": "Standard",
+        "best": "Best (AI+)"
     },
     "filters": {
         "tags": "Tags",

@@ -19,7 +19,11 @@ async function buildPython() {
     console.log(`✅ Usando ${pythonBin} para el build.`);
 
     const binDir = path.join(__dirname, '../resources/bin');
-    if (!fs.existsSync(binDir)) fs.mkdirSync(binDir, { recursive: true });
+    if (fs.existsSync(binDir)) {
+        console.log('🧹 Limpiando directorio de binarios...');
+        fs.rmSync(binDir, { recursive: true, force: true });
+    }
+    fs.mkdirSync(binDir, { recursive: true });
 
     try {
         const venvPath = path.join(__dirname, '../.venv_build');
@@ -29,17 +33,16 @@ async function buildPython() {
         const pyinstaller = path.join(venvPath, 'bin', 'pyinstaller');
 
         console.log('📦 Instalando dependencias estables (Torch 2.4.1)...');
-        // Usamos Torch 2.4.1 y torchaudio 2.4.1 para evitar el error de TorchCodec
         await execAsync(`"${pip}" install numpy==1.26.4 torch==2.4.1 torchaudio==2.4.1 soundfile lameenc demucs pyinstaller`, { timeout: 600000 });
 
         console.log('🔨 Compilando separate_stems...');
         const stemsScript = path.join(__dirname, '../scripts/separate_stems.py');
 
-        await execAsync(`"${pyinstaller}" --clean --onedir --distpath "${binDir}" --name separate_stems --collect-all demucs --collect-all torchaudio --copy-metadata torch --copy-metadata torchaudio --copy-metadata demucs "${stemsScript}"`);
+        await execAsync(`"${pyinstaller}" --clean --noconfirm --onedir --distpath "${binDir}" --name separate_stems --collect-all demucs --collect-all torchaudio --copy-metadata torch --copy-metadata torchaudio --copy-metadata demucs "${stemsScript}"`);
 
         console.log('🔨 Compilando classify_audio...');
         const classifyScript = path.join(__dirname, '../scripts/classify_audio.py');
-        await execAsync(`"${pyinstaller}" --clean --onedir --distpath "${binDir}" --name classify_audio --collect-all demucs --copy-metadata torch --copy-metadata demucs "${classifyScript}"`);
+        await execAsync(`"${pyinstaller}" --clean --noconfirm --onedir --distpath "${binDir}" --name classify_audio --collect-all demucs --copy-metadata torch --copy-metadata demucs "${classifyScript}"`);
 
         console.log(`✅ Motores listos en: ${binDir}`);
 

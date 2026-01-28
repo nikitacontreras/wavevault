@@ -48,7 +48,7 @@ class StemsQueue {
         const env = PythonShell.getEnv();
         const { config } = require('./config');
         const quality = config.stemsQuality || 'standard';
-        const args = [filePath, outDir, quality];
+        const args = ['separate', filePath, outDir, quality];
 
         return new Promise((resolve, reject) => {
             const proc = spawn(stemsPath, args, { env });

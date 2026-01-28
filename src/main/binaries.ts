@@ -23,12 +23,16 @@ export function getResourceBinaryPath(binName: string): string {
     return path.join(root, finalBinName);
 }
 
+export function getAIEnginePath(): string {
+    return getResourceBinaryPath('ai_engine');
+}
+
 export function getSeparateStemsPath(): string {
-    return getResourceBinaryPath('separate_stems');
+    return getAIEnginePath();
 }
 
 export function getClassifyAudioPath(): string {
-    return getResourceBinaryPath('classify_audio');
+    return getAIEnginePath();
 }
 
 export function getBinaryPath(packageName: string, binName: string): string {

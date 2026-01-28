@@ -34,8 +34,9 @@ async function buildPython() {
         const pip = path.join(venvPath, binFolder, 'pip');
         const pyinstaller = path.join(venvPath, binFolder, 'pyinstaller');
 
-        console.log('📦 Instalando dependencias estables (Torch 2.4.1)...');
-        await execAsync(`"${pip}" install numpy==1.26.4 torch==2.4.1 torchaudio==2.4.1 soundfile lameenc demucs pyinstaller`, { timeout: 600000 });
+        console.log('📦 Instalando dependencias estables (Torch 2.4.1 CPU-Only)...');
+        // Usar --index-url para descargar versiones CPU de PyTorch (mucho más ligeras)
+        await execAsync(`"${pip}" install numpy==1.26.4 torch==2.4.1 torchaudio==2.4.1 soundfile lameenc demucs pyinstaller --index-url https://download.pytorch.org/whl/cpu`, { timeout: 600000 });
 
         console.log('🔨 Compilando separate_stems...');
         const stemsScript = path.join(__dirname, '../scripts/separate_stems.py');

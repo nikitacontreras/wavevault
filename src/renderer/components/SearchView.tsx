@@ -28,6 +28,7 @@ export const SearchView: React.FC<SearchViewProps> = ({
     const { config } = useSettings();
     const { playingUrl, isPreviewLoading, handleTogglePreview: onTogglePreview } = usePlayback();
     const isDark = config.theme === 'dark';
+    const theme = config.theme;
     const { t } = useTranslation();
     const loaderRef = useRef<HTMLDivElement>(null);
 

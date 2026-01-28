@@ -7,34 +7,16 @@ import { Waveform } from "./Waveform";
 import { VirtualizedItem } from "./VirtualizedItem";
 import { useTranslation } from "react-i18next";
 
-interface LibraryViewProps {
-    history: HistoryItem[];
-    onClearHistory: () => void;
-    onOpenItem: (path: string) => void;
-    onTogglePreview: (url: string, metadata?: any) => void;
-    onUpdateItem: (id: string, updates: Partial<HistoryItem>) => void;
-    onRemoveItem: (id: string) => void;
-    playingUrl: string | null;
-    isPreviewLoading: boolean;
-    theme: 'light' | 'dark';
-    onStartDrag: () => void;
-    audioMediaElement: HTMLAudioElement | null;
-}
+import { useLibrary } from "../context/LibraryContext";
+import { usePlayback } from "../context/PlaybackContext";
+import { useSettings } from "../context/SettingsContext";
 
-export const LibraryView: React.FC<LibraryViewProps> = ({
-    history,
-    onClearHistory,
-    onOpenItem,
-    onTogglePreview,
-    onUpdateItem,
-    onRemoveItem,
-    playingUrl,
-    isPreviewLoading,
-    theme,
-    onStartDrag,
-    audioMediaElement
-}) => {
-    const isDark = theme === 'dark';
+export const LibraryView: React.FC<{ onStartDrag?: () => void }> = ({ onStartDrag }) => {
+    const { history, clearHistory: onClearHistory, removeFromHistory: onRemoveItem, updateHistoryItem: onUpdateItem } = useLibrary();
+    const { playingUrl, isPreviewLoading, handleTogglePreview: onTogglePreview } = usePlayback();
+    const { config } = useSettings();
+    const isDark = config.theme === 'dark';
+    const onOpenItem = (path: string) => window.api.openItem(path);
     const { t } = useTranslation();
     const [activeTab, setActiveTab] = useState<'downloads' | 'local'>('downloads');
 
@@ -343,7 +325,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                             {filteredHistory.map((item, i) => {
                                 const isPlaying = playingUrl && (playingUrl === item.path || playingUrl === `file://${item.path}`);
                                 return (
-                                    <VirtualizedItem key={item.id + i} id={item.id} minHeight={350}>
+                                    <VirtualizedItem key={item.id} id={item.id} minHeight={350}>
                                         <div
                                             className={`rounded-2xl overflow-hidden transition-all group cursor-pointer border h-full flex flex-col ${isDark
                                                 ? "bg-[#0d0d0d] border-white/[0.05] hover:border-white/10 hover:shadow-2xl hover:shadow-black"
@@ -660,7 +642,6 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                     onClose={() => setSelectedId(null)}
                     onOpenItem={onOpenItem}
                     onUpdateItem={onUpdateItem}
-                    theme={theme}
                 />
 
 

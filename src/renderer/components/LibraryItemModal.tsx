@@ -3,16 +3,20 @@ import { HistoryItem } from "../types";
 import { X, FolderOpen, Tag, Info, Calendar, Database, Activity, Scissors, Check, Loader2, ZoomIn, ZoomOut, Layers, Music2 } from "lucide-react";
 import { Waveform } from "./Waveform";
 import { useStems } from "../hooks/useStems";
+import { useLibrary } from "../context/LibraryContext";
+import { useSettings } from "../context/SettingsContext";
 
 interface LibraryItemModalProps {
     item: HistoryItem;
     onClose: () => void;
     onOpenItem: (path: string) => void;
     onUpdateItem: (id: string, updates: Partial<HistoryItem>) => void;
-    theme: 'light' | 'dark';
 }
 
-export const LibraryItemModal: React.FC<LibraryItemModalProps> = ({ item, onClose, onOpenItem, onUpdateItem, theme }) => {
+export const LibraryItemModal: React.FC<LibraryItemModalProps> = ({ item, onClose, onOpenItem, onUpdateItem }) => {
+    const { config } = useSettings();
+    const { addStemsTask } = useLibrary();
+    const theme = config.theme;
     const isDark = theme === 'dark';
     const [tagInput, setTagInput] = useState("");
     const [isChopping, setIsChopping] = useState(false);
@@ -27,6 +31,7 @@ export const LibraryItemModal: React.FC<LibraryItemModalProps> = ({ item, onClos
 
     const handleSeparateStems = async () => {
         try {
+            addStemsTask(item.path, item.title);
             // Use same directory as the original file but in a 'Stems' subfolder
             const outDir = item.path.substring(0, item.path.lastIndexOf(window.api.platform === 'win32' ? '\\' : '/'));
             await separate(item.path, outDir);

@@ -9,20 +9,21 @@ interface PlaylistEntry {
     uploader?: string;
 }
 
+import { useSettings } from "../context/SettingsContext";
+
 interface PlaylistModalProps {
     url: string;
     onClose: () => void;
     onDownloadBatch: (entries: PlaylistEntry[]) => void;
-    theme: 'light' | 'dark';
 }
 
 export const PlaylistModal: React.FC<PlaylistModalProps> = ({
     url,
     onClose,
-    onDownloadBatch,
-    theme
+    onDownloadBatch
 }) => {
-    const isDark = theme === 'dark';
+    const { config } = useSettings();
+    const isDark = config.theme === 'dark';
     const [isLoading, setIsLoading] = useState(true);
     const [playlistInfo, setPlaylistInfo] = useState<{ title: string, entries: PlaylistEntry[] } | null>(null);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());

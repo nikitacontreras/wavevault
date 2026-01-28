@@ -8,42 +8,58 @@ import ff from "./ffmpeg";
 import { DownloadJob, VideoMeta, TargetFormat, Bitrate, SampleRate, SearchResult } from "./types";
 import ytDlp from "yt-dlp-exec";
 import { analyzeBPM, analyzeKey, getDuration } from "./audio-analysis";
-import { getPythonPath, getFFmpegPath } from "./config";
 import { getYtDlpPath } from "./binaries";
+import { PythonShell } from "./python-shell";
 
 // Global helper for running yt-dlp with the right environment/python
 async function runYtDlp(args: string[], options: any = {}) {
-    const isWin = process.platform === 'win32';
     const ytDlpBinary = getYtDlpPath();
-    const configPython = getPythonPath();
 
-    // Enable verbose logging by default or via option
-    const verbose = options.verbose ?? true;
+    // Robust flags to avoid 403 Forbidden and other extraction issues
+    const baseArgs = [
+        "--no-check-certificate",
+        "--no-warnings",
+        "--no-cache-dir",
+        "--force-ipv4",
+        "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+        "--referer", "https://www.google.com/",
+    ];
 
-    const run = async (bin: string, runArgs: string[]) => {
-        const subprocess = execa(bin, runArgs, options);
+    const combinedArgs = [...baseArgs, ...args];
 
-        if (verbose) {
-            subprocess.stdout?.pipe(process.stdout);
-            subprocess.stderr?.pipe(process.stderr);
-        }
-
-        return await subprocess;
-    };
-
-    if (isWin) {
-        return await run(ytDlpBinary, args);
-    } else {
+    const run = async (runArgs: string[]) => {
         try {
-            return await run(configPython, [ytDlpBinary, ...args]);
+            return await PythonShell.run(ytDlpBinary, runArgs, {
+                ...options,
+                verbose: options.verbose ?? true
+            });
         } catch (e: any) {
-            if (e.stderr?.includes("unsupported version of Python") && configPython !== "python3") {
-                console.warn(`[runYtDlp] Configured python ${configPython} failed with version error. Trying fallback "python3"`);
-                return await run("python3", [ytDlpBinary, ...args]);
+            const stderr = e.stderr || "";
+            // If it's a 403 error and we haven't tried the alternative client yet, retry
+            if (stderr.includes("403: Forbidden") && !runArgs.includes("youtube:player-client=web,ios")) {
+                console.warn("[runYtDlp] 403 Forbidden detected. Retrying with web,ios player clients...");
+                const retryArgs = [...runArgs, "--extractor-args", "youtube:player-client=web,ios"];
+                return await run(retryArgs);
+            }
+
+            // Fallback for missing format
+            if (stderr.includes("Requested format is not available") && runArgs.includes("-f")) {
+                console.warn("[runYtDlp] Requested format not available. Retrying with fallback audio filter...");
+                const retryArgs = [...runArgs];
+                const fIdx = retryArgs.indexOf("-f");
+                if (fIdx !== -1) {
+                    retryArgs[fIdx + 1] = "bestaudio/best";
+                    if (runArgs[fIdx + 1] === "bestaudio/best") {
+                        retryArgs.splice(fIdx, 2);
+                    }
+                }
+                return await run(retryArgs);
             }
             throw e;
         }
-    }
+    };
+
+    return await run(combinedArgs);
 }
 
 const YT_REGEX = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\//i;
@@ -106,7 +122,6 @@ export async function searchYoutube(query: string, offset: number = 0, limit: nu
             "--playlist-items", `${start}:${end}`,
             "--no-check-certificate",
             "--no-warnings",
-            "--no-call-home",
             "--no-cache-dir",
             "-f", "bestaudio/best",
             "--print", "{\"id\":%(id)j,\"title\":%(title)j,\"channel\":%(uploader)j,\"thumbnail\":%(thumbnail)j,\"duration\":%(duration)j,\"url\":%(webpage_url)j,\"streamUrl\":%(url)j}"
@@ -146,49 +161,54 @@ export async function searchYoutube(query: string, offset: number = 0, limit: nu
     }
 }
 
+import { withConcurrency } from "./core/Queue";
+
 /**
- * Optimized batch search that gets metadata + stream URL in one single yt-dlp process
+ * Optimized batch search that gets metadata + stream URL in parallel
  * Pass an array of search queries like ["artist1 title1", "artist2 title2"]
  */
 export async function batchSearchAndStream(queries: string[]): Promise<any[]> {
     if (!queries || queries.length === 0) return [];
 
-    // Get 3 results per query to have options for filtering official/topic channels
-    const searchArgs = queries.map(q => `ytsearch3:${q}`);
-
     try {
-        const { stdout } = await runYtDlp([
-            ...searchArgs,
-            "--no-playlist",
-            "--no-check-certificate",
-            "--no-warnings",
-            "--no-call-home",
-            "-f", "bestaudio/best",
-            "--print", "{\"id\":%(id)j,\"title\":%(title)j,\"thumbnail\":%(thumbnail)j,\"streamUrl\":%(url)j,\"youtubeUrl\":%(webpage_url)j,\"duration\":%(duration)j,\"uploader\":%(uploader)j}"
-        ], { verbose: false });
+        const tasks = queries.map((query) => async () => {
+            try {
+                const { stdout } = await runYtDlp([
+                    `ytsearch2:${query}`,
+                    "--no-playlist",
+                    "--no-check-certificate",
+                    "--no-warnings",
+                    "-f", "bestaudio/best",
+                    "--print", "{\"id\":%(id)j,\"title\":%(title)j,\"thumbnail\":%(thumbnail)j,\"youtubeUrl\":%(webpage_url)j,\"streamUrl\":%(url)j,\"duration\":%(duration)j,\"uploader\":%(uploader)j}"
+                ], { verbose: false });
 
-        const allResults = stdout.split('\n')
-            .filter(l => !!l.trim())
-            .map(line => JSON.parse(line));
+                const results = stdout.split('\n')
+                    .filter(l => !!l.trim())
+                    .map(line => {
+                        try {
+                            return JSON.parse(line);
+                        } catch (e) {
+                            return null;
+                        }
+                    })
+                    .filter(r => r !== null);
 
-        // Group by 3s and pick the best (preferring Topic/Official)
-        const finalResults = [];
-        for (let i = 0; i < allResults.length; i += 3) {
-            const chunk = allResults.slice(i, i + 3);
-            if (chunk.length === 0) continue;
+                if (results.length === 0) return null;
 
-            // Priority: Channels ending in "- Topic" or containing "Official"
-            const bestResult = chunk.find(r =>
-                r.uploader?.toLowerCase().endsWith("- topic") ||
-                r.uploader?.toLowerCase().includes("official")
-            ) || chunk[0]; // Fallback to first search result
+                return results.find(r =>
+                    r.uploader?.toLowerCase().endsWith("- topic") ||
+                    r.uploader?.toLowerCase().includes("official")
+                ) || results[0];
+            } catch (e) {
+                console.warn(`[batchSearchAndStream] Single query failed for: ${query}`, e);
+                return null;
+            }
+        });
 
-            finalResults.push(bestResult);
-        }
-
-        return finalResults;
+        const results = await withConcurrency(tasks, 4);
+        return results.filter(r => r !== null);
     } catch (e) {
-        console.error("[batchSearchAndStream] Failed:", e);
+        console.error("[batchSearchAndStream] Global failure:", e);
         return [];
     }
 }
@@ -200,7 +220,6 @@ export async function fetchMeta(url: string): Promise<VideoMeta | any> {
             "--no-playlist",
             "--no-check-certificate",
             "--no-warnings",
-            "--no-call-home",
             "-f", "bestaudio/best",
             "--print", "{\"id\":%(id)j,\"title\":%(title)j,\"uploader\":%(uploader)j,\"upload_date\":%(upload_date)j,\"description\":%(description)j,\"thumbnail\":%(thumbnail)j,\"duration\":%(duration)j,\"streamUrl\":%(url)j}"
         ], { verbose: false });

@@ -1,44 +1,26 @@
 import { useEffect, useCallback } from "react";
 import { SearchResult, HistoryItem, ItemState } from "../types";
+import { useApp } from "../context/AppContext";
+import { useSettings } from "../context/SettingsContext";
+import { useLibrary } from "../context/LibraryContext";
 
-interface DownloadOptions {
-    format: string;
-    bitrate: string;
-    sampleRate: string;
-    normalize: boolean;
-    outDir?: string;
-    smartOrganize: boolean;
-}
-
-interface UseDownloadHandlersProps {
-    options: DownloadOptions;
-    itemStates: Record<string, ItemState>;
-    updateItemState: (id: string, state: Partial<ItemState>) => void;
-    addLog: (msg: string) => void;
-    addToHistory: (item: HistoryItem) => void;
-    addSpotlightDownload: (id: string, title: string, url: string) => void;
-    updateSpotlightDownload: (id: string, state: Partial<ItemState>) => void;
-}
-
-export const useDownloadHandlers = ({
-    options,
-    itemStates,
-    updateItemState,
-    addLog,
-    addToHistory,
-    addSpotlightDownload,
-    updateSpotlightDownload
-}: UseDownloadHandlersProps) => {
+export const useDownloadHandlers = () => {
+    const { addLog } = useApp();
+    const { config } = useSettings();
+    const {
+        addToHistory, itemStates, updateItemState,
+        addActiveDownload, updateActiveDownload
+    } = useLibrary();
 
     const handleDownload = useCallback(async (item: SearchResult) => {
         const id = item.id;
-        const currentState = itemStates[id];
-        if (currentState?.status === 'loading') return;
+        if (itemStates[id]?.status === 'loading') return;
         updateItemState(id, { status: 'loading', msg: 'Iniciando...' });
         addLog(`⏳ Iniciando descarga: ${item.title}...`);
+
         try {
             const { path: dest, bpm, key, source, description, duration } = await window.api.download(
-                item.url, options.format, options.bitrate, options.sampleRate, options.normalize, options.outDir, options.smartOrganize
+                item.url, config.format, config.bitrate, config.sampleRate, config.normalize, config.outDir || undefined, config.smartOrganize
             );
             updateItemState(id, { status: 'success', path: dest, msg: 'Completado' });
             addLog(`✅ Descarga completada: ${item.title}`);
@@ -49,8 +31,8 @@ export const useDownloadHandlers = ({
                 thumbnail: item.thumbnail,
                 path: dest,
                 date: new Date().toISOString(),
-                format: options.format,
-                sampleRate: options.sampleRate,
+                format: config.format,
+                sampleRate: config.sampleRate,
                 bpm: bpm,
                 key: key,
                 source: source,
@@ -63,7 +45,7 @@ export const useDownloadHandlers = ({
             updateItemState(id, { status: 'error', msg: 'Error' });
             addLog("❌ Error: " + e.message);
         }
-    }, [options, itemStates, updateItemState, addLog, addToHistory]);
+    }, [config, itemStates, updateItemState, addLog, addToHistory]);
 
     const handleBatchDownload = useCallback(async (entries: any[]) => {
         addLog(`📦 Iniciando descarga por lotes: ${entries.length} pistas`);
@@ -89,7 +71,7 @@ export const useDownloadHandlers = ({
 
         try {
             const { path: dest, bpm, key, source, description, duration, thumbnail } = await window.api.download(
-                url, options.format, options.bitrate, options.sampleRate, options.normalize, options.outDir, options.smartOrganize
+                url, config.format, config.bitrate, config.sampleRate, config.normalize, config.outDir || undefined, config.smartOrganize
             );
 
             updateItemState(id, { status: 'success', path: dest, msg: 'Completado' });
@@ -102,8 +84,8 @@ export const useDownloadHandlers = ({
                 thumbnail: thumbnail || "",
                 path: dest,
                 date: new Date().toISOString(),
-                format: options.format,
-                sampleRate: options.sampleRate,
+                format: config.format,
+                sampleRate: config.sampleRate,
                 bpm: bpm,
                 key: key,
                 source: source || "YouTube",
@@ -116,17 +98,17 @@ export const useDownloadHandlers = ({
             updateItemState(id, { status: 'error', msg: 'Error' });
             addLog("❌ Error en descarga: " + e.message);
         }
-    }, [options, itemStates, updateItemState, addLog, addToHistory]);
+    }, [config, itemStates, updateItemState, addLog, addToHistory]);
 
     // IPC Download Listeners
     useEffect(() => {
-        window.api.onDownloadStarted(({ url, title }) => {
-            addSpotlightDownload(url, title, url);
+        const unsubStarted = window.api.onDownloadStarted(({ url, title }) => {
+            addActiveDownload(url, title, url);
             addLog(`⏳ Descarga iniciada externamente: ${title}`);
         });
 
-        window.api.onDownloadSuccess(({ url, result }) => {
-            updateSpotlightDownload(url, { status: 'success', msg: 'Completado' });
+        const unsubSuccess = window.api.onDownloadSuccess(({ url, result }) => {
+            updateActiveDownload(url, { status: 'success', msg: 'Completado' });
 
             const newItem: HistoryItem = {
                 id: result.id || Math.random().toString(36).substring(7),
@@ -135,8 +117,8 @@ export const useDownloadHandlers = ({
                 thumbnail: result.thumbnail || "",
                 path: result.path,
                 date: new Date().toISOString(),
-                format: options.format,
-                sampleRate: options.sampleRate,
+                format: config.format,
+                sampleRate: config.sampleRate,
                 bpm: result.bpm,
                 key: result.key,
                 source: result.source || "YouTube",
@@ -148,21 +130,20 @@ export const useDownloadHandlers = ({
             addLog(`✅ Descarga completada: ${newItem.title}`);
         });
 
-        window.api.onDownloadProgress(({ url, message }) => {
-            updateSpotlightDownload(url, { status: 'loading', msg: message });
+        const unsubProgress = window.api.onDownloadProgress(({ url, message }) => {
+            updateActiveDownload(url, { status: 'loading', msg: message });
             updateItemState(url, { status: 'loading', msg: message });
-            // Note: Results deduction will happen in App.tsx by passing relevant data
         });
 
-        window.api.onDownloadError(({ url, error }) => {
-            updateSpotlightDownload(url, { status: 'error', msg: error });
+        const unsubError = window.api.onDownloadError(({ url, error }) => {
+            updateActiveDownload(url, { status: 'error', msg: error });
             addLog(`❌ Error en descarga: ${error}`);
         });
-    }, [options, addSpotlightDownload, updateSpotlightDownload, updateItemState, addLog, addToHistory]);
 
-    return {
-        handleDownload,
-        handleBatchDownload,
-        handleDownloadFromUrl
-    };
+        return () => {
+            unsubStarted(); unsubSuccess(); unsubProgress(); unsubError();
+        };
+    }, [config, addActiveDownload, updateActiveDownload, updateItemState, addLog, addToHistory]);
+
+    return { handleDownload, handleBatchDownload, handleDownloadFromUrl };
 };

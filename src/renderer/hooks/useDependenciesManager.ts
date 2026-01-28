@@ -1,22 +1,18 @@
 import { useState, useEffect, useCallback } from "react";
+import { useSettings } from "../context/SettingsContext";
 
-interface DependencyPaths {
-    python?: string;
-    ffmpeg?: string;
-    ffprobe?: string;
-}
-
-export const useDependenciesManager = (paths: DependencyPaths) => {
+export const useDependenciesManager = () => {
+    const { config } = useSettings();
     const [dependencies, setDependencies] = useState<{ python: boolean, ffmpeg: boolean, ffprobe: boolean } | null>(null);
 
     const checkDeps = useCallback(async () => {
         const result = await window.api.checkDependencies({
-            python: paths.python || undefined,
-            ffmpeg: paths.ffmpeg || undefined,
-            ffprobe: paths.ffprobe || undefined
+            python: config.pythonPath || undefined,
+            ffmpeg: config.ffmpegPath || undefined,
+            ffprobe: config.ffprobePath || undefined
         });
         setDependencies(result);
-    }, [paths]);
+    }, [config.pythonPath, config.ffmpegPath, config.ffprobePath]);
 
     useEffect(() => {
         checkDeps();

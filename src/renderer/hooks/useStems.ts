@@ -12,8 +12,11 @@ export function useStems() {
         setStems(null);
         setError(null);
 
-        const removeListener = (window as any).api.on('stems:progress', (data: string) => {
-            setProgress(data);
+        const removeListener = (window as any).api.on('stems:update', ({ filePath: p, type, data }: any) => {
+            if (p === filePath) {
+                if (type === 'progress') setProgress(`${data}%`);
+                else setProgress(data);
+            }
         });
 
         try {

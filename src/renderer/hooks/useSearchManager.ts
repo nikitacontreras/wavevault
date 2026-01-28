@@ -1,7 +1,11 @@
 import { useState, useCallback } from "react";
 import { SearchResult } from "../types";
+import { useApp } from "../context/AppContext";
+import { useLibrary } from "../context/LibraryContext";
 
-export const useSearchManager = (addLog: (msg: string) => void, resetItemStates: () => void) => {
+export const useSearchManager = () => {
+    const { addLog } = useApp();
+    const { resetItemStates } = useLibrary();
     const [query, setQuery] = useState("");
     const [results, setResults] = useState<SearchResult[]>([]);
     const [isSearching, setIsSearching] = useState(false);
@@ -53,7 +57,6 @@ export const useSearchManager = (addLog: (msg: string) => void, resetItemStates:
         setIsSearching(true);
         try {
             const more = await window.api.search(query, results.length, 12);
-            // Deduplicate results by ID
             const existingIds = new Set(results.map(r => r.id));
             const uniqueMore = more.filter(r => !existingIds.has(r.id));
             setResults(prev => [...prev, ...uniqueMore]);
@@ -65,14 +68,7 @@ export const useSearchManager = (addLog: (msg: string) => void, resetItemStates:
     }, [isSearching, query, results, addLog]);
 
     return {
-        query,
-        setQuery,
-        results,
-        setResults,
-        isSearching,
-        playlistUrl,
-        setPlaylistUrl,
-        handleSearch,
-        handleLoadMore
+        query, setQuery, results, setResults, isSearching,
+        playlistUrl, setPlaylistUrl, handleSearch, handleLoadMore
     };
 };

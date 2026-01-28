@@ -2,27 +2,14 @@ import React from "react";
 import { Search, Folder, Layout, Settings, PanelLeftClose, PanelLeftOpen, Sun, Moon, Disc, RefreshCw } from "lucide-react";
 
 import { useTranslation } from "react-i18next";
+import { useApp } from "../context/AppContext";
+import { useSettings } from "../context/SettingsContext";
 
-interface SidebarProps {
-    currentView: string;
-    onViewChange: (view: string) => void;
-    isCollapsed: boolean;
-    onToggle: () => void;
-    theme: 'light' | 'dark';
-    onThemeToggle: () => void;
-    version: string;
-}
-
-export const Sidebar: React.FC<SidebarProps> = ({
-    currentView,
-    onViewChange,
-    isCollapsed,
-    onToggle,
-    theme,
-    onThemeToggle,
-    version
-}) => {
-    const isDark = theme === 'dark';
+export const Sidebar: React.FC = () => {
+    const { view: currentView, setView: onViewChange, sidebarCollapsed: isCollapsed, setSidebarCollapsed, version } = useApp();
+    const { config, updateConfig } = useSettings();
+    const isDark = config.theme === 'dark';
+    const onThemeToggle = () => updateConfig({ theme: isDark ? 'light' : 'dark' });
     const { t } = useTranslation();
 
     return (
@@ -53,7 +40,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     active={currentView === "search"}
                     onClick={() => onViewChange("search")}
                     isCollapsed={isCollapsed}
-                    theme={theme}
+                    theme={config.theme}
                 />
                 <NavItem
                     icon={<Folder size={18} />}
@@ -61,7 +48,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     active={currentView === "library"}
                     onClick={() => onViewChange("library")}
                     isCollapsed={isCollapsed}
-                    theme={theme}
+                    theme={config.theme}
                 />
                 <NavItem
                     icon={<Disc size={18} />}
@@ -69,7 +56,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     active={currentView === "discovery"}
                     onClick={() => onViewChange("discovery")}
                     isCollapsed={isCollapsed}
-                    theme={theme}
+                    theme={config.theme}
                 />
                 <NavItem
                     icon={<RefreshCw size={18} />}
@@ -77,7 +64,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     active={currentView === "converter"}
                     onClick={() => onViewChange("converter")}
                     isCollapsed={isCollapsed}
-                    theme={theme}
+                    theme={config.theme}
                 />
                 <NavItem
                     icon={<Layout size={18} />}
@@ -85,7 +72,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     active={currentView === "projects"}
                     onClick={() => onViewChange("projects")}
                     isCollapsed={isCollapsed}
-                    theme={theme}
+                    theme={config.theme}
                 />
                 <NavItem
                     icon={<Settings size={18} />}
@@ -93,7 +80,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     active={currentView === "settings"}
                     onClick={() => onViewChange("settings")}
                     isCollapsed={isCollapsed}
-                    theme={theme}
+                    theme={config.theme}
                 />
             </nav>
 
@@ -166,5 +153,3 @@ const NavItem: React.FC<NavItemProps> = ({ icon, label, active, onClick, isColla
         </button>
     );
 };
-
-

@@ -34,9 +34,20 @@ async function buildPython() {
         const pip = path.join(venvPath, binFolder, 'pip');
         const pyinstaller = path.join(venvPath, binFolder, 'pyinstaller');
 
-        console.log('📦 Instalando dependencias estables (Torch 2.4.1 CPU-Only)...');
-        // Usar --index-url para descargar versiones CPU de PyTorch (mucho más ligeras)
-        await execAsync(`"${pip}" install numpy==1.26.4 torch==2.4.1 torchaudio==2.4.1 soundfile lameenc demucs pyinstaller --index-url https://download.pytorch.org/whl/cpu`, { timeout: 600000 });
+        console.log('📦 Instalando dependencias estables...');
+        const generalDeps = "numpy==1.26.4 soundfile lameenc demucs pyinstaller";
+        const torchDeps = "torch==2.4.1 torchaudio==2.4.1";
+
+        if (process.platform === "darwin") {
+            // macOS: Standard PyPI works fine and is preferred (no CPU/CUDA split needed)
+            await execAsync(`"${pip}" install ${torchDeps} ${generalDeps}`, { timeout: 600000 });
+        } else {
+            // Linux/Windows: Force CPU Torch first to avoid 2GB+ CUDA bloat
+            console.log('   - Installing CPU Torch...');
+            await execAsync(`"${pip}" install ${torchDeps} --index-url https://download.pytorch.org/whl/cpu`, { timeout: 600000 });
+            console.log('   - Installing General Deps...');
+            await execAsync(`"${pip}" install ${generalDeps}`, { timeout: 600000 });
+        }
 
         console.log('🔨 Compilando ai_engine (Unified)...');
         const aiScript = path.join(__dirname, '../scripts/ai_engine.py');

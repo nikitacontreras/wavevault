@@ -34,17 +34,16 @@ async function buildPython() {
         const pip = path.join(venvPath, binFolder, 'pip');
         const pyinstaller = path.join(venvPath, binFolder, 'pyinstaller');
 
-        console.log('📦 Instalando dependencias estables (Torch 2.4.1)...');
-        await execAsync(`"${pip}" install numpy==1.26.4 torch==2.4.1 torchaudio==2.4.1 soundfile lameenc demucs pyinstaller`, { timeout: 600000 });
+        console.log('📦 Instalando dependencias estables (Torch 2.4.1 CPU-Only)...');
+        // Usar --index-url para descargar versiones CPU de PyTorch (mucho más ligeras)
+        await execAsync(`"${pip}" install numpy==1.26.4 torch==2.4.1 torchaudio==2.4.1 soundfile lameenc demucs pyinstaller --index-url https://download.pytorch.org/whl/cpu`, { timeout: 600000 });
 
-        console.log('🔨 Compilando separate_stems...');
-        const stemsScript = path.join(__dirname, '../scripts/separate_stems.py');
+        console.log('🔨 Compilando ai_engine (Unified)...');
+        const aiScript = path.join(__dirname, '../scripts/ai_engine.py');
 
-        await execAsync(`"${pyinstaller}" --clean --noconfirm --onefile --distpath "${binDir}" --name separate_stems --collect-all demucs --collect-all torchaudio --copy-metadata torch --copy-metadata torchaudio --copy-metadata demucs "${stemsScript}"`);
-
-        console.log('🔨 Compilando classify_audio...');
-        const classifyScript = path.join(__dirname, '../scripts/classify_audio.py');
-        await execAsync(`"${pyinstaller}" --clean --noconfirm --onefile --distpath "${binDir}" --name classify_audio --collect-all demucs --copy-metadata torch --copy-metadata demucs "${classifyScript}"`);
+        // Compile unified binary
+        // Note: collecting librosa and sklearn explicitly to avoid missing imports in onefile mode
+        await execAsync(`"${pyinstaller}" --clean --noconfirm --onefile --distpath "${binDir}" --name ai_engine --collect-all demucs --collect-all torchaudio --collect-all librosa --collect-all sklearn --copy-metadata torch --copy-metadata torchaudio --copy-metadata demucs --hidden-import="sklearn.utils._cython_blas" --hidden-import="sklearn.neighbors.typedefs" --hidden-import="sklearn.neighbors.quad_tree" --hidden-import="sklearn.tree._utils" "${aiScript}"`);
 
         console.log(`✅ Motores listos en: ${binDir}`);
 

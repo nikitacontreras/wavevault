@@ -108,14 +108,7 @@ def classify_audio(file_path):
     except Exception as e:
         return {"success": False, "error": str(e)}
 
-if __name__ == "__main__":
-    # If args provided, run once (legacy/debug mode)
-    if len(sys.argv) > 1:
-        file_path = sys.argv[1]
-        result = classify_audio(file_path)
-        print(json.dumps(result))
-        sys.exit(0)
-
+def run_streaming_mode():
     # Otherwise, run in streaming mode (stdin -> stdout)
     # This keeps the process alive for batch processing
     while True:
@@ -136,3 +129,13 @@ if __name__ == "__main__":
         except Exception as e:
             print(json.dumps({"success": False, "error": str(e)}))
             sys.stdout.flush()
+
+if __name__ == "__main__":
+    # If args provided, run once (legacy/debug mode)
+    if len(sys.argv) > 1:
+        file_path = sys.argv[1]
+        result = classify_audio(file_path)
+        print(json.dumps(result))
+        sys.exit(0)
+    
+    run_streaming_mode()

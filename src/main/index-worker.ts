@@ -12,7 +12,7 @@ function getPythonProcess() {
     const { getClassifyAudioPath } = require('./binaries');
     const binPath = getClassifyAudioPath();
 
-    const proc = PythonShell.getPersistent('classify', binPath);
+    const proc = PythonShell.getPersistent('classify', binPath, ['classify']);
 
     // Only attach listeners once or handle properly
     if (proc.stdout && !proc.stdout.listenerCount('data')) {

@@ -113,10 +113,10 @@ const DependencyRow = ({ icon, name, status, desc, theme }: { icon: React.ReactN
     </div>
 );
 
-const MiniPathInput = ({ label, value, onChange, theme }: { label: string, value: string, onChange: (v: string) => void, theme: 'light' | 'dark' }) => {
+const MiniPathInput = ({ label, value, onChange, theme }: { label: string, value: string | null, onChange: (v: string) => void, theme: 'light' | 'dark' }) => {
     const isDark = theme === 'dark';
     const handlePick = async () => {
-        const path = await (window as any).api.pickFile();
+        const path = await window.api.pickFile();
         if (path) onChange(path);
     };
 
@@ -126,7 +126,7 @@ const MiniPathInput = ({ label, value, onChange, theme }: { label: string, value
             <div className="flex gap-2">
                 <input
                     type="text"
-                    value={value}
+                    value={value || ''}
                     onChange={e => onChange(e.target.value)}
                     className={`flex-1 border rounded-lg px-2 py-1.5 text-[10px] outline-none transition-all ${isDark ? "bg-wv-bg border-white/5 text-white focus:border-white/10" : "bg-white border-black/10 text-black focus:border-black/20"}`}
                     placeholder="Auto"

@@ -99,7 +99,7 @@ export const App: React.FC = () => {
                             <SearchView
                                 query={query} setQuery={setQuery} isSearching={isSearching} results={results}
                                 itemStates={itemStates} history={history} onSearch={handleSearch}
-                                onDownload={handleDownload} onOpenItem={(p) => window.api.openItem(p)}
+                                onDownload={handleDownload} onOpenItem={(p) => p && window.api.openItem(p)}
                                 onStartDrag={() => setIsDragging(true)} onLoadMore={handleLoadMore}
                             />
                         )}

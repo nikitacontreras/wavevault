@@ -8,7 +8,7 @@ import { useTranslation } from "react-i18next";
 import { useSettings } from "../context/SettingsContext";
 import { useApp } from "../context/AppContext";
 
-const AdvancedPathInput = ({ label, value, onChange, placeholder, isDark }: { label: string, value: string, onChange: (v: string) => void, placeholder: string, isDark: boolean }) => {
+const AdvancedPathInput = ({ label, value, onChange, placeholder, isDark }: { label: string, value: string | null, onChange: (v: string) => void, placeholder: string, isDark: boolean }) => {
     const { t } = useTranslation();
     const handlePick = async () => {
         const path = await window.api.pickFile();
@@ -18,12 +18,12 @@ const AdvancedPathInput = ({ label, value, onChange, placeholder, isDark }: { la
     return (
         <div className="flex flex-col gap-2">
             <label className="text-[9px] font-bold text-wv-gray uppercase tracking-widest">{label}</label>
-            <div className="flex gap-3">
+            <div className="flex gap-2">
                 <input
                     type="text"
                     className={`flex-1 border rounded-lg px-3 py-2 text-xs outline-none transition-all ${isDark ? "bg-wv-bg border-white/5 text-white focus:border-white/20" : "bg-white border-black/[0.08] text-black focus:border-black/20"}`}
-                    value={value || ""}
-                    onChange={e => onChange(e.target.value)}
+                    value={value || ''}
+                    onChange={(e) => onChange(e.target.value)}
                     placeholder={placeholder}
                 />
                 <button

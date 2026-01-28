@@ -174,7 +174,7 @@ export const useAudioPlayer = (volume: number, audioDeviceId: string, addLog: (m
 
     // Command listener
     useEffect(() => {
-        return window.api.onCommand((command) => {
+        return window.api.on('command', (command: string) => {
             if (command === 'playPause') {
                 if (audioRef.current && audioRef.current.src) {
                     if (audioRef.current.paused) {

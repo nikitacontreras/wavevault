@@ -234,7 +234,10 @@
         "stems": "Stem Separation (AI)",
         "stemsQuality": "Separation Quality",
         "stemsQualityStandard": "Standard (Fast)",
-        "stemsQualityBest": "Best (Fine-tuned + Slow)"
+        "stemsQualityBest": "Best (4 Stems, AI+)",
+        "stemsQualityPro": "Pro (6 Stems: Guitar & Piano)",
+        "autoCheckUpdates": "Automatic Update Search",
+        "autoCheckUpdatesDesc": "Check for new versions automatically on startup"
     },
     "deps": {
         "title": "System Check",
@@ -275,7 +278,8 @@
         "openFolder": "Open Folder",
         "remove": "Remove",
         "standard": "Standard",
-        "best": "Best (AI+)"
+        "best": "Best",
+        "pro": "Pro (6S)"
     },
     "filters": {
         "tags": "Tags",

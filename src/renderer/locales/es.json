@@ -246,8 +246,11 @@
         "russian": "Ruso",
         "stems": "Separación de Pistas (AI)",
         "stemsQuality": "Calidad de Separación",
-        "stemsQualityStandard": "Estándar (Rápido)",
-        "stemsQualityBest": "Mejor (Fine-tuned + Lento)"
+        "stemsQualityStandard": "Estándar (4 Pistas, Rápido)",
+        "stemsQualityBest": "Mejor (4 Pistas, Limpio)",
+        "stemsQualityPro": "Pro (6 Pistas: Guitarra y Piano)",
+        "autoCheckUpdates": "Búsqueda automática de actualizaciones",
+        "autoCheckUpdatesDesc": "Buscar nuevas versiones automáticamente al iniciar"
     },
     "deps": {
         "title": "Verificando Sistema",
@@ -287,8 +290,9 @@
         "any": "Cualquiera",
         "openFolder": "Abrir Carpeta",
         "remove": "Eliminar",
-        "standard": "Standard",
-        "best": "Best (AI+)"
+        "standard": "Estándar",
+        "best": "Mejor",
+        "pro": "Pro (6S)"
     },
     "filters": {
         "tags": "Tags",

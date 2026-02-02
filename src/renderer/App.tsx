@@ -22,6 +22,7 @@ import { DiscoveryView } from "./components/DiscoveryView";
 import { ProjectsView } from "./components/ProjectsView";
 import { SettingsView } from "./components/SettingsView";
 import { PlaylistModal } from "./components/PlaylistModal";
+import { UpdateNotification } from "./components/UpdateNotification";
 import { useTranslation } from "react-i18next";
 import "./i18n";
 
@@ -64,6 +65,51 @@ export const App: React.FC = () => {
         return `${mins}:${secs.toString().padStart(2, '0')}`;
     };
 
+    // Remote Control Logic
+    useEffect(() => {
+        const unsub = window.api.onRemoteCommand((cmd: any) => {
+            console.log("[App] Remote Command:", cmd);
+
+            if (cmd.type === 'playPause') {
+                if (playingUrl) handleTogglePreview(playingUrl);
+            }
+            else if (cmd.type === 'volume') {
+                const vol = Number(cmd.value);
+                if (!isNaN(vol)) updateConfig({ volume: vol });
+            }
+            else if (cmd.type === 'download') {
+                handleDownloadFromUrl(cmd.url, cmd.title || "Remote Download");
+            }
+            else if (cmd.type === 'playUrl') {
+                handleTogglePreview(cmd.url, cmd.metadata);
+            }
+            else if (cmd.type === 'next') {
+                // Seek forward 10s as fallback
+                if (playingUrl) seek(Math.min(duration, currentTime + 10));
+            }
+            else if (cmd.type === 'seek') {
+                const time = Number(cmd.value);
+                if (!isNaN(time)) seek(time);
+            }
+            else if (cmd.type === 'prev') {
+                // Seek backward 10s as fallback
+                if (playingUrl) seek(Math.max(0, currentTime - 10));
+            }
+        });
+        return () => { unsub(); };
+    }, [playingUrl, handleTogglePreview, updateConfig, handleDownloadFromUrl, seek, currentTime, duration]);
+
+    // Sync State to Remote
+    useEffect(() => {
+        window.api.updateRemoteState({
+            isPlaying,
+            volume: config.volume,
+            track: activeTrack,
+            currentTime,
+            duration
+        });
+    }, [isPlaying, config.volume, activeTrack, currentTime, duration]);
+
     if (!dependencies) {
         return <div className="h-screen w-screen bg-wv-bg flex items-center justify-center"><Loader2 className="animate-spin text-wv-gray" size={32} /></div>;
     }
@@ -85,7 +131,7 @@ export const App: React.FC = () => {
                 <Sidebar />
 
                 <main className="flex-1 flex flex-col min-w-0 bg-wv-bg">
-                    <header className={`px-8 py-4 border-b flex justify-between items-center backdrop-blur-md z-20 transition-all ${isDark ? "bg-wv-bg/80 border-white/5" : "bg-white/80 border-black/5"}`}>
+                    <header className={`px-8 py-4 border-b flex justify-between items-center z-20 transition-all ${isDark ? "bg-wv-bg border-white/5" : "bg-white border-black/5"}`}>
                         <div className="flex items-center gap-4">
                             <button onClick={() => setSidebarCollapsed(!sidebarCollapsed)} className={`p-1.5 rounded-lg transition-colors ${isDark ? "hover:bg-white/5 text-wv-gray hover:text-white" : "hover:bg-black/5 text-black/40 hover:text-black"}`}>
                                 {sidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
@@ -168,6 +214,7 @@ export const App: React.FC = () => {
             </div>
 
             <ActivityPanel />
+            <UpdateNotification />
             {playlistUrl && <PlaylistModal url={playlistUrl} onClose={() => setPlaylistUrl(null)} onDownloadBatch={handleBatchDownload} />}
         </div>
     );

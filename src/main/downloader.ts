@@ -109,13 +109,13 @@ function normalizeUrl(input: any): string {
 
 export async function searchYoutube(query: string, offset: number = 0, limit: number = 10): Promise<SearchResult[]> {
     if (!query) return [];
+    const startTime = Date.now();
+    console.log(`[downloader] Searching: "${query}" (limit: ${limit})`);
 
     try {
         const start = offset + 1;
         const end = offset + limit;
 
-        // Removing --flat-playlist is essential to get the real streamUrl (%(url)s)
-        // We use -f bestaudio to only resolve the audio stream, keeping it as fast as possible
         const { stdout } = await runYtDlp([
             `ytsearch${end}:${query}`,
             "--no-playlist",
@@ -127,21 +127,19 @@ export async function searchYoutube(query: string, offset: number = 0, limit: nu
             "--print", "{\"id\":%(id)j,\"title\":%(title)j,\"channel\":%(uploader)j,\"thumbnail\":%(thumbnail)j,\"duration\":%(duration)j,\"url\":%(webpage_url)j,\"streamUrl\":%(url)j}"
         ], { verbose: false });
 
-        return stdout.split('\n')
-            .filter(l => !!l.trim())
+        const results = stdout.split('\n')
+            .filter(l => l.trim().startsWith('{')) // Only take lines that look like JSON
             .map(l => {
                 try {
                     const sanitized = l.replace(/:NA([,}])/g, ':null$1');
                     const e = JSON.parse(sanitized);
 
                     if (!e.id) return null;
-                    // Ensure the streamUrl is actually a direct link and not a youtube.com link
-                    // This happens if yt-dlp fails to resolve formats for some reason
                     const isRealStream = e.streamUrl && (e.streamUrl.includes('googlevideo.com') || e.streamUrl.includes('manifest'));
 
                     return {
                         id: e.id,
-                        title: e.title,
+                        title: e.title || "Video sin título",
                         channel: e.channel ?? "Unknown",
                         thumbnail: e.thumbnail ?? `https://i.ytimg.com/vi/${e.id}/mqdefault.jpg`,
                         duration: (typeof e.duration === 'number')
@@ -155,8 +153,11 @@ export async function searchYoutube(query: string, offset: number = 0, limit: nu
                 }
             })
             .filter((r): r is SearchResult => r !== null);
+
+        console.log(`[downloader] Search completed in ${Date.now() - startTime}ms. Found ${results.length} results.`);
+        return results;
     } catch (e: any) {
-        console.error("Search failed:", e);
+        console.error("[downloader] Search failed:", e.message);
         throw new Error(e.stderr || e.stdout || e.message || "Unknown error during search");
     }
 }
@@ -224,7 +225,12 @@ export async function fetchMeta(url: string): Promise<VideoMeta | any> {
             "--print", "{\"id\":%(id)j,\"title\":%(title)j,\"uploader\":%(uploader)j,\"upload_date\":%(upload_date)j,\"description\":%(description)j,\"thumbnail\":%(thumbnail)j,\"duration\":%(duration)j,\"streamUrl\":%(url)j}"
         ], { verbose: false });
 
-        return JSON.parse(stdout);
+        const lines = stdout.split('\n').filter(l => l.trim().startsWith('{'));
+        if (lines.length === 0) throw new Error("No metadata found in output");
+
+        const lastLine = lines[lines.length - 1];
+        const sanitized = lastLine.replace(/:NA([,}])/g, ':null$1');
+        return JSON.parse(sanitized);
     } catch (e: any) {
         console.error("Meta fetch failed:", e);
         throw new Error(e.stderr || e.stdout || e.message || "Unknown error fetching metadata");

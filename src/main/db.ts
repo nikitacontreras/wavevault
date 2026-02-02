@@ -3,11 +3,31 @@ import { app } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
 
-const dbPath = path.join(app.getPath('userData'), 'wavevault.db');
-const db = new Database(dbPath);
+let _db: Database.Database | null = null;
+
+export function getDB(): Database.Database {
+    if (!_db) {
+        let dbPath: string;
+        try {
+            // Check if app is available (Main process)
+            if (app) {
+                dbPath = path.join(app.getPath('userData'), 'wavevault.db');
+            } else {
+                throw new Error("Electron 'app' is not available.");
+            }
+        } catch (e) {
+            // Fallback for workers: they should NOT be initializing the DB
+            console.error("[DB] Failed to resolve dbPath, likely in a worker thread.");
+            throw new Error("Database initialization failed: app.getPath('userData') is not available in this context.");
+        }
+        _db = new Database(dbPath);
+    }
+    return _db;
+}
 
 // Initialize Tables
 export function initDB() {
+    const db = getDB();
     // 1. Config Table
     db.prepare(`
         CREATE TABLE IF NOT EXISTS config (
@@ -160,7 +180,12 @@ export function initDB() {
 }
 
 function migrateOldData() {
-    const oldDbPath = path.join(app.getPath("userData"), "projects_v2.json");
+    const db = getDB();
+    let oldDbPath: string;
+    try {
+        oldDbPath = path.join(app.getPath("userData"), "projects_v2.json");
+    } catch (e) { return; }
+
     if (!fs.existsSync(oldDbPath)) return;
 
     // Check if we already migrated
@@ -214,16 +239,21 @@ function migrateOldData() {
 
 // Config Helpers
 export function setConfigDB(key: string, value: any) {
-    db.prepare('INSERT OR REPLACE INTO config (id, value) VALUES (?, ?)').run(key, JSON.stringify(value));
+    getDB().prepare('INSERT OR REPLACE INTO config (id, value) VALUES (?, ?)').run(key, JSON.stringify(value));
 }
 
 export function getConfigDB(key: string, defaultValue: any = null) {
-    const row = db.prepare('SELECT value FROM config WHERE id = ?').get(key) as { value: string } | undefined;
-    return row ? JSON.parse(row.value) : defaultValue;
+    try {
+        const row = getDB().prepare('SELECT value FROM config WHERE id = ?').get(key) as { value: string } | undefined;
+        return row ? JSON.parse(row.value) : defaultValue;
+    } catch (e) {
+        return defaultValue;
+    }
 }
 
 // Project Store Logic
 export function getFullProjectDB() {
+    const db = getDB();
     const albums = db.prepare('SELECT * FROM albums ORDER BY createdAt DESC').all() as any[];
 
     // Join versions with workspaces to get the name
@@ -249,18 +279,21 @@ export function getFullProjectDB() {
 }
 
 export function createAlbumDB(name: string, artist: string) {
+    const db = getDB();
     const id = "ALB-" + Date.now();
     db.prepare('INSERT INTO albums (id, name, artist, createdAt) VALUES (?, ?, ?, ?)').run(id, name, artist, Date.now());
     return { id, name, artist };
 }
 
 export function createTrackDB(name: string, albumId: string) {
+    const db = getDB();
     const id = "TRK-" + Date.now();
     db.prepare('INSERT INTO tracks (id, albumId, name, createdAt) VALUES (?, ?, ?, ?)').run(id, albumId, name, Date.now());
     return { id, name, albumId };
 }
 
 export function addToUnorganizedDB(version: any, workspaceId?: string) {
+    const db = getDB();
     try {
         db.prepare(`
             INSERT INTO versions(id, name, path, type, lastModified, isUnorganized, workspaceId)
@@ -275,11 +308,12 @@ export function addToUnorganizedDB(version: any, workspaceId?: string) {
 }
 
 export function moveVersionToTrackDB(versionId: string, trackId: string) {
-    db.prepare('UPDATE versions SET trackId = ?, isUnorganized = 0 WHERE id = ?').run(trackId, versionId);
+    getDB().prepare('UPDATE versions SET trackId = ?, isUnorganized = 0 WHERE id = ?').run(trackId, versionId);
     return true;
 }
 
 export function updateTrackMetaDB(trackId: string, updates: any) {
+    const db = getDB();
     const fields = Object.keys(updates);
     if (fields.length === 0) return false;
 
@@ -294,11 +328,12 @@ export function updateTrackMetaDB(trackId: string, updates: any) {
 }
 
 export function deleteTrackDB(trackId: string) {
-    db.prepare('DELETE FROM tracks WHERE id = ?').run(trackId);
+    getDB().prepare('DELETE FROM tracks WHERE id = ?').run(trackId);
     return true;
 }
 
 export function updateAlbumDB(albumId: string, updates: any) {
+    const db = getDB();
     const fields = Object.keys(updates);
     if (fields.length === 0) return false;
     const setClause = fields.map(f => `${f} = ?`).join(', ');
@@ -308,27 +343,29 @@ export function updateAlbumDB(albumId: string, updates: any) {
 }
 
 export function deleteAlbumDB(albumId: string) {
-    db.prepare('DELETE FROM albums WHERE id = ?').run(albumId);
+    getDB().prepare('DELETE FROM albums WHERE id = ?').run(albumId);
     return true;
 }
 
 export function deleteVersionDB(versionId: string) {
-    db.prepare('DELETE FROM versions WHERE id = ?').run(versionId);
+    getDB().prepare('DELETE FROM versions WHERE id = ?').run(versionId);
     return true;
 }
 
 // Workspace Helpers
 export function getWorkspacesDB() {
-    return db.prepare('SELECT * FROM workspaces ORDER BY createdAt DESC').all() as any[];
+    return getDB().prepare('SELECT * FROM workspaces ORDER BY createdAt DESC').all() as any[];
 }
 
 export function addWorkspaceDB(name: string, path: string) {
+    const db = getDB();
     const id = "WSP-" + Date.now();
     db.prepare('INSERT INTO workspaces (id, name, path, createdAt) VALUES (?, ?, ?, ?)').run(id, name, path, Date.now());
     return { id, name, path };
 }
 
 export function removeWorkspaceDB(id: string) {
+    const db = getDB();
     // Delete all versions belonging to this workspace
     db.prepare('DELETE FROM versions WHERE workspaceId = ?').run(id);
     // Delete the workspace itself
@@ -338,10 +375,11 @@ export function removeWorkspaceDB(id: string) {
 
 // DAW Helpers
 export function getDAWPathsDB() {
-    return db.prepare('SELECT * FROM daw_paths').all() as any[];
+    return getDB().prepare('SELECT * FROM daw_paths').all() as any[];
 }
 
 export function saveDAWPathDB(daw: any) {
+    const db = getDB();
     const id = daw.id || "DAW-" + Date.now();
     db.prepare('INSERT OR REPLACE INTO daw_paths (id, name, path, version) VALUES (?, ?, ?, ?)').run(id, daw.name, daw.path, daw.version || '');
     return { id, ...daw };
@@ -349,13 +387,17 @@ export function saveDAWPathDB(daw: any) {
 
 // Local Library Helpers
 export function addLocalFolderDB(path: string, name: string) {
+    const db = getDB();
+    const existing = db.prepare('SELECT id FROM local_folders WHERE path = ?').get(path) as { id: string } | undefined;
+    if (existing) return { id: existing.id, path, name };
+
     const id = "LFD-" + Date.now();
-    db.prepare('INSERT OR IGNORE INTO local_folders (id, path, name, scannedAt) VALUES (?, ?, ?, ?)').run(id, path, name, Date.now());
+    db.prepare('INSERT INTO local_folders (id, path, name, scannedAt) VALUES (?, ?, ?, ?)').run(id, path, name, Date.now());
     return { id, path, name };
 }
 
 export function getLocalFoldersDB() {
-    return db.prepare(`
+    return getDB().prepare(`
         SELECT lf.*, COUNT(f.id) as fileCount 
         FROM local_folders lf 
         LEFT JOIN local_files f ON lf.id = f.folderId 
@@ -365,11 +407,12 @@ export function getLocalFoldersDB() {
 }
 
 export function removeLocalFolderDB(id: string) {
-    db.prepare('DELETE FROM local_folders WHERE id = ?').run(id);
+    getDB().prepare('DELETE FROM local_folders WHERE id = ?').run(id);
     return true;
 }
 
 export function addLocalFileDB(file: any) {
+    const db = getDB();
     // file object: { folderId, path, filename, type, instrument, key, bpm, duration, size }
     const id = "LFL-" + Math.random().toString(36).substr(2, 9);
     try {
@@ -390,6 +433,7 @@ export function addLocalFileDB(file: any) {
 }
 
 export function getLocalFilesDB(folderId?: string) {
+    const db = getDB();
     if (folderId) {
         return db.prepare('SELECT * FROM local_files WHERE folderId = ?').all(folderId) as any[];
     }
@@ -399,7 +443,7 @@ export function getLocalFilesDB(folderId?: string) {
 export function getLocalFilesGroupedDB() {
     // Determine thumbnail based on instrument?
     // Group by instrument
-    return db.prepare(`
+    return getDB().prepare(`
         SELECT instrument as category, COUNT(id) as count, MIN(path) as samplePath
         FROM local_files
         WHERE instrument IS NOT NULL
@@ -409,12 +453,13 @@ export function getLocalFilesGroupedDB() {
 }
 
 export function getLocalFilesByCategoryDB(category: string) {
-    return db.prepare(`
+    return getDB().prepare(`
         SELECT * FROM local_files WHERE instrument = ?
     `).all(category) as any[];
 }
 
 export function saveWaveformDB(type: 'sample' | 'local' | 'track', id: string, waveform: string) {
+    const db = getDB();
     if (type === 'sample') {
         db.prepare('UPDATE samples SET waveform = ? WHERE id = ?').run(waveform, id);
     } else if (type === 'local') {
@@ -426,14 +471,11 @@ export function saveWaveformDB(type: 'sample' | 'local' | 'track', id: string, w
 }
 
 export function saveWaveformCacheDB(urlId: string, waveform: string) {
-    db.prepare('INSERT OR REPLACE INTO waveform_cache (url_id, waveform, updatedAt) VALUES (?, ?, ?)').run(urlId, waveform, Date.now());
+    getDB().prepare('INSERT OR REPLACE INTO waveform_cache (url_id, waveform, updatedAt) VALUES (?, ?, ?)').run(urlId, waveform, Date.now());
     return true;
 }
 
 export function getWaveformCacheDB(urlId: string) {
-    const row = db.prepare('SELECT waveform FROM waveform_cache WHERE url_id = ?').get(urlId) as { waveform: string } | undefined;
+    const row = getDB().prepare('SELECT waveform FROM waveform_cache WHERE url_id = ?').get(urlId) as { waveform: string } | undefined;
     return row ? row.waveform : null;
 }
-
-initDB();
-export default db;

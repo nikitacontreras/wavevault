@@ -340,7 +340,8 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
 
     const currentAlbum = db.albums.find(a => a.id === selectedAlbumId);
     const filteredVersions = db.allVersions.filter(v => {
-        const matchesSearch = v.name.toLowerCase().includes(projectSearch.toLowerCase());
+        const name = v.name || "";
+        const matchesSearch = name.toLowerCase().includes(projectSearch.toLowerCase());
         if (!matchesSearch) return false;
 
         if (selectedWorkspaceId && v.workspaceId !== selectedWorkspaceId) return false;
@@ -850,7 +851,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
                             <div className="flex-1 overflow-y-auto min-h-0 space-y-2 pr-1 mb-6 projects-scroll">
                                 {db.allVersions
                                     .filter(v => v.isUnorganized === 1)
-                                    .filter(v => !linkSearch || v.name.toLowerCase().includes(linkSearch.toLowerCase()))
+                                    .filter(v => !linkSearch || (v.name && v.name.toLowerCase().includes(linkSearch.toLowerCase())))
                                     .map(version => (
                                         <button
                                             key={version.id}
@@ -870,7 +871,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
                                         </button>
                                     ))
                                 }
-                                {db.allVersions.filter(v => v.isUnorganized === 1).filter(v => !linkSearch || v.name.toLowerCase().includes(linkSearch.toLowerCase())).length === 0 && (
+                                {db.allVersions.filter(v => v.isUnorganized === 1).filter(v => !linkSearch || (v.name && v.name.toLowerCase().includes(linkSearch.toLowerCase()))).length === 0 && (
                                     <div className="text-center py-10 opacity-30 border border-dashed border-white/10 rounded-2xl">
                                         <p className="text-[10px] font-black uppercase tracking-widest">{t('projects.noResults')}</p>
                                     </div>

@@ -1,7 +1,5 @@
-import { app } from "electron";
-import fs from "node:fs";
-import path from "node:path";
 import { ffmpegBinaryPath, ffprobeBinaryPath } from "./ffmpeg";
+import { getConfigDB, setConfigDB } from "./db";
 
 export interface KeybindConfig {
     id: string;
@@ -19,7 +17,8 @@ export interface AppConfig {
     projectPaths: string[];
     keybinds: KeybindConfig[];
     minimizeToTray: boolean;
-    stemsQuality: 'standard' | 'best';
+    stemsQuality: 'standard' | 'best' | 'pro';
+    autoCheckUpdates: boolean;
 }
 
 export const DEFAULT_KEYBINDS: KeybindConfig[] = [
@@ -64,34 +63,31 @@ export const config: AppConfig = {
     projectPaths: [],
     keybinds: JSON.parse(JSON.stringify(DEFAULT_KEYBINDS)),
     minimizeToTray: true,
-    stemsQuality: 'standard'
+    stemsQuality: 'standard',
+    autoCheckUpdates: true
 };
-
-const CONFIG_PATH = path.join(app.getPath("userData"), "config.json");
 
 export function saveConfig() {
     try {
-        fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
+        setConfigDB('app_config', config);
     } catch (e) {
-        console.error("Failed to save config:", e);
+        console.error("Failed to save config to DB:", e);
     }
 }
 
 export function loadConfig() {
     try {
-        if (fs.existsSync(CONFIG_PATH)) {
-            const data = JSON.parse(fs.readFileSync(CONFIG_PATH, "utf-8"));
+        const data = getConfigDB('app_config');
+        if (data) {
             Object.assign(config, data);
         }
     } catch (e) {
-        console.error("Failed to load config:", e);
+        console.error("Failed to load config from DB:", e);
     }
 }
 
-// Initial load
-loadConfig();
-
-
+// Note: loadConfig() is called explicitly from IpcManager or Main startup
+// to avoid issues with DB initialization order.
 
 export function getPythonPath(): string {
     if (config.pythonPath && config.pythonPath.trim().length > 0) {
@@ -116,6 +112,7 @@ export function updateKeybind(id: string, accelerator: string): boolean {
     const keybind = config.keybinds.find(k => k.id === id);
     if (keybind) {
         keybind.accelerator = accelerator;
+        saveConfig();
         return true;
     }
     return false;
@@ -131,6 +128,6 @@ export function getMediaKeybinds(): KeybindConfig[] {
 
 export function resetKeybinds(): KeybindConfig[] {
     config.keybinds = JSON.parse(JSON.stringify(DEFAULT_KEYBINDS));
+    saveConfig();
     return config.keybinds;
 }
-

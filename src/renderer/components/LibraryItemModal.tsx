@@ -27,14 +27,14 @@ export const LibraryItemModal: React.FC<LibraryItemModalProps> = ({ item, onClos
     const [zoom, setZoom] = useState(0);
     const [isLooping, setIsLooping] = useState(false);
     const wavesurferRef = useRef<any>(null);
-    const { isSeparating, progress, stems: stemsResult, error: stemsError, separate } = useStems();
+    const { isSeparating, progress, stems: stemsResult, error: stemsError, separate } = useStems(item.path);
 
     const handleSeparateStems = async () => {
         try {
-            addStemsTask(item.path, item.title);
             // Use same directory as the original file but in a 'Stems' subfolder
-            const outDir = item.path.substring(0, item.path.lastIndexOf(window.api.platform === 'win32' ? '\\' : '/'));
-            await separate(item.path, outDir);
+            const lastSlash = item.path.lastIndexOf(window.api.platform === 'win32' ? '\\' : '/');
+            const outDir = item.path.substring(0, lastSlash || item.path.length);
+            await separate(item.path, outDir, item.title);
         } catch (err) {
             console.error(err);
         }
@@ -193,6 +193,18 @@ export const LibraryItemModal: React.FC<LibraryItemModalProps> = ({ item, onClos
                                     {progress}
                                 </div>
                                 <p className="text-[9px] text-wv-gray mt-2 uppercase tracking-widest opacity-60">Esto puede tardar un par de minutos según la duración del archivo</p>
+                            </div>
+                        )}
+
+                        {stemsError && (
+                            <div className={`p-4 rounded-xl border animate-in slide-in-from-top-4 ${isDark ? "bg-red-500/10 border-red-500/20" : "bg-red-50 border-red-200"}`}>
+                                <div className="flex items-center gap-3 mb-2">
+                                    <X size={16} className={`${isDark ? "text-red-400" : "text-red-600"}`} />
+                                    <span className="text-xs font-bold uppercase tracking-widest">Error en la separación</span>
+                                </div>
+                                <p className={`text-[10px] leading-relaxed ${isDark ? "text-red-300/80" : "text-red-800/80"}`}>
+                                    {stemsError}
+                                </p>
                             </div>
                         )}
 

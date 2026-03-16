@@ -100,9 +100,10 @@ export const useDownloadHandlers = () => {
             };
             addToHistory(newItem);
         } catch (e: any) {
-            updateItemState(id, { status: 'error', msg: 'Error' });
-            updateActiveDownload(url, { status: 'error', msg: 'Error' });
-            addLog("❌ Error en descarga: " + e.message);
+            console.error("[useDownloadHandlers] Remote Download Error:", e);
+            updateItemState(id, { status: 'error', msg: e.message || 'Error desconocido' });
+            updateActiveDownload(url, { status: 'error', msg: e.message || 'Error desconocido' });
+            addLog("❌ Error en descarga: " + (e.message || "Error desconocido"));
         }
     }, [config, itemStates, updateItemState, addLog, addToHistory, addActiveDownload, updateActiveDownload]);
 

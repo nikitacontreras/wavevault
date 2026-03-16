@@ -53,14 +53,16 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
 
     const filteredHistory = useMemo(() => {
         return [...history].reverse().filter(item => {
-            const matchesSearch = item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                item.channel.toLowerCase().includes(searchTerm.toLowerCase());
+            const title = item.title || "";
+            const channel = item.channel || "";
+            const matchesSearch = title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                channel.toLowerCase().includes(searchTerm.toLowerCase());
             const matchesFormat = formatFilter === "all" || item.format === formatFilter;
             const matchesBpmMin = bpmMin === "" || (item.bpm && item.bpm >= parseInt(bpmMin));
             const matchesBpmMax = bpmMax === "" || (item.bpm && item.bpm <= parseInt(bpmMax));
             const matchesKey = keyFilter === "all" || item.key === keyFilter;
             const matchesCategory = categoryFilter === "all" || item.category === categoryFilter;
-            const matchesTags = tagSearch === "" || (item.tags && item.tags.some(t => t.toLowerCase().includes(tagSearch.toLowerCase())));
+            const matchesTags = tagSearch === "" || (item.tags && item.tags.some(t => t && t.toLowerCase().includes(tagSearch.toLowerCase())));
 
             return matchesSearch && matchesFormat && matchesBpmMin && matchesBpmMax && matchesKey && matchesCategory && matchesTags;
         });

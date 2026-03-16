@@ -99,15 +99,22 @@ export const App: React.FC = () => {
         return () => { unsub(); };
     }, [playingUrl, handleTogglePreview, updateConfig, handleDownloadFromUrl, seek, currentTime, duration]);
 
-    // Sync State to Remote
+    // Sync State to Remote (Throttled to once per second unless status changes)
+    const lastRemoteUpdateRef = useRef<number>(0);
     useEffect(() => {
-        window.api.updateRemoteState({
-            isPlaying,
-            volume: config.volume,
-            track: activeTrack,
-            currentTime,
-            duration
-        });
+        const now = Date.now();
+        const shouldUpdate = isPlaying !== !!lastRemoteUpdateRef.current || (now - lastRemoteUpdateRef.current > 1000);
+
+        if (shouldUpdate) {
+            window.api.updateRemoteState({
+                isPlaying,
+                volume: config.volume,
+                track: activeTrack,
+                currentTime,
+                duration
+            });
+            lastRemoteUpdateRef.current = now;
+        }
     }, [isPlaying, config.volume, activeTrack, currentTime, duration]);
 
     if (!dependencies) {

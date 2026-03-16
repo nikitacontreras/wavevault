@@ -10,8 +10,8 @@
     "electron": "export NODE_ENV=development && node scripts/build.js && electron src/main/boot.js",
     "start": "npm run build && electron dist/main/main.js",
     "build:python": "node scripts/build_python.js",
-    "build": "npm run build:python && node scripts/build.js && tsc",
-    "dist": "npm run build:python && electron-builder",
+    "build": "export NODE_ENV=production && npm run build:python && node scripts/build.js && tsc",
+    "dist": "npm run build",
     "release": "npm run build && npm version patch && npm run dist"
   },
   "build": {

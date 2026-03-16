@@ -1,4 +1,4 @@
-import { ipcMain, dialog, app, shell, clipboard } from 'electron';
+import { ipcMain, dialog, app, shell, clipboard, nativeImage } from 'electron';
 import fs from 'fs';
 import { createSuccessResponse, createErrorResponse } from '../core/ApiResponse';
 import { processJob, fetchMeta, getStreamUrl, searchYoutube, batchSearchAndStream, fetchPlaylistMeta } from '../downloader';
@@ -308,5 +308,27 @@ export function setupIpcHandlers() {
     ipcMain.handle("window-close", () => {
         wm.mainWindow?.close();
         return createSuccessResponse(true);
+    });
+
+    ipcMain.on('start-drag', (event, filePath, iconPath) => {
+        if (!fs.existsSync(filePath)) return;
+
+        let icon;
+        if (iconPath && fs.existsSync(iconPath)) {
+            icon = nativeImage.createFromPath(iconPath).resize({ width: 32, height: 32 });
+        } else {
+            // Use app icon as fallback
+            const defaultIconPath = path.join(process.cwd(), 'build', 'icon.png');
+            if (fs.existsSync(defaultIconPath)) {
+                icon = nativeImage.createFromPath(defaultIconPath).resize({ width: 32, height: 32 });
+            } else {
+                icon = nativeImage.createEmpty();
+            }
+        }
+
+        event.sender.startDrag({
+            file: filePath,
+            icon: icon
+        });
     });
 }

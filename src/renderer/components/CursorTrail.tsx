@@ -57,6 +57,12 @@ export const CursorTrail: React.FC<{ isDragging: boolean }> = ({ isDragging }) =
         let animationFrame: number;
 
         const render = () => {
+            if (pointsRef.current.length === 0) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                animationFrame = requestAnimationFrame(render);
+                return;
+            }
+
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             // Advance age

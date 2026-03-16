@@ -15,7 +15,8 @@ interface AppConfig {
     ffprobePath: string | null;
     keybinds: KeybindConfig[];
     minimizeToTray: boolean;
-    stemsQuality: 'standard' | 'best';
+    stemsQuality: 'standard' | 'best' | 'pro';
+    autoCheckUpdates: boolean;
     format: 'mp3' | 'wav' | 'flac' | 'm4a' | 'ogg' | 'aiff';
     bitrate: string;
     sampleRate: string;
@@ -46,6 +47,7 @@ const DEFAULT_CONFIG: AppConfig = {
     keybinds: [],
     minimizeToTray: localStorage.getItem('minimizeToTray') !== 'false',
     stemsQuality: (localStorage.getItem('stemsQuality') as any) || 'standard',
+    autoCheckUpdates: localStorage.getItem('autoCheckUpdates') !== 'false',
     format: (localStorage.getItem('format') as any) || 'mp3',
     bitrate: localStorage.getItem('bitrate') || '192k',
     sampleRate: localStorage.getItem('sampleRate') || '44100',

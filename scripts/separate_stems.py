@@ -7,6 +7,10 @@ import multiprocessing
 if __name__ == '__main__':
     multiprocessing.freeze_support()
 
+# Feedback inmediato
+print(json.dumps({"type": "progress", "data": "Cargando dependencias de IA..."}))
+sys.stdout.flush()
+
 try:
     import numpy
     import torch
@@ -19,12 +23,22 @@ except ImportError as e:
 def separate_stems_logic(file_path, output_root, quality="standard"):
     try:
         # SELECCIÓN DE MODELO SEGÚN CALIDAD
-        # standard = htdemucs (Rápido)
-        # best = htdemucs_ft (Fine-tuned, lento, pero mucho más limpio)
-        model = "htdemucs_ft" if quality == "best" else "htdemucs"
-        shifts = 2 if quality == "best" else 1
+        # standard = htdemucs (Rápido, 4 pistas)
+        # best = htdemucs_ft (Fine-tuned, 4 pistas, muy limpio)
+        # pro = htdemucs_6s (6 pistas: incluye Guitarra y Piano)
         
-        print(json.dumps({"type": "progress", "data": f"Modo: {quality.upper()} | Modelo: {model}..."}))
+        q = str(quality).strip().lower()
+        if q == "pro":
+            model = "htdemucs_6s"
+            shifts = 1
+        elif q == "best":
+            model = "htdemucs_ft"
+            shifts = 2
+        else:
+            model = "htdemucs"
+            shifts = 1
+        
+        print(json.dumps({"type": "progress", "data": f"Modo IA: {q.upper()} | Modelo: {model}"}))
         sys.stdout.flush()
 
         os.makedirs(output_root, exist_ok=True)
@@ -74,8 +88,22 @@ def separate_stems_logic(file_path, output_root, quality="standard"):
         print(json.dumps({"type": "error", "data": f"Error crítico: {str(e)}"}))
 
 if __name__ == "__main__":
-    if len(sys.argv) >= 3:
-        file_path = sys.argv[1]
-        output_dir = sys.argv[2]
-        quality = sys.argv[3] if len(sys.argv) > 3 else "standard"
+    # Soporte para subcomandos (ej: 'separate file out quality')
+    args = sys.argv[1:]
+    if len(args) > 0 and args[0] == "separate":
+        args = args[1:]
+    
+    if len(args) >= 2:
+        file_path = args[0]
+        output_dir = args[1]
+        # Look for quality in remaining args
+        quality = "standard"
+        for potential_q in args[2:]:
+            if potential_q.lower() in ["standard", "best", "pro"]:
+                quality = potential_q.lower()
+                break
+        
+        # print(json.dumps({"type": "progress", "data": f"DEBUG: Using quality={quality}"}))
         separate_stems_logic(file_path, output_dir, quality)
+    else:
+        print(json.dumps({"type": "error", "data": "Argumentos insuficientes. Uso: python separate_stems.py [separate] file_path output_dir [quality]"}))

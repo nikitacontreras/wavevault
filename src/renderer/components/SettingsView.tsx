@@ -1,6 +1,7 @@
 import React from "react";
 import { TargetFormat, Bitrate, SampleRate } from "../types";
-import { Settings, FileAudio, BarChart3, Waves, FolderSync, Trash2, Cpu, Activity, Info, Command, Globe } from "lucide-react";
+import { Settings, FileAudio, BarChart3, Waves, FolderSync, Trash2, Cpu, Activity, Info, Command, Globe, Smartphone, Check, X } from "lucide-react";
+import { QRCodeSVG } from 'qrcode.react';
 import { KeybindManager } from "./KeybindManager";
 import { useTranslation } from "react-i18next";
 
@@ -37,6 +38,189 @@ const AdvancedPathInput = ({ label, value, onChange, placeholder, isDark }: { la
     );
 };
 
+const RemoteSettingsSection = ({ isDark }: { isDark: boolean }) => {
+    const [enabled, setEnabled] = React.useState(false);
+    const [serverInfo, setServerInfo] = React.useState<{ ip: string; port: number } | null>(null);
+    const [pendingReq, setPendingReq] = React.useState<{ id: string; name: string; code: string } | null>(null);
+    const [status, setStatus] = React.useState<{ trustedDevices: any[], activePeers: any[] }>({ trustedDevices: [], activePeers: [] });
+
+    React.useEffect(() => {
+        // Listen for pairing requests
+        const unsubPairing = window.api.onRemotePairingRequest((req: any) => {
+            setPendingReq(req);
+        });
+
+        const unsubStatus = window.api.onRemoteStatusUpdate((data: any) => {
+            setStatus(data);
+        });
+
+        // Initialize status if already enabled
+        const checkStatus = async () => {
+            const res = await window.api.getRemoteStatus();
+            if (res) setStatus(res);
+        };
+        checkStatus();
+
+        return () => {
+            unsubPairing();
+            unsubStatus();
+        };
+    }, []);
+
+    const toggleRemote = async () => {
+        if (enabled) {
+            await window.api.stopRemote();
+            setEnabled(false);
+            setServerInfo(null);
+        } else {
+            const info = await window.api.startRemote();
+            if (info) {
+                setServerInfo(info);
+                setEnabled(true);
+                const res = await window.api.getRemoteStatus();
+                if (res) setStatus(res);
+            }
+        }
+    };
+
+    const handleApprove = async () => {
+        if (!pendingReq) return;
+        await window.api.approvePairing(pendingReq.id);
+        setPendingReq(null);
+    };
+
+    const handleReject = async () => {
+        if (!pendingReq) return;
+        await window.api.rejectPairing(pendingReq.id);
+        setPendingReq(null);
+    };
+
+    const handleForget = async (id: string) => {
+        await window.api.forgetDevice(id);
+    };
+
+    const remoteUrl = serverInfo ? `http://${serverInfo.ip}:${serverInfo.port}` : '';
+
+    return (
+        <div className="flex flex-col gap-6">
+            <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-1">
+                    <span className={`text-[11px] font-bold uppercase tracking-wider ${isDark ? "text-white" : "text-black"}`}>Enable Remote Control</span>
+                    <span className="text-[9px] text-wv-gray uppercase font-medium tracking-widest opacity-60">Control playback from your phone</span>
+                </div>
+                <div className="relative">
+                    <input
+                        type="checkbox"
+                        className="sr-only"
+                        checked={enabled}
+                        onChange={toggleRemote}
+                    />
+                    <div className={`w-10 h-6 rounded-full transition-colors cursor-pointer ${enabled ? "bg-green-500" : (isDark ? "bg-white/10" : "bg-black/10")}`} onClick={toggleRemote} />
+                    <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform pointer-events-none ${enabled ? "translate-x-4" : ""}`} />
+                </div>
+            </div>
+
+            {enabled && serverInfo && (
+                <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-top-2">
+                    <div className="flex gap-6">
+                        <div className={`p-4 rounded-xl border flex flex-col items-center gap-4 ${isDark ? "bg-white border-none text-black" : "bg-white border-black/[0.08]"}`}>
+                            <QRCodeSVG value={remoteUrl} size={120} />
+                            <div className="flex flex-col items-center">
+                                <span className="text-[8px] font-bold uppercase tracking-widest text-black/50">Scan to Connect</span>
+                            </div>
+                        </div>
+                        <div className="flex-1 flex flex-col justify-center gap-2">
+                            <div className="flex flex-col gap-1">
+                                <span className="text-[9px] font-bold text-wv-gray uppercase tracking-widest">Local URL</span>
+                                <div className={`p-2 rounded font-mono text-xs select-all ${isDark ? "bg-white/5" : "bg-black/5"}`}>
+                                    {remoteUrl}
+                                </div>
+                            </div>
+
+                            {pendingReq ? (
+                                <div className={`mt-4 p-3 rounded-xl border border-dashed flex flex-col gap-3 ${isDark ? "bg-yellow-500/10 border-yellow-500/50" : "bg-yellow-500/10 border-yellow-500/50"}`}>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-[10px] font-bold uppercase tracking-wider text-yellow-500">Pairing Request</span>
+                                        <span className="text-xs font-mono font-bold">{pendingReq.code}</span>
+                                    </div>
+                                    <div className="text-xs text-[11px] opacity-80">{pendingReq.name} wants to connect. Match the code code above.</div>
+                                    <div className="flex gap-2">
+                                        <button onClick={handleApprove} className="flex-1 bg-green-500 text-white text-[10px] font-bold uppercase py-1.5 rounded hover:bg-green-600 transition-colors flex items-center justify-center gap-1"><Check size={12} /> Allow</button>
+                                        <button onClick={handleReject} className="flex-1 bg-red-500 text-white text-[10px] font-bold uppercase py-1.5 rounded hover:bg-red-600 transition-colors flex items-center justify-center gap-1"><X size={12} /> Block</button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="mt-2 text-[10px] text-wv-gray italic flex items-center gap-2">
+                                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" /> Listening for devices...
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Devices Management */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        {/* Whitelist */}
+                        <div className="flex flex-col gap-4">
+                            <div className="flex flex-col gap-1">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-wv-gray">Trusted Devices</span>
+                                <div className={`h-[1px] w-full ${isDark ? "bg-white/5" : "bg-black/5"}`} />
+                            </div>
+                            <div className="space-y-2">
+                                {status.trustedDevices.length === 0 ? (
+                                    <div className="text-[10px] text-wv-gray italic opacity-40 py-4">No trusted devices yet</div>
+                                ) : (
+                                    status.trustedDevices.map(device => (
+                                        <div key={device.id} className={`flex items-center justify-between p-3 rounded-xl border ${isDark ? "bg-white/5 border-white/5" : "bg-black/5 border-black/5"}`}>
+                                            <div className="flex flex-col">
+                                                <span className="text-xs font-bold">{device.name}</span>
+                                                <span className="text-[8px] font-mono text-wv-gray uppercase">{device.id}</span>
+                                            </div>
+                                            <button
+                                                onClick={() => handleForget(device.id)}
+                                                className="p-1.5 text-wv-gray hover:text-red-500 transition-colors"
+                                            >
+                                                <Trash2 size={14} />
+                                            </button>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Active Peers */}
+                        <div className="flex flex-col gap-4">
+                            <div className="flex flex-col gap-1">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-wv-gray">Active Peers</span>
+                                <div className={`h-[1px] w-full ${isDark ? "bg-white/5" : "bg-black/5"}`} />
+                            </div>
+                            <div className="space-y-2">
+                                {status.activePeers.length === 0 ? (
+                                    <div className="text-[10px] text-wv-gray italic opacity-40 py-4">No connected devices</div>
+                                ) : (
+                                    status.activePeers.map(peer => (
+                                        <div key={peer.socketId} className={`flex items-center justify-between p-3 rounded-xl border ${isDark ? "bg-white/5 border-white/5" : "bg-black/5 border-black/5"}`}>
+                                            <div className="flex items-center gap-3">
+                                                <div className={`w-2 h-2 rounded-full ${peer.authorized ? "bg-green-500" : "bg-yellow-500"}`} />
+                                                <div className="flex flex-col">
+                                                    <span className="text-xs font-bold">{peer.name}</span>
+                                                    <span className={`text-[8px] font-black uppercase tracking-widest ${peer.authorized ? "text-green-500" : "text-yellow-500"}`}>
+                                                        {peer.authorized ? "Authorized" : "Pending Pairing"}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <span className="text-[8px] font-mono text-wv-gray select-all opacity-50">{peer.socketId}</span>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
 export const SettingsView: React.FC = () => {
     const { config, updateConfig, updateKeybind, resetKeybinds } = useSettings();
     const { logs, clearLogs, debugMode } = useApp();
@@ -48,7 +232,7 @@ export const SettingsView: React.FC = () => {
     const {
         format, bitrate, sampleRate, normalize, outDir,
         pythonPath, ffmpegPath, ffprobePath,
-        audioDeviceId, smartOrganize, minimizeToTray,
+        audioDeviceId, smartOrganize, minimizeToTray, autoCheckUpdates,
         discogsToken, lowPowerMode, stemsQuality, keybinds
     } = config;
 
@@ -65,6 +249,7 @@ export const SettingsView: React.FC = () => {
     const setMinimizeToTray = (m: boolean) => updateConfig({ minimizeToTray: m });
     const setDiscogsToken = (t: string) => updateConfig({ discogsToken: t });
     const setLowPowerMode = (l: boolean) => updateConfig({ lowPowerMode: l });
+    const setAutoCheckUpdates = (a: boolean) => updateConfig({ autoCheckUpdates: a });
     const setStemsQuality = (q: any) => updateConfig({ stemsQuality: q });
     const onPickDir = async () => { const p = await window.api.pickDir(); if (p) updateConfig({ outDir: p }); };
     const onClearLogs = clearLogs;
@@ -165,6 +350,23 @@ export const SettingsView: React.FC = () => {
                                 />
                                 <div className={`w-10 h-6 rounded-full transition-colors ${minimizeToTray ? "bg-blue-600" : (isDark ? "bg-white/10" : "bg-black/10")}`} />
                                 <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${minimizeToTray ? "translate-x-4" : ""}`} />
+                            </div>
+                        </label>
+
+                        <label className="flex items-center justify-between cursor-pointer group">
+                            <div className="flex flex-col gap-1">
+                                <span className={`text-[11px] font-bold uppercase tracking-wider ${isDark ? "text-white" : "text-black"}`}>{t('settings.autoCheckUpdates')}</span>
+                                <span className="text-[9px] text-wv-gray uppercase font-medium tracking-widest opacity-60">{t('settings.autoCheckUpdatesDesc')}</span>
+                            </div>
+                            <div className="relative">
+                                <input
+                                    type="checkbox"
+                                    className="sr-only"
+                                    checked={autoCheckUpdates}
+                                    onChange={(e) => setAutoCheckUpdates(e.target.checked)}
+                                />
+                                <div className={`w-10 h-6 rounded-full transition-colors ${autoCheckUpdates ? "bg-blue-600" : (isDark ? "bg-white/10" : "bg-black/10")}`} />
+                                <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${autoCheckUpdates ? "translate-x-4" : ""}`} />
                             </div>
                         </label>
 
@@ -390,13 +592,13 @@ export const SettingsView: React.FC = () => {
                             <div className="flex flex-col gap-1 mb-4">
                                 <span className={`text-[11px] font-bold uppercase tracking-wider ${isDark ? "text-white" : "text-black"}`}>{t('settings.stemsQuality')}</span>
                                 <span className="text-[9px] text-wv-gray uppercase font-medium tracking-widest opacity-60">
-                                    {stemsQuality === 'best' ? t('settings.stemsQualityBest') : t('settings.stemsQualityStandard')}
+                                    {stemsQuality === 'pro' ? t('settings.stemsQualityPro') : (stemsQuality === 'best' ? t('settings.stemsQualityBest') : t('settings.stemsQualityStandard'))}
                                 </span>
                             </div>
                             <div className={`flex p-1 rounded-xl gap-1 ${isDark ? "bg-black/20" : "bg-black/5"}`}>
                                 <button
                                     onClick={() => setStemsQuality('standard')}
-                                    className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${stemsQuality === 'standard'
+                                    className={`flex-1 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all ${stemsQuality === 'standard'
                                         ? (isDark ? "bg-white/10 text-white shadow-sm" : "bg-white text-black shadow-sm")
                                         : "text-wv-gray hover:text-wv-text"
                                         }`}
@@ -405,12 +607,21 @@ export const SettingsView: React.FC = () => {
                                 </button>
                                 <button
                                     onClick={() => setStemsQuality('best')}
-                                    className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${stemsQuality === 'best'
+                                    className={`flex-1 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all ${stemsQuality === 'best'
                                         ? (isDark ? "bg-amber-500 text-white shadow-sm" : "bg-amber-500 text-white shadow-sm")
                                         : "text-wv-gray hover:text-wv-text"
                                         }`}
                                 >
-                                    {t('common.best') || 'Best (AI+)'}
+                                    {t('common.best') || 'Best'}
+                                </button>
+                                <button
+                                    onClick={() => setStemsQuality('pro')}
+                                    className={`flex-1 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all ${stemsQuality === 'pro'
+                                        ? (isDark ? "bg-blue-600 text-white shadow-sm" : "bg-blue-600 text-white shadow-sm")
+                                        : "text-wv-gray hover:text-wv-text"
+                                        }`}
+                                >
+                                    {t('common.pro') || 'Pro (6S)'}
                                 </button>
                             </div>
                         </div>
@@ -426,6 +637,17 @@ export const SettingsView: React.FC = () => {
                         theme={theme}
                     />
 
+                </section>
+
+                <section className={`border rounded-2xl p-6 ${isDark ? "bg-wv-surface border-white/[0.05]" : "bg-wv-surface border-black/[0.08]"}`}>
+                    <div className={`flex items-center gap-2.5 mb-6 border-b pb-4 ${isDark ? "border-white/[0.05]" : "border-black/[0.08]"}`}>
+                        <Smartphone className="text-wv-gray" size={16} />
+                        <h3 className={`text-sm font-bold tracking-tight uppercase tracking-wider ${isDark ? "text-white" : "text-black"}`}>
+                            WaveVault Link (Remote)
+                        </h3>
+                    </div>
+
+                    <RemoteSettingsSection isDark={isDark} />
                 </section>
 
                 <section className={`border rounded-2xl p-6 ${isDark ? "bg-wv-surface border-white/[0.05]" : "bg-wv-surface border-black/[0.08]"}`}>

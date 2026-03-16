@@ -204,8 +204,8 @@ export const SpotlightView: React.FC<SpotlightViewProps> = ({ theme = 'dark' }) 
     return (
         <div className="h-screen w-screen flex flex-col p-2 select-none overflow-hidden" style={{ WebkitAppRegion: 'drag' } as any}>
             <div className={`
-                backdrop-blur-xl border rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-300 ease-out transition-colors
-                ${isDark ? "bg-wv-bg/95 border-white/10" : "bg-white/95 border-black/10"}
+                border rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-300 ease-out transition-colors
+                ${isDark ? "bg-wv-bg border-white/10" : "bg-white border-black/10"}
             `} style={{ WebkitAppRegion: 'no-drag' } as any}>
 
                 <form onSubmit={handleSubmit} className="flex items-center px-5 py-4 gap-4">

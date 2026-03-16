@@ -66,6 +66,10 @@ export class WindowManager {
             // This logic will be handled by the orchestrator
         });
 
+        this.mainWindow.on('closed', () => {
+            this.mainWindow = null;
+        });
+
         return this.mainWindow;
     }
 
@@ -94,6 +98,10 @@ export class WindowManager {
 
         this.spotlightWindow.on('blur', () => {
             this.spotlightWindow?.hide();
+        });
+
+        this.spotlightWindow.on('closed', () => {
+            this.spotlightWindow = null;
         });
 
         return this.spotlightWindow;

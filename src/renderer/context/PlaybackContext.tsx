@@ -52,8 +52,10 @@ export const PlaybackProvider: React.FC<{ children: ReactNode }> = ({ children }
             if (audioRef.current) {
                 if (!audioRef.current.paused) {
                     audioRef.current.pause();
-                } else {
-                    audioRef.current.play().catch(console.error);
+                } else if (!isPreviewLoading && audioRef.current.src && audioRef.current.src !== window.location.href) {
+                    audioRef.current.play().catch(err => {
+                        console.warn("[PlaybackContext] Play missed:", err.message);
+                    });
                 }
             }
             return;
@@ -92,7 +94,7 @@ export const PlaybackProvider: React.FC<{ children: ReactNode }> = ({ children }
             addLog("Error preview: " + e.message);
             stopPlayback();
         }
-    }, [playingUrl, isPlaying, history, addLog, stopPlayback]);
+    }, [playingUrl, isPreviewLoading, history, addLog, stopPlayback]);
 
     // Auto-play when streamUrl changes
     useEffect(() => {
@@ -106,6 +108,13 @@ export const PlaybackProvider: React.FC<{ children: ReactNode }> = ({ children }
             }
         }
     }, [streamUrl]);
+
+    // Volume Sync
+    useEffect(() => {
+        if (audioRef.current) {
+            audioRef.current.volume = config.volume;
+        }
+    }, [config.volume]);
 
     // Keyboard Shortcuts
     useEffect(() => {

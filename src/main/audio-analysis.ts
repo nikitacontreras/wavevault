@@ -6,11 +6,17 @@ import { getFFmpegPath, getFFprobePath } from "./config";
 
 
 
+import { getClassifyAudioPath } from './binaries';
+
 export async function analyzeBPM(filePath: string): Promise<number | undefined> {
     try {
-        const scriptPath = path.join(process.cwd(), 'scripts', 'classify_audio.py');
+        const binPath = getClassifyAudioPath();
         const { PythonShell } = require('./python-shell');
-        const result = await PythonShell.run(scriptPath, [filePath]);
+
+        const isUnified = binPath.includes('ai_engine');
+        const args = isUnified ? ['classify', filePath] : [filePath];
+
+        const result = await PythonShell.run(binPath, args);
         const data = JSON.parse(result.stdout);
 
         if (data.success && data.features && data.features.bpm) {
@@ -46,9 +52,13 @@ export async function analyzeBPM(filePath: string): Promise<number | undefined> 
 
 export async function analyzeKey(filePath: string): Promise<string | undefined> {
     try {
-        const scriptPath = path.join(process.cwd(), 'scripts', 'classify_audio.py');
+        const binPath = getClassifyAudioPath();
         const { PythonShell } = require('./python-shell');
-        const result = await PythonShell.run(scriptPath, [filePath]);
+
+        const isUnified = binPath.includes('ai_engine');
+        const args = isUnified ? ['classify', filePath] : [filePath];
+
+        const result = await PythonShell.run(binPath, args);
         const data = JSON.parse(result.stdout);
 
         if (data.success && data.key) {

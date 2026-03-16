@@ -1,4 +1,4 @@
-import { ipcMain, dialog, app, shell, clipboard } from 'electron';
+import { ipcMain, dialog, app, shell, clipboard, nativeImage } from 'electron';
 import fs from 'fs';
 import { createSuccessResponse, createErrorResponse } from '../core/ApiResponse';
 import { processJob, fetchMeta, getStreamUrl, searchYoutube, batchSearchAndStream, fetchPlaylistMeta } from '../downloader';
@@ -11,7 +11,7 @@ import {
     getWorkspacesDB, getDAWPathsDB, saveDAWPathDB, getLocalFilesByCategoryDB,
     getLocalFilesGroupedDB
 } from '../db';
-import { separateStems } from '../stems';
+import { separateStems, getStemsStatus, getAllStemsStatuses } from '../stems';
 import { scanProjects } from '../projects';
 import { detectDAWs } from '../daws';
 import { checkDependencies } from '../dependencies';
@@ -19,19 +19,24 @@ import { convertFile } from '../converter';
 import { WindowManager } from './WindowManager';
 import { indexLocalConnect } from '../localLibrary';
 import { ShortcutManager } from './ShortcutManager';
+import { UpdateManager } from './UpdateManager';
 import path from 'path';
 
 export function setupIpcHandlers() {
     console.log("Registering IPC Handlers...");
     const wm = WindowManager.getInstance();
+    const updateManager = UpdateManager.getInstance();
 
     // Downloads
-    ipcMain.handle("download", async (_evt, url, format, bitrate, sampleRate, normalize, outDir, smartOrganize) => {
+    ipcMain.handle("download", async (evt, url, format, bitrate, sampleRate, normalize, outDir, smartOrganize) => {
         try {
             const result = await processJob({
                 url, outDir: outDir || app.getPath("music"),
                 format, bitrate, sampleRate, normalize, smartOrganize,
-                signal: new AbortController().signal
+                signal: new AbortController().signal,
+                onProgress: (msg) => {
+                    evt.sender.send("download-progress", { url, message: msg });
+                }
             });
             return createSuccessResponse(result);
         } catch (e: any) {
@@ -160,6 +165,14 @@ export function setupIpcHandlers() {
         }
     });
 
+    ipcMain.handle("stems:status", async (_evt, filePath) => {
+        return createSuccessResponse(getStemsStatus(filePath));
+    });
+
+    ipcMain.handle("stems:all-statuses", async () => {
+        return createSuccessResponse(getAllStemsStatuses());
+    });
+
     ipcMain.handle("create-album", async (_evt, name, artist) => createSuccessResponse(createAlbumDB(name, artist)));
     ipcMain.handle("update-album", async (_evt, albumId, updates) => createSuccessResponse(updateAlbumDB(albumId, updates)));
     ipcMain.handle("delete-album", async (_evt, albumId) => createSuccessResponse(deleteAlbumDB(albumId)));
@@ -219,7 +232,15 @@ export function setupIpcHandlers() {
     });
 
     ipcMain.handle("trim-audio", () => createErrorResponse("Not implemented"));
-    ipcMain.handle("check-for-updates", () => createSuccessResponse(null));
+    ipcMain.handle("check-for-updates", () => {
+        return updateManager.checkForUpdates();
+    });
+    ipcMain.handle("update:download", () => {
+        return updateManager.downloadUpdate();
+    });
+    ipcMain.handle("update:install", () => {
+        return updateManager.installUpdate();
+    });
 
     // Peak & Waveforms
     ipcMain.handle("save-peaks", async (_evt, type, id, peaks) => {
@@ -238,8 +259,76 @@ export function setupIpcHandlers() {
         else wm.mainWindow?.maximize();
         return createSuccessResponse(true);
     });
+    // Remote Server
+    ipcMain.handle("remote:start", async () => {
+        try {
+            const { startRemoteServer } = require('../remote');
+            const res = await startRemoteServer();
+            return createSuccessResponse(res);
+        } catch (e: any) {
+            return createErrorResponse(e.message);
+        }
+    });
+
+    ipcMain.handle("remote:stop", async () => {
+        const { stopRemoteServer } = require('../remote');
+        stopRemoteServer();
+        return createSuccessResponse(true);
+    });
+
+    ipcMain.handle("remote:approve", async (_evt, deviceId) => {
+        const { approvePairing } = require('../remote');
+        const success = approvePairing(deviceId);
+        return createSuccessResponse(success);
+    });
+
+    ipcMain.handle("remote:reject", async (_evt, deviceId) => {
+        const { rejectPairing } = require('../remote');
+        rejectPairing(deviceId);
+        return createSuccessResponse(true);
+    });
+
+    ipcMain.handle("remote:update-state", (_evt, state) => {
+        const { broadcastState } = require('../remote');
+        broadcastState(state);
+        return createSuccessResponse(true);
+    });
+
+    ipcMain.handle("remote:get-status", async () => {
+        const { getRemoteStatus } = require('../remote');
+        return createSuccessResponse(getRemoteStatus());
+    });
+
+    ipcMain.handle("remote:forget-device", async (_evt, deviceId) => {
+        const { forgetDevice } = require('../remote');
+        forgetDevice(deviceId);
+        return createSuccessResponse(true);
+    });
+
     ipcMain.handle("window-close", () => {
         wm.mainWindow?.close();
         return createSuccessResponse(true);
+    });
+
+    ipcMain.on('start-drag', (event, filePath, iconPath) => {
+        if (!fs.existsSync(filePath)) return;
+
+        let icon;
+        if (iconPath && fs.existsSync(iconPath)) {
+            icon = nativeImage.createFromPath(iconPath).resize({ width: 32, height: 32 });
+        } else {
+            // Use app icon as fallback
+            const defaultIconPath = path.join(process.cwd(), 'build', 'icon.png');
+            if (fs.existsSync(defaultIconPath)) {
+                icon = nativeImage.createFromPath(defaultIconPath).resize({ width: 32, height: 32 });
+            } else {
+                icon = nativeImage.createEmpty();
+            }
+        }
+
+        event.sender.startDrag({
+            file: filePath,
+            icon: icon
+        });
     });
 }

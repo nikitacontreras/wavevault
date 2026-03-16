@@ -192,14 +192,16 @@ export const LibraryView: React.FC<{ onStartDrag?: () => void }> = ({ onStartDra
 
     const filteredHistory = useMemo(() => {
         return [...history].reverse().filter(item => {
-            const matchesSearch = item.title.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-                item.channel.toLowerCase().includes(debouncedSearch.toLowerCase());
+            const title = item.title || "";
+            const channel = item.channel || "";
+            const matchesSearch = title.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+                channel.toLowerCase().includes(debouncedSearch.toLowerCase());
             const matchesFormat = formatFilter === "all" || item.format === formatFilter;
             const matchesBpmMin = bpmMin === "" || (item.bpm && item.bpm >= parseInt(bpmMin));
             const matchesBpmMax = bpmMax === "" || (item.bpm && item.bpm <= parseInt(bpmMax));
             const matchesKey = keyFilter === "all" || item.key === keyFilter;
             const matchesCategory = categoryFilter === "all" || item.category === categoryFilter;
-            const matchesTags = debouncedTagSearch === "" || (item.tags && item.tags.some(t => t.toLowerCase().includes(debouncedTagSearch.toLowerCase())));
+            const matchesTags = debouncedTagSearch === "" || (item.tags && item.tags.some(t => t && t.toLowerCase().includes(debouncedTagSearch.toLowerCase())));
 
             return matchesSearch && matchesFormat && matchesBpmMin && matchesBpmMax && matchesKey && matchesCategory && matchesTags;
         });
@@ -279,7 +281,7 @@ export const LibraryView: React.FC<{ onStartDrag?: () => void }> = ({ onStartDra
                                     <select className={`border rounded-lg px-3 py-2 text-xs outline-none transition-all h-[34px] ${isDark ? "bg-wv-bg border-white/5 text-white focus:border-white/20" : "bg-white border-black/[0.08] text-black focus:border-black/20"}`} value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}>
                                         <option value="all">{t('common.any')}</option>
                                         <option value="Loops">Loops</option>
-                                        <option value="One-shote">One-shots</option>
+                                        <option value="One-shot">{t('common.oneShots', 'One-shots')}</option>
                                         <option value="Vocals">Vocals</option>
                                         <option value="Presets">Presets</option>
                                     </select>

@@ -19,6 +19,8 @@ function guessInstrument(filename: string): string | null {
     if (lower.includes('fx') || lower.includes('riser') || lower.includes('noise')) return 'FX';
     if (lower.includes('pad')) return 'Pad';
     if (lower.includes('synth') || lower.includes('lead')) return 'Synth';
+    if (lower.includes('guitar')) return 'Guitar';
+    if (lower.includes('piano')) return 'Piano';
     return null;
 }
 
@@ -36,9 +38,17 @@ function guessType(duration: number, filename: string): 'One-Shot' | 'Loop' {
 let worker: Worker | null = null;
 const pendingCallbacks = new Map<string, (res: any) => void>();
 
-const workerPath = app.isPackaged
-    ? path.join(__dirname, 'index-worker.js')
-    : path.join(__dirname, 'index-worker.ts');
+const workerPath = (() => {
+    try {
+        const { app } = require('electron');
+        return app.isPackaged
+            ? path.join(__dirname, 'index-worker.js')
+            : path.join(__dirname, 'index-worker.ts');
+    } catch (e) {
+        // Worker fallback
+        return path.join(__dirname, 'index-worker.ts');
+    }
+})();
 
 function getWorker() {
     if (!worker) {
@@ -194,3 +204,64 @@ async function scanRecursive(dir: string, folderId: string) {
     broadcastProgress(folderId, 'completed', stats);
     scanStats.delete(folderId);
 }
+
+/**
+ * Automatically index stems into the local library after separation
+ */
+export async function indexStemResults(stems: Record<string, string>) {
+    const stemPaths = Object.values(stems);
+    if (stemPaths.length === 0) return;
+
+    console.log(`[LocalLibrary] Indexing ${stemPaths.length} stems...`);
+
+    // 1. Get common directory
+    const firstPath = stemPaths[0];
+    const folderPath = path.dirname(firstPath);
+    const folderName = path.basename(folderPath);
+
+    // 2. Register Folder (or get existing from our updated DB helper)
+    const folder = addLocalFolderDB(folderPath, folderName);
+
+    // 3. Process each file
+    const currentWorker = getWorker();
+
+    for (const fullPath of stemPaths) {
+        const filename = path.basename(fullPath);
+        try {
+            const fileStats = await fs.stat(fullPath);
+
+            const res: any = await new Promise((resolve) => {
+                pendingCallbacks.set(fullPath, resolve);
+                currentWorker.postMessage(fullPath);
+            });
+
+            if (res.success) {
+                const instrument = res.category || guessInstrument(filename);
+                const type = guessType(res.duration, filename);
+
+                let tagsList = ["STEM"];
+                if (res.features) tagsList.push("AI_ANALYZED");
+                if (instrument) tagsList.push(instrument);
+
+                addLocalFileDB({
+                    folderId: folder.id,
+                    path: fullPath,
+                    filename: filename,
+                    type,
+                    instrument: instrument,
+                    key: res.key,
+                    bpm: res.bpm,
+                    duration: res.duration,
+                    size: fileStats.size,
+                    tags: JSON.stringify(tagsList)
+                });
+            }
+        } catch (err) {
+            console.error("Error indexing stem:", fullPath, err);
+        }
+    }
+
+    // 4. Broadcast completion to refresh UI for this specific folder
+    broadcastProgress(folder.id, 'completed');
+}
+

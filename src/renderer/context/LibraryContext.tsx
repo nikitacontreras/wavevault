@@ -20,6 +20,7 @@ interface LibraryContextType {
     activeStems: any[];
     addStemsTask: (filePath: string, title: string) => void;
     removeStemsTask: (filePath: string) => void;
+    separateStems: (filePath: string, outDir: string, title: string) => Promise<any>;
 }
 
 const LibraryContext = createContext<LibraryContextType | undefined>(undefined);
@@ -76,43 +77,90 @@ export const LibraryProvider: React.FC<{ children: ReactNode }> = ({ children })
 
     // Active Stems
     const [activeStems, setActiveStems] = useState<any[]>([]);
-    useEffect(() => {
-        return window.api.on('stems:update', ({ filePath, fileName, type, data }: any) => {
-            setActiveStems(prev => {
-                const existing = prev.find(s => s.filePath === filePath);
-                if (!existing) {
-                    return [...prev, {
-                        filePath, title: fileName,
-                        status: type === 'progress' ? 'loading' : 'idle',
-                        progress: type === 'progress' ? data : 0,
-                        msg: type === 'progress' ? `Procesando... ${data}%` : data
-                    }];
+
+    const updateStemsFromEvent = useCallback(({ filePath, fileName, type, data }: any) => {
+        console.log(`[LibraryContext] stems:update event for ${fileName}:`, { type, data });
+        setActiveStems(prev => {
+            const existing = prev.find(s => s.filePath === filePath);
+            const msg = type === 'progress'
+                ? (typeof data === 'number' ? `Separando pistas...` : data)
+                : (type === 'success' ? 'Completado' : data);
+
+            if (!existing) {
+                return [...prev, {
+                    filePath, title: fileName,
+                    status: type === 'progress' ? 'loading' : (type === 'success' ? 'success' : 'error'),
+                    progress: typeof data === 'number' ? data : 0,
+                    msg
+                }];
+            }
+            return prev.map(s => {
+                if (s.filePath === filePath) {
+                    return {
+                        ...s,
+                        status: type === 'progress' ? 'loading' : (type === 'success' ? 'success' : 'error'),
+                        progress: typeof data === 'number' ? data : s.progress,
+                        msg,
+                        data: type === 'success' ? data : s.data
+                    };
                 }
-                return prev.map(s => {
-                    if (s.filePath === filePath) {
-                        if (type === 'progress') return { ...s, status: 'loading', progress: data, msg: `Separando... ${data}%` };
-                        if (type === 'success') return { ...s, status: 'success', progress: 100, msg: 'Completado' };
-                        if (type === 'error') return { ...s, status: 'error', msg: data };
-                    }
-                    return s;
-                });
+                return s;
             });
         });
     }, []);
 
+    useEffect(() => {
+        // Sync with backend on startup
+        const syncStems = async () => {
+            try {
+                const statuses = await (window as any).api.getAllStemsStatuses();
+                console.log("[LibraryContext] Synced stems from backend:", statuses);
+                if (statuses && Array.isArray(statuses)) {
+                    setActiveStems(statuses.map(s => ({
+                        filePath: s.filePath,
+                        title: s.fileName,
+                        status: s.type === 'progress' ? 'loading' : (s.type === 'success' ? 'success' : 'error'),
+                        progress: typeof s.data === 'number' ? s.data : 0,
+                        msg: s.type === 'progress' ? (typeof s.data === 'number' ? `Separando pistas...` : s.data) : (s.type === 'success' ? 'Completado' : s.data),
+                        data: s.type === 'success' ? s.data : null
+                    })));
+                }
+            } catch (e) {
+                console.error("Failed to sync stems:", e);
+            }
+        };
+        syncStems();
+
+        return (window as any).api.on('stems:update', updateStemsFromEvent);
+    }, [updateStemsFromEvent]);
+
     const addStemsTask = useCallback((filePath: string, title: string) => {
-        setActiveStems(prev => [...prev.filter(s => s.filePath !== filePath), { filePath, title, status: 'loading', progress: 0, msg: 'En cola...' }]);
+        setActiveStems(prev => {
+            if (prev.some(s => s.filePath === filePath)) return prev;
+            return [...prev, { filePath, title, status: 'loading', progress: 0, msg: 'Iniciando...' }];
+        });
     }, []);
+
     const removeStemsTask = useCallback((filePath: string) => {
         setActiveStems(prev => prev.filter(s => s.filePath !== filePath));
     }, []);
+
+    const separateStems = useCallback(async (filePath: string, outDir: string, title: string) => {
+        addStemsTask(filePath, title);
+        try {
+            return await (window as any).api.separateStems(filePath, outDir);
+        } catch (e: any) {
+            console.error("Separate Stems Error:", e);
+            throw e;
+        }
+    }, [addStemsTask]);
 
     return (
         <LibraryContext.Provider value={{
             history, addToHistory, removeFromHistory, updateHistoryItem, clearHistory,
             itemStates, updateItemState, resetItemStates,
             activeDownloads, addActiveDownload, updateActiveDownload, removeActiveDownload,
-            activeStems, addStemsTask, removeStemsTask
+            activeStems, addStemsTask, removeStemsTask, separateStems
         }}>
             {children}
         </LibraryContext.Provider>

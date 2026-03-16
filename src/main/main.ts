@@ -5,12 +5,24 @@ import { WindowManager } from "./managers/WindowManager";
 import { setupIpcHandlers } from "./managers/IpcManager";
 import { ShortcutManager } from "./managers/ShortcutManager";
 import { TrayManager } from "./managers/TrayManager";
-import { config } from "./config";
+import { UpdateManager } from "./managers/UpdateManager";
+import { config, loadConfig } from "./config";
+import { initDB } from "./db";
+
 
 // App identity set in boot.js
 const isMac = process.platform === 'darwin';
 const appId = "com.strikemedia.wavevault";
 app.setAppUserModelId(appId);
+
+// Optimization flags for Mac production lag
+if (isMac) {
+    app.commandLine.appendSwitch('disable-renderer-backgrounding');
+    app.commandLine.appendSwitch('enable-gpu-rasterization');
+    app.commandLine.appendSwitch('enable-native-gpu-memory-buffers');
+    app.commandLine.appendSwitch('enable-zero-copy');
+    app.commandLine.appendSwitch('ignore-gpu-blocklist');
+}
 
 // Single Instance Lock
 const gotTheLock = app.requestSingleInstanceLock();
@@ -60,8 +72,16 @@ app.whenReady().then(() => {
         });
     }
 
+    // Initialize Database and Config
+    initDB();
+    loadConfig();
+
     // Setup Handlers early to avoid race conditions
     setupIpcHandlers();
+
+    // Trigger update check if enabled
+    UpdateManager.getInstance().init();
+
 
     // Initialize Windows
     wm.createMainWindow(preloadPath, rendererPath, isMac, template);

@@ -45,7 +45,10 @@ export class TrayManager {
             {
                 label: 'Show WaveVault',
                 click: () => {
-                    WindowManager.getInstance().mainWindow?.show();
+                    const win = WindowManager.getInstance().mainWindow;
+                    if (win && !win.isDestroyed()) {
+                        win.show();
+                    }
                 }
             },
             { type: 'separator' },
@@ -59,7 +62,10 @@ export class TrayManager {
 
         this.tray.setContextMenu(contextMenu);
         this.tray.on('double-click', () => {
-            WindowManager.getInstance().mainWindow?.show();
+            const win = WindowManager.getInstance().mainWindow;
+            if (win && !win.isDestroyed()) {
+                win.show();
+            }
         });
 
         return this.tray;

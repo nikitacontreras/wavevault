@@ -25,6 +25,8 @@ contextBridge.exposeInMainWorld("api", {
     getConfig: () => safeInvoke("get-config"),
     resetKeybinds: () => safeInvoke("reset-keybinds"),
     separateStems: (filePath: string, outDir: string) => safeInvoke("stems:separate", filePath, outDir),
+    getStemsStatus: (filePath: string) => safeInvoke("stems:status", filePath),
+    getAllStemsStatuses: () => safeInvoke("stems:all-statuses"),
 
     onStatus: (cb: (val: any) => void) => {
         const sub = (_evt: any, value: any) => cb(value);
@@ -63,6 +65,13 @@ contextBridge.exposeInMainWorld("api", {
 
     resizeSpotlight: (height: number) => safeInvoke("resize-spotlight", height),
     checkForUpdates: () => safeInvoke("check-for-updates"),
+    downloadUpdate: () => safeInvoke("update:download"),
+    installUpdate: () => safeInvoke("update:install"),
+    onUpdateEvent: (cb: (event: { type: string, data?: any }) => void) => {
+        const sub = (_evt: any, value: any) => cb(value);
+        ipcRenderer.on("update-event", sub);
+        return () => ipcRenderer.removeListener("update-event", sub);
+    },
     getAppVersion: () => safeInvoke("get-app-version"),
     openExternal: (url: string) => safeInvoke("open-external", url),
     getPlatformInfo: () => safeInvoke("get-platform-info"),
@@ -106,6 +115,30 @@ contextBridge.exposeInMainWorld("api", {
     convertFile: (job: any) => safeInvoke("convert-file", job),
     savePeaks: (type: string, id: string, peaks: any) => safeInvoke("save-peaks", type, id, peaks),
     getCachedPeaks: (id: string) => safeInvoke("get-cached-peaks", id),
+
+    // Remote Control
+    startRemote: () => safeInvoke("remote:start"),
+    stopRemote: () => safeInvoke("remote:stop"),
+    approvePairing: (deviceId: string) => safeInvoke("remote:approve", deviceId),
+    rejectPairing: (deviceId: string) => safeInvoke("remote:reject", deviceId),
+    updateRemoteState: (state: any) => safeInvoke("remote:update-state", state),
+    onRemotePairingRequest: (cb: (req: any) => void) => {
+        const sub = (_evt: any, value: any) => cb(value);
+        ipcRenderer.on("remote:pairing-request", sub);
+        return () => ipcRenderer.removeListener("remote:pairing-request", sub);
+    },
+    onRemoteCommand: (cb: (cmd: any) => void) => {
+        const sub = (_evt: any, value: any) => cb(value);
+        ipcRenderer.on("remote:command", sub);
+        return () => ipcRenderer.removeListener("remote:command", sub);
+    },
+    getRemoteStatus: () => safeInvoke("remote:get-status"),
+    forgetDevice: (deviceId: string) => safeInvoke("remote:forget-device", deviceId),
+    onRemoteStatusUpdate: (cb: (data: any) => void) => {
+        const sub = (_evt: any, value: any) => cb(value);
+        ipcRenderer.on("remote:status-updated", sub);
+        return () => ipcRenderer.removeListener("remote:status-updated", sub);
+    },
 
     on: (channel: string, callback: (data: any) => void) => {
         const subscription = (_event: any, data: any) => callback(data);

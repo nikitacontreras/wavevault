@@ -17,7 +17,13 @@ export async function analyzeBPM(filePath: string): Promise<number | undefined> 
         const args = isUnified ? ['classify', filePath] : [filePath];
 
         const result = await PythonShell.run(binPath, args);
-        const data = JSON.parse(result.stdout);
+        
+        // Robust JSON parsing: find the first { and last } to avoid noise/warnings
+        const rawOutput = result.stdout;
+        const jsonMatch = rawOutput.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) throw new Error("No JSON found in python output: " + rawOutput);
+        
+        const data = JSON.parse(jsonMatch[0]);
 
         if (data.success && data.features && data.features.bpm) {
             return Math.round(data.features.bpm);
@@ -59,7 +65,13 @@ export async function analyzeKey(filePath: string): Promise<string | undefined> 
         const args = isUnified ? ['classify', filePath] : [filePath];
 
         const result = await PythonShell.run(binPath, args);
-        const data = JSON.parse(result.stdout);
+        
+        // Robust JSON parsing: find the first { and last } to avoid noise/warnings
+        const rawOutput = result.stdout;
+        const jsonMatch = rawOutput.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) throw new Error("No JSON found in python output: " + rawOutput);
+        
+        const data = JSON.parse(jsonMatch[0]);
 
         if (data.success && data.key) {
             return data.key;

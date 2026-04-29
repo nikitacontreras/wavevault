@@ -68,13 +68,24 @@ export class PythonShell {
             }
         };
 
-        // If it's Windows or it's a binary (not needing python prefix explicitly)
-        // Note: yt-dlp on Unix often needs python prefix if not chmod +x
+        // Binary logic: 
+        // 1. If it's Windows, we always execute directly (extension handles it)
+        // 2. If it's a script (.py), we MUST use configPython prefix
+        // 3. If it's a binary without extension (like yt-dlp on Unix):
+        //    - Try direct execution (execa handles chmod +x and shebangs)
+        //    - If it fails with shebang issues or doesn't exist, we fallback
         const scriptExtensions = [".py", ".pyc"];
         const isScript = scriptExtensions.some(ext => bin.endsWith(ext));
 
         if (isWin || !isScript) {
-            return await execute(bin, runArgs);
+            if (fs.existsSync(bin)) {
+                return await execute(bin, runArgs);
+            } else {
+                // If the binary doesn't exist at the specific path, 
+                // it might be a script that needs python prefix or just missing
+                console.warn(`[PythonShell] Binary not found at ${bin}, attempting with ${configPython}`);
+                return await execute(configPython, [bin, ...runArgs]);
+            }
         } else {
             return await execute(configPython, [bin, ...runArgs]);
         }

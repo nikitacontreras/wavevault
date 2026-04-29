@@ -125,6 +125,7 @@ jobs:
 
       - name: Build Application
         run: npm run build
+        shell: bash
 
       - name: Package Application
         run: |

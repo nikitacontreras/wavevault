@@ -9,6 +9,9 @@
         "lightMode": "Modo Claro",
         "darkMode": "Modo Oscuro"
     },
+    "player": {
+        "none": "Ninguno"
+    },
     "discovery": {
         "title": "Crate Digging",
         "subtitle": "Descubre lanzamientos raros de Discogs y escúchalos al instante",
@@ -187,6 +190,7 @@
         "nested": "Anidado"
     },
     "settings": {
+        "general": "General",
         "title": "Preferencias",
         "audio": "Motor de Audio",
         "format": "Formato de Salida",
@@ -197,6 +201,7 @@
         "output": "Directorio Destino",
         "browse": "Buscar",
         "change": "Cambiar",
+        "keys": "Atajos de teclado",
         "smartOrganize": "Organización Inteligente",
         "smartOrganizeDesc": "Crear subcarpetas por Tonalidad (Camelot)",
         "smartOrganizeDesc2": "Crear carpetas por BPM/Key automáticamente",
@@ -303,6 +308,7 @@
         "noMatches": "No se encontraron coincidencias"
     },
     "header": {
+        "discovery": "Descubrimiento",
         "projects": "Gestor de Proyectos",
         "search": "Buscar",
         "library": "Librería",
@@ -310,5 +316,24 @@
     },
     "footer": {
         "selectFile": "Selecciona un archivo"
+    },
+    "updates": {
+        "checking": "Buscando actualizaciones...",
+        "available": "¡Nueva versión disponible!",
+        "notAvailable": "Sistema actualizado",
+        "downloading": "Descargando actualización",
+        "downloaded": "Actualización lista",
+        "error": "Error de actualización",
+        "errorNotFound": "No se pudo contactar con el servicio de actualizaciones. Por favor, revisa tu conexión a internet.",
+        "errorGeneric": "Hubo un error al buscar actualizaciones.",
+        "availableDesc": "La versión {{version}} ya está disponible. ¿Deseas probar las últimas mejoras?",
+        "notAvailableDesc": "Ya tienes la versión más reciente instalada. ¡Todo en orden!",
+        "downloadingDesc": "Descargando componentes del sistema...",
+        "downloadedDesc": "Se han descargado todos los archivos. Reinicia para aplicar los cambios.",
+        "checkingDesc": "Comprobando si hay nuevas funciones listas para ti.",
+        "updateNow": "Actualizar ahora",
+        "later": "Más tarde",
+        "restart": "Reiniciar y aplicar",
+        "understand": "Entendido"
     }
 }

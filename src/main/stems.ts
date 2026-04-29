@@ -245,7 +245,7 @@ class StemsQueue {
                     updateUI('progress', globalProgress);
                 } else {
                     // Si no hay porcentaje pero hay texto, podría ser un log de descarga o inicio
-                    const lines = str.split('\n').filter(l => l.trim().length > 0);
+                    const lines = str.split('\n').filter((l: string) => l.trim().length > 0);
                     const lastLine = lines[lines.length - 1]?.trim();
                     if (lastLine && lastLine.length < 100 && !lastLine.includes('|')) {
                         // Evitar ruido excesivo de logs internos de python si es posible

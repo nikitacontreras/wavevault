@@ -210,11 +210,23 @@ export function startRemoteServer(port = 0): Promise<{ port: number, ip: string 
         </div>
     </div>
 
+    <!-- Library Page -->
+    <div id="library-page" class="page">
+        <div class="section-header">Your Library</div>
+        <div class="results-list" id="library-list">
+            <div style="text-align:center; color:var(--secondary); margin-top:30px; font-size:12px;">Loading library...</div>
+        </div>
+    </div>
+
     <!-- Navigation -->
     <div class="nav-bar" id="nav-bar" style="display:none;">
         <div class="nav-item active" onclick="switchTab('player')">
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
             <span>Player</span>
+        </div>
+        <div class="nav-item" onclick="switchTab('library')">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5a2.5 2.5 0 0 0-0 5H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+            <span>Library</span>
         </div>
         <div class="nav-item" onclick="switchTab('search')">
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
@@ -230,9 +242,11 @@ export function startRemoteServer(port = 0): Promise<{ port: number, ip: string 
         const authScreen = document.getElementById('auth-screen');
         const playerPage = document.getElementById('player-page');
         const searchPage = document.getElementById('search-page');
+        const libraryPage = document.getElementById('library-page');
         const navBar = document.getElementById('nav-bar');
         const playIcon = document.getElementById('play-icon');
         const progressSlider = document.getElementById('progress-slider');
+        const libraryList = document.getElementById('library-list');
         
         let currentResults = [];
         let isUserSeeking = false;
@@ -324,16 +338,92 @@ export function startRemoteServer(port = 0): Promise<{ port: number, ip: string 
             });
         });
 
+        socket.on('library_data', (data) => {
+            libraryList.innerHTML = '';
+            const allTracks = [];
+            
+            // Flatten Albums -> Tracks -> Versions (Downloads)
+            if (data.albums) {
+                data.albums.forEach(album => {
+                    if (album.tracks) {
+                        album.tracks.forEach(track => {
+                            if (track.versions && track.versions.length > 0) {
+                                track.versions.forEach(v => {
+                                    allTracks.push({
+                                        id: v.id,
+                                        title: v.name || track.title,
+                                        artist: album.artist || 'Unknown',
+                                        path: v.path,
+                                        thumbnail: album.artwork || '',
+                                        type: 'Download'
+                                    });
+                                });
+                            }
+                        });
+                    }
+                });
+            }
+
+            // Flatten Local Folders -> Local Files
+            if (data.localFolders) {
+                data.localFolders.forEach(folder => {
+                    if (folder.files) {
+                        folder.files.forEach(file => {
+                            allTracks.push({
+                                id: file.id,
+                                title: file.filename,
+                                artist: folder.name || 'Local',
+                                path: file.path,
+                                thumbnail: '',
+                                type: 'Local'
+                            });
+                        });
+                    }
+                });
+            }
+
+            if (allTracks.length === 0) {
+                libraryList.innerHTML = '<div style="text-align:center; color:var(--secondary); margin-top:40px;">Library is empty</div>';
+                return;
+            }
+
+            allTracks.forEach((t) => {
+                const div = document.createElement('div');
+                div.className = 'result-item';
+                const safePath = t.path.replace(/\\\\/g, '\\').replace(/\\/g, '/'); // Normalize for JS string
+                div.innerHTML = \`
+                    <div class="result-thumb" style="display:flex; align-items:center; justify-content:center; background:var(--surface-light); font-size:20px; overflow:hidden;">
+                        \${t.thumbnail ? \`<img src="\${t.thumbnail}" class="result-thumb">\` : '🎵'}
+                    </div>
+                    <div class="result-info">
+                        <div class="result-title">\${t.title}</div>
+                        <div class="result-meta">\${t.artist}</div>
+                    </div>
+                    <div style="font-size: 8px; color: var(--secondary); background: rgba(255,255,255,0.05); padding: 2px 5px; border-radius: 4px; margin-right: 8px; border: 1px solid rgba(255,255,255,0.05); text-transform: uppercase; font-weight: bold;">\${t.type}</div>
+                    <button class="btn-result" onclick="playLibraryTrack('\${safePath.replace(/'/g, "\\\\'")}', '\${t.title.replace(/'/g, "\\\\'")}', '\${t.artist.replace(/'/g, "\\\\'")}', '\${t.thumbnail}')">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                    </button>
+                \`;
+                libraryList.appendChild(div);
+            });
+        });
+
         function switchTab(tab) {
             document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            playerPage.classList.remove('active');
+            searchPage.classList.remove('active');
+            libraryPage.classList.remove('active');
+
             if(tab === 'player') {
                 document.querySelector('.nav-item:nth-child(1)').classList.add('active');
                 playerPage.classList.add('active');
-                searchPage.classList.remove('active');
-            } else {
+            } else if(tab === 'library') {
                 document.querySelector('.nav-item:nth-child(2)').classList.add('active');
+                libraryPage.classList.add('active');
+                socket.emit('get_library');
+            } else if(tab === 'search') {
+                document.querySelector('.nav-item:nth-child(3)').classList.add('active');
                 searchPage.classList.add('active');
-                playerPage.classList.remove('active');
             }
         }
 
@@ -357,6 +447,11 @@ export function startRemoteServer(port = 0): Promise<{ port: number, ip: string 
         function requestPlay(idx) {
             const r = currentResults[idx];
             socket.emit('play_url', { url: r.url, title: r.title, thumbnail: r.thumbnail, channel: r.channel });
+            switchTab('player');
+        }
+
+        function playLibraryTrack(path, title, artist, thumbnail) {
+            socket.emit('play_url', { url: path, title, artist, thumbnail });
             switchTab('player');
         }
 
@@ -443,6 +538,12 @@ export function startRemoteServer(port = 0): Promise<{ port: number, ip: string 
                     console.error(`[Remote] Search failed for "${query}":`, e.message);
                     socket.emit('search_results', []);
                 }
+            });
+
+            socket.on('get_library', () => {
+                if (!socketDeviceId || !trustedDevices.some(d => d.id === socketDeviceId)) return;
+                const { getFullProjectDB } = require('./db');
+                socket.emit('library_data', getFullProjectDB());
             });
 
             socket.on('download', (data) => {

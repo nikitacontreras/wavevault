@@ -3,6 +3,7 @@ import { app } from 'electron';
 import { createSuccessResponse, createErrorResponse } from '../core/ApiResponse';
 import { config } from '../config';
 import { WindowManager } from './WindowManager';
+import { logEventDB } from '../db';
 
 export class UpdateManager {
     private static instance: UpdateManager;
@@ -32,7 +33,17 @@ export class UpdateManager {
 
         autoUpdater.on('error', (err) => {
             console.error('Update error:', err);
-            this.sendStatus('error', err.message || err.toString());
+            logEventDB('ERROR', 'update', err.message || 'Unknown update error', err);
+            
+            let message = err.message || err.toString();
+            // Handle specific technical errors with friendly keys
+            if (message.includes('ERR_UPDATER_CHANNEL_FILE_NOT_FOUND')) {
+                message = 'updates.errorNotFound';
+            } else {
+                message = 'updates.errorGeneric';
+            }
+            
+            this.sendStatus('error', message);
         });
 
         autoUpdater.on('download-progress', (progressObj) => {
@@ -85,8 +96,16 @@ export class UpdateManager {
             return createSuccessResponse(result);
         } catch (e: any) {
             console.error('Manual check failed:', e);
-            this.sendStatus('error', e.message);
-            return createErrorResponse(e.message);
+            
+            let message = e.message || e.toString();
+            if (message.includes('ERR_UPDATER_CHANNEL_FILE_NOT_FOUND')) {
+                message = 'updates.errorNotFound';
+            } else {
+                message = 'updates.errorGeneric';
+            }
+            
+            this.sendStatus('error', message);
+            return createErrorResponse(message);
         }
     }
 

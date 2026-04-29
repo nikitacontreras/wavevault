@@ -7,12 +7,12 @@
   "main": "dist/main/main.js",
   "scripts": {
     "dev": "npm run electron",
-    "electron": "export NODE_ENV=development && node scripts/build.js && electron src/main/boot.js",
+    "electron": "cross-env NODE_ENV=development node scripts/build.js && electron src/main/boot.js",
     "start": "npm run build && electron dist/main/main.js",
     "build:python": "node scripts/build_python.js",
-    "build": "export NODE_ENV=production && npm run build:python && node scripts/build.js && tsc",
+    "build": "cross-env NODE_ENV=production npm run build:python && node scripts/build.js && tsc",
     "dist": "npm run build",
-    "release": "npm run build && npm version patch && npm run dist"
+    "release": "cross-env NODE_ENV=production npm run build && npm version patch && npm run dist"
   },
   "build": {
     "appId": "com.strikemedia.wavevault",
@@ -70,6 +70,7 @@
   "devDependencies": {
     "@electron/rebuild": "^4.0.4",
     "@electron/remote": "^2.1.3",
+    "cross-env": "^7.0.3",
     "@types/better-sqlite3": "^7.6.13",
     "@types/fluent-ffmpeg": "^2.1.28",
     "@types/node": "^24.9.2",

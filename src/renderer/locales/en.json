@@ -297,5 +297,24 @@
     },
     "footer": {
         "selectFile": "Select a file"
+    },
+    "updates": {
+        "checking": "Checking for updates...",
+        "available": "New version available!",
+        "notAvailable": "System up to date",
+        "downloading": "Downloading update",
+        "downloaded": "Update ready",
+        "error": "Update error",
+        "errorNotFound": "Could not contact the update service. Please check your internet connection.",
+        "errorGeneric": "There was an error while checking for updates.",
+        "availableDesc": "Version {{version}} is now available. Want to try the latest improvements?",
+        "notAvailableDesc": "You already have the latest version installed. Everything is in order!",
+        "downloadingDesc": "Downloading system components...",
+        "downloadedDesc": "All files have been downloaded. Restart to apply changes.",
+        "checkingDesc": "Checking if there are new features ready for you.",
+        "updateNow": "Update Now",
+        "later": "Later",
+        "restart": "Restart and Apply",
+        "understand": "Understood"
     }
 }

@@ -173,6 +173,18 @@ export function initDB() {
         )
     `).run();
 
+    // 10. Logs Table
+    db.prepare(`
+        CREATE TABLE IF NOT EXISTS logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            level TEXT, -- INFO, WARN, ERROR
+            category TEXT, -- update, database, downloader, etc.
+            message TEXT,
+            details TEXT,
+            timestamp INTEGER
+        )
+    `).run();
+
     // Cleanup orphans from unorganized projects if they have no workspace
     db.prepare('DELETE FROM versions WHERE isUnorganized = 1 AND workspaceId IS NULL').run();
 
@@ -264,6 +276,9 @@ export function getFullProjectDB() {
         ORDER BY v.lastModified DESC
         `).all() as any[];
 
+    const localFolders = db.prepare('SELECT * FROM local_folders').all() as any[];
+    const localFiles = db.prepare('SELECT * FROM local_files').all() as any[];
+
     const result = {
         albums: albums.map(album => ({
             ...album,
@@ -272,7 +287,11 @@ export function getFullProjectDB() {
                 versions: allVersions.filter(v => v.trackId === track.id)
             }))
         })),
-        allVersions
+        allVersions,
+        localFolders: localFolders.map(folder => ({
+            ...folder,
+            files: localFiles.filter(f => f.folderId === folder.id)
+        }))
     };
 
     return result;
@@ -478,4 +497,21 @@ export function saveWaveformCacheDB(urlId: string, waveform: string) {
 export function getWaveformCacheDB(urlId: string) {
     const row = getDB().prepare('SELECT waveform FROM waveform_cache WHERE url_id = ?').get(urlId) as { waveform: string } | undefined;
     return row ? row.waveform : null;
+}
+
+// Log Helpers
+export function logEventDB(level: 'INFO' | 'WARN' | 'ERROR', category: string, message: string, details?: any) {
+    try {
+        const db = getDB();
+        db.prepare(`
+            INSERT INTO logs (level, category, message, details, timestamp)
+            VALUES (?, ?, ?, ?, ?)
+        `).run(level, category, message, details ? JSON.stringify(details) : null, Date.now());
+    } catch (e) {
+        console.error("[DB] Failed to log event:", e);
+    }
+}
+
+export function getLogsDB(limit = 100) {
+    return getDB().prepare('SELECT * FROM logs ORDER BY timestamp DESC LIMIT ?').all(limit) as any[];
 }

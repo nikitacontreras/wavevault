@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import { useApp, AppProvider } from "./context/AppContext";
 import { useSettings, SettingsProvider } from "./context/SettingsContext";

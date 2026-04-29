@@ -48,48 +48,35 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           NEW_TAG=${{ steps.bump.outputs.new_tag }}
-          
-          # Intentar encontrar la última release EXITOSA (con assets/binarios)
-          # Usamos gh api directamente porque gh release list a veces no expone 'assets'
           echo "Looking for last successful release..."
           LAST_SUCCESSFUL=$(gh api "repos/${{ github.repository }}/releases?per_page=20" --jq '[.[] | select(.assets | length > 0)][0].tag_name')
           
           if [ "$LAST_SUCCESSFUL" != "null" ] && [ ! -z "$LAST_SUCCESSFUL" ]; then
-            echo "Found last successful release: $LAST_SUCCESSFUL"
             PREV_TAG=$LAST_SUCCESSFUL
           else
-            echo "No successful previous release found via API. Falling back to git tags."
             PREV_TAG=$(git tag --sort=-v:refname | sed -n '2p')
           fi
           
-          echo "Generating changelog for $NEW_TAG (comparing against $PREV_TAG)"
-          
           echo "## Cambios en $NEW_TAG" > release_notes.md
           echo "" >> release_notes.md
-          
           if [ -z "$PREV_TAG" ]; then
             git log --pretty=format:"- %s (%h)" $NEW_TAG >> release_notes.md
           else
             git log --pretty=format:"- %s (%h)" $PREV_TAG..$NEW_TAG >> release_notes.md
           fi
-          
-          cat release_notes.md
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+      
+      - name: Save Release Notes
+        uses: actions/upload-artifact@v4
         with:
-          tag_name: ${{ steps.bump.outputs.new_tag }}
-          name: Release ${{ steps.bump.outputs.new_tag }}
-          body_path: release_notes.md
-          token: ${{ secrets.GITHUB_TOKEN }}
-          draft: false
-          prerelease: false
+          name: release-notes
+          path: release_notes.md
 
   build:
     name: Build (${{ matrix.os }})
     needs: bump-version
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: true
       matrix:
         os: [macos-latest, windows-latest, ubuntu-latest]
 
@@ -97,7 +84,6 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          # Importante: descargar el código con el bump ya hecho
           ref: ${{ needs.bump-version.outputs.new_tag }}
 
       - name: Free Disk Space (Ubuntu)
@@ -140,15 +126,57 @@ jobs:
       - name: Build Application
         run: npm run build
 
-      - name: Build and Publish
+      - name: Package Application
         run: |
           if [ "${{ runner.os }}" == "macOS" ]; then
-            npx electron-builder --publish always --x64 --arm64
+            npx electron-builder --mac --x64 --arm64
+          elif [ "${{ runner.os }}" == "Windows" ]; then
+            npx electron-builder --win
           else
-            npx electron-builder --publish always
+            npx electron-builder --linux
           fi
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts-${{ matrix.os }}
+          path: |
+            dist/*.dmg
+            dist/*.zip
+            dist/*.exe
+            dist/*.AppImage
+            dist/*.yml
+            dist/*.blockmap
+          retention-days: 1
+
+  release:
+    name: Create Release
+    needs: [bump-version, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: all-artifacts
+          merge-multiple: true
+
+      - name: Download Release Notes
+        uses: actions/download-artifact@v4
+        with:
+          name: release-notes
+          path: .
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.bump-version.outputs.new_tag }}
+          name: Release ${{ needs.bump-version.outputs.new_tag }}
+          body_path: release_notes.md
+          files: all-artifacts/**/*
+          token: ${{ secrets.GITHUB_TOKEN }}
+          draft: false
+          prerelease: false

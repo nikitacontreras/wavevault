@@ -83,6 +83,26 @@ declare global {
             getPlatformInfo: () => Promise<any>;
 
             startDrag: (filepath: string, iconpath?: string) => void;
+
+            // Remote Control
+            startRemote: () => Promise<{ ip: string; port: number } | null>;
+            stopRemote: () => Promise<void>;
+            approvePairing: (deviceId: string) => Promise<void>;
+            rejectPairing: (deviceId: string) => Promise<void>;
+            updateRemoteState: (state: any) => Promise<void>;
+            onRemotePairingRequest: (cb: (req: any) => void) => () => void;
+            onRemoteCommand: (cb: (cmd: any) => void) => () => void;
+            getRemoteStatus: () => Promise<any>;
+            forgetDevice: (deviceId: string) => Promise<void>;
+            onRemoteStatusUpdate: (cb: (data: any) => void) => () => void;
+
+            backupDB: () => Promise<void>;
+            restoreDB: () => Promise<void>;
+
+            // Updates
+            downloadUpdate: () => Promise<void>;
+            installUpdate: () => Promise<void>;
+            onUpdateEvent: (cb: (event: { type: 'error' | 'checking' | 'available' | 'not-available' | 'downloading' | 'downloaded'; data?: any }) => void) => () => void;
         };
     }
 }

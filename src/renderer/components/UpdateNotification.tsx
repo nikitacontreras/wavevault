@@ -68,20 +68,20 @@ export const UpdateNotification: React.FC = () => {
 
                         <div className="flex-1 pr-6">
                             <h4 className="text-[13px] font-bold leading-none tracking-tight">
-                                {event.type === 'checking' && "Buscando actualizaciones..."}
-                                {event.type === 'available' && "¡Nueva versión disponible!"}
-                                {event.type === 'not-available' && "Sistema actualizado"}
-                                {event.type === 'downloading' && "Descargando actualización"}
-                                {event.type === 'downloaded' && "Actualización lista"}
-                                {event.type === 'error' && "Error de actualización"}
+                                {event.type === 'checking' && t('updates.checking')}
+                                {event.type === 'available' && t('updates.available')}
+                                {event.type === 'not-available' && t('updates.notAvailable')}
+                                {event.type === 'downloading' && t('updates.downloading')}
+                                {event.type === 'downloaded' && t('updates.downloaded')}
+                                {event.type === 'error' && t('updates.error')}
                             </h4>
                             <p className={`mt-2 text-[11px] leading-relaxed opacity-60 font-medium`}>
-                                {event.type === 'available' && `La versión ${event.data.version} ya está disponible. ¿Deseas probar las últimas mejoras?`}
-                                {event.type === 'not-available' && "Ya tienes la versión más reciente instalada. ¡Todo en orden!"}
-                                {event.type === 'downloading' && `Descargando componentes del sistema... ${Math.round(event.data)}%`}
-                                {event.type === 'downloaded' && "Se han descargado todos los archivos. Reinicia para aplicar los cambios."}
-                                {event.type === 'error' && event.data}
-                                {event.type === 'checking' && "Comprobando si hay nuevas funciones listas para ti."}
+                                {event.type === 'available' && t('updates.availableDesc', { version: event.data.version, defaultValue: `La versión ${event.data.version} ya está disponible. ¿Deseas probar las últimas mejoras?` })}
+                                {event.type === 'not-available' && t('updates.notAvailableDesc', { defaultValue: "Ya tienes la versión más reciente instalada. ¡Todo en orden!" })}
+                                {event.type === 'downloading' && `${t('updates.downloadingDesc', { defaultValue: 'Descargando componentes del sistema...' })} ${Math.round(event.data)}%`}
+                                {event.type === 'downloaded' && t('updates.downloadedDesc', { defaultValue: "Se han descargado todos los archivos. Reinicia para aplicar los cambios." })}
+                                {event.type === 'error' && t(event.data, { defaultValue: `[DEBUG: ${event.data}] ${t('updates.errorGeneric')}` })}
+                                {event.type === 'checking' && t('updates.checkingDesc', { defaultValue: "Comprobando si hay nuevas funciones listas para ti." })}
                             </p>
 
                             <div className="mt-4 flex gap-2">
@@ -91,13 +91,13 @@ export const UpdateNotification: React.FC = () => {
                                             onClick={handleDownload}
                                             className="flex-1 bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold uppercase py-2 rounded-lg transition-all shadow-lg shadow-blue-600/20 active:scale-95"
                                         >
-                                            Actualizar ahora
+                                            {t('updates.updateNow')}
                                         </button>
                                         <button
                                             onClick={onClose}
                                             className={`flex-1 ${isDark ? "bg-white/5 hover:bg-white/10" : "bg-black/5 hover:bg-black/10"} text-[10px] font-bold uppercase py-2 rounded-lg transition-all active:scale-95`}
                                         >
-                                            Más tarde
+                                            {t('updates.later')}
                                         </button>
                                     </>
                                 )}
@@ -106,7 +106,7 @@ export const UpdateNotification: React.FC = () => {
                                         onClick={handleInstall}
                                         className="w-full bg-green-600 hover:bg-green-500 text-white text-[10px] font-bold uppercase py-2 rounded-lg transition-all shadow-lg shadow-green-600/20 active:scale-95"
                                     >
-                                        Reiniciar y aplicar
+                                        {t('updates.restart')}
                                     </button>
                                 )}
                                 {event.type === 'error' && (
@@ -114,7 +114,7 @@ export const UpdateNotification: React.FC = () => {
                                         onClick={onClose}
                                         className={`w-full ${isDark ? "bg-white/5 hover:bg-white/10" : "bg-black/5 hover:bg-black/10"} text-[10px] font-bold uppercase py-2 rounded-lg transition-all active:scale-95`}
                                     >
-                                        Entendido
+                                        {t('updates.understand')}
                                     </button>
                                 )}
                             </div>

@@ -44,7 +44,7 @@ app.on('second-instance', () => {
     }
 });
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
     const isDev = !app.isPackaged;
     const preloadPath = isDev
         ? path.resolve(__dirname, "../../dist/preload.js")
@@ -65,12 +65,11 @@ app.whenReady().then(() => {
         }
     ];
 
-    if (isDev) {
-        template.push({
-            label: 'Debug',
-            submenu: [{ role: 'reload' }, { role: 'toggleDevTools' }]
-        });
-    }
+    // Always show Debug menu for now to help troubleshooting
+    template.push({
+        label: 'Debug',
+        submenu: [{ role: 'reload' }, { role: 'toggleDevTools' }]
+    });
 
     // Initialize Database and Config
     initDB();

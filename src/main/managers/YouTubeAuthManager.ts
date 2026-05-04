@@ -35,13 +35,13 @@ export class YouTubeAuthManager {
             title: 'YouTube Login - WaveVault',
             show: false,
             backgroundColor: '#000000',
+            userAgent: standardUA,
             webPreferences: {
                 partition: 'persist:youtube',
                 nodeIntegration: false,
                 contextIsolation: true,
                 sandbox: true,
-                spellcheck: true,
-                userAgent: standardUA
+                spellcheck: true
             }
         });
 

@@ -1,4 +1,4 @@
-import execa from "execa";
+import { execa } from "execa";
 import { spawn, ChildProcess } from "child_process";
 import path from "node:path";
 import fs from "node:fs";

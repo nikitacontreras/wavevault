@@ -1,4 +1,4 @@
-import execa from "execa";
+import { execa } from "execa";
 import MusicTempo from "music-tempo";
 
 import path from "node:path";

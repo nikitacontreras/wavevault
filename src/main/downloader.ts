@@ -249,7 +249,7 @@ export async function fetchMeta(url: string): Promise<VideoMeta | any> {
             "--print", "{\"id\":%(id)j,\"title\":%(title)j,\"uploader\":%(uploader)j,\"upload_date\":%(upload_date)j,\"description\":%(description)j,\"thumbnail\":%(thumbnail)j,\"duration\":%(duration)j,\"streamUrl\":%(url)j}"
         ], { verbose: false });
 
-        const lines = stdout.split('\n').filter(l => l.trim().startsWith('{'));
+        const lines = stdout.split('\n').filter((l: string) => l.trim().startsWith('{'));
         if (lines.length === 0) throw new Error("No metadata found in output");
 
         const lastLine = lines[lines.length - 1];

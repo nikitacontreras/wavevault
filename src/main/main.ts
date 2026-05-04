@@ -65,11 +65,12 @@ app.whenReady().then(async () => {
         }
     ];
 
-    // Always show Debug menu for now to help troubleshooting
-    template.push({
-        label: 'Debug',
-        submenu: [{ role: 'reload' }, { role: 'toggleDevTools' }]
-    });
+    if (isDev) {
+        template.push({
+            label: 'Debug',
+            submenu: [{ role: 'reload' }, { role: 'toggleDevTools' }]
+        });
+    }
 
     // Initialize Database and Config
     initDB();

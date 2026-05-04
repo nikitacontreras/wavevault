@@ -10,56 +10,81 @@ import ytDlp from "yt-dlp-exec";
 import { analyzeBPM, analyzeKey, getDuration } from "./audio-analysis";
 import { getYtDlpPath } from "./binaries";
 import { PythonShell } from "./python-shell";
+import os from "node:os";
+import { YouTubeAuthManager } from "./managers/YouTubeAuthManager";
 
 // Global helper for running yt-dlp with the right environment/python
 async function runYtDlp(args: string[], options: any = {}) {
     const ytDlpBinary = getYtDlpPath();
+    let cookieFile: string | null = null;
 
-    // Robust flags to avoid 403 Forbidden and other extraction issues
-    const baseArgs = [
-        "--no-check-certificate",
-        "--no-warnings",
-        "--no-cache-dir",
-        "--force-ipv4",
-        "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-        "--referer", "https://www.google.com/",
-    ];
+    try {
+        // Robust flags to avoid 403 Forbidden and other extraction issues
+        const baseArgs = [
+            "--no-check-certificate",
+            "--no-warnings",
+            "--no-cache-dir",
+            "--force-ipv4",
+            "--user-agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+            "--referer", "https://www.youtube.com/",
+            "--add-header", "Sec-Ch-Ua-Platform: \"macOS\"",
+        ];
 
-    const combinedArgs = [...baseArgs, ...args];
+        // Inject cookies from DB if available
+        const cookies = YouTubeAuthManager.getCookies();
+        if (cookies && Array.isArray(cookies) && cookies.length > 0) {
+            cookieFile = path.join(os.tmpdir(), `wv_cookies_${Date.now()}.txt`);
+            const cookieContent = YouTubeAuthManager.formatCookiesToNetscape(cookies);
+            await fs.writeFile(cookieFile, cookieContent);
+            baseArgs.push("--cookies", cookieFile);
+        }
 
-    const run = async (runArgs: string[]) => {
-        try {
-            return await PythonShell.run(ytDlpBinary, runArgs, {
-                ...options,
-                verbose: options.verbose ?? true
-            });
-        } catch (e: any) {
-            const stderr = e.stderr || "";
-            // If it's a 403 error or format issue and we haven't tried the alternative client yet, retry
-            if ((stderr.includes("403: Forbidden") || stderr.includes("Requested format is not available")) && !runArgs.includes("youtube:player-client=android")) {
-                console.warn("[runYtDlp] 403/Format error. Retrying with android player client...");
-                const retryArgs = [...runArgs, "--extractor-args", "youtube:player-client=android"];
-                return await run(retryArgs);
-            }
+        const combinedArgs = [...baseArgs, ...args];
 
-            // Fallback for missing format
-            if (stderr.includes("Requested format is not available") && runArgs.includes("-f")) {
-                console.warn("[runYtDlp] Requested format not available. Retrying with fallback audio filter...");
-                const retryArgs = [...runArgs];
-                const fIdx = retryArgs.indexOf("-f");
-                if (fIdx !== -1) {
-                    retryArgs[fIdx + 1] = "bestaudio/best";
-                    if (runArgs[fIdx + 1] === "bestaudio/best") {
+        const run = async (runArgs: string[]) => {
+            try {
+                return await PythonShell.run(ytDlpBinary, runArgs, {
+                    ...options,
+                    verbose: options.verbose ?? true,
+                    onProgress: options.onProgress
+                });
+            } catch (e: any) {
+                const stderr = e.stderr || "";
+                // Fallback for missing format
+                if (stderr.includes("Requested format is not available") && runArgs.includes("-f")) {
+                    console.warn("[runYtDlp] Requested format not available. Retrying without format restriction...");
+                    const retryArgs = [...runArgs];
+                    const fIdx = retryArgs.indexOf("-f");
+                    if (fIdx !== -1) {
                         retryArgs.splice(fIdx, 2);
                     }
+                    return await run(retryArgs);
                 }
-                return await run(retryArgs);
-            }
-            throw e;
-        }
-    };
 
-    return await run(combinedArgs);
+                // Retry with android player client only as last resort for 403s
+                if (stderr.includes("403: Forbidden") && !runArgs.includes("youtube:player-client=android")) {
+                    console.warn("[runYtDlp] 403 Forbidden. Retrying with android player client...");
+                    const retryArgs = [...runArgs, "--extractor-args", "youtube:player-client=android"];
+                    return await run(retryArgs);
+                }
+                if (stderr.includes("confirm you’re not a bot") || stderr.includes("Sign in to confirm")) {
+                    throw new Error("YouTube detectó actividad sospechosa. Por favor, inicia sesión en YouTube desde Ajustes para continuar.");
+                }
+
+                throw e;
+            }
+        };
+
+        return await run(combinedArgs);
+    } finally {
+        if (cookieFile) {
+            try {
+                await fs.unlink(cookieFile);
+            } catch (err) {
+                // Ignore cleanup errors
+            }
+        }
+    }
 }
 
 const YT_REGEX = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\//i;
@@ -221,7 +246,6 @@ export async function fetchMeta(url: string): Promise<VideoMeta | any> {
             "--no-playlist",
             "--no-check-certificate",
             "--no-warnings",
-            "-f", "bestaudio/best",
             "--print", "{\"id\":%(id)j,\"title\":%(title)j,\"uploader\":%(uploader)j,\"upload_date\":%(upload_date)j,\"description\":%(description)j,\"thumbnail\":%(thumbnail)j,\"duration\":%(duration)j,\"streamUrl\":%(url)j}"
         ], { verbose: false });
 
@@ -283,7 +307,7 @@ export async function getStreamUrl(url: string): Promise<string> {
 }
 
 // Updated signatures to accept signal
-async function downloadBestAudio(url: string, outDir: string, signal?: AbortSignal): Promise<string> {
+async function downloadBestAudio(url: string, outDir: string, signal?: AbortSignal, onProgress?: (p: number) => void): Promise<string> {
     await fs.mkdir(outDir, { recursive: true });
 
     // Check abort before starting
@@ -300,7 +324,7 @@ async function downloadBestAudio(url: string, outDir: string, signal?: AbortSign
         '--no-check-certificate',
         '--no-warnings',
         '--print', 'after_move:filepath' // Get exact final path after all moves
-    ], { signal });
+    ], { signal, onProgress });
 
     const fullPath = stdout.trim().split('\n').pop()?.trim();
     if (!fullPath) throw new Error("Could not determine downloaded filename");
@@ -456,7 +480,9 @@ export async function processJob(job: DownloadJob): Promise<{
     if (job.signal?.aborted) throw new Error("Aborted");
 
     job.onProgress?.("Descargando audio...");
-    const rawPath = await downloadBestAudio(url, job.outDir, job.signal);
+    const rawPath = await downloadBestAudio(url, job.outDir, job.signal, (p) => {
+        job.onProgress?.("Descargando audio...", p);
+    });
 
     if (job.signal?.aborted) throw new Error("Aborted");
 

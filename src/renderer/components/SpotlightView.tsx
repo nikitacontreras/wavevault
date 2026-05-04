@@ -3,6 +3,8 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Search, Loader2, Music, CheckCircle2, AlertCircle, X } from "lucide-react";
 import { SearchResult } from "../types";
 import { useDownloadLogic } from "../hooks/useDownloadLogic";
+import { useApp } from "../context/AppContext";
+import { ToastNotification } from "./ToastNotification";
 
 // Importamos el hook de descargas activas (crearemos una implementación simple aquí)
 const useSpotlightDownloads = () => {
@@ -95,12 +97,13 @@ export const SpotlightView: React.FC<SpotlightViewProps> = ({ theme = 'dark' }) 
     const [isLoading, setIsLoading] = useState(false);
     const [isSearching, setIsSearching] = useState(false);
     const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
-    const [status, setStatus] = useState<{ type: 'idle' | 'success' | 'error', message: string }>({ type: 'idle', message: "" });
+    const [status, setStatus] = useState<{ type: 'idle' | 'loading' | 'success' | 'error', message: string }>({ type: 'idle', message: "" });
     const inputRef = useRef<HTMLInputElement>(null);
     const { downloads, addDownload, cancelDownload, clearDownloads } = useSpotlightDownloads();
     const { startDownload: performDownload } = useDownloadLogic();
     const { t } = useTranslation();
 
+    const { showNotification } = useApp();
     const isYoutubeUrl = (input: string) => {
         const trimmed = input.trim();
         return /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\//i.test(trimmed) || /^[a-zA-Z0-9_-]{11}$/.test(trimmed);
@@ -144,7 +147,7 @@ export const SpotlightView: React.FC<SpotlightViewProps> = ({ theme = 'dark' }) 
 
     const startDownload = async (targetUrl: string, title?: string) => {
         setIsLoading(true);
-        setStatus({ type: 'idle', message: t('spotlight.startDownload') });
+        setStatus({ type: 'loading', message: t('spotlight.startDownload') });
 
         const options = {
             format: localStorage.getItem('format') || 'mp3',
@@ -167,7 +170,16 @@ export const SpotlightView: React.FC<SpotlightViewProps> = ({ theme = 'dark' }) 
                     }, 3000);
                 },
                 onError: (err: any) => {
-                    setStatus({ type: 'error', message: err.message || t('spotlight.errorProcess') });
+                    const msg = err.message || t('spotlight.errorProcess');
+                    setStatus({ type: 'error', message: msg });
+                    if (msg.includes('actividad sospechosa')) {
+                        showNotification(
+                            'error',
+                            "YouTube detectó actividad sospechosa. Inicia sesión en la app principal.",
+                            "Entendido",
+                            () => {}
+                        );
+                    }
                 }
             });
         } catch (e) {
@@ -229,11 +241,18 @@ export const SpotlightView: React.FC<SpotlightViewProps> = ({ theme = 'dark' }) 
 
 
                 {status.type !== 'idle' && (
-                    <div className={`px-4 py-2 text-[11px] font-medium flex items-center gap-2 border-t animate-in slide-in-from-top-1 ${isDark ? "border-white/5" : "border-black/5"} ${status.type === 'success' ? 'text-green-500 bg-green-500/5' : 'text-red-500 bg-red-500/5'}`}>
-                        {status.type === 'success' ? <CheckCircle2 size={12} /> : <AlertCircle size={12} />}
+                    <div className={`px-4 py-2 text-[11px] font-medium flex items-center gap-2 border-t animate-in slide-in-from-top-1 ${isDark ? "border-white/5" : "border-black/5"} 
+                        ${status.type === 'success' ? 'text-green-500 bg-green-500/5' : 
+                          status.type === 'error' ? 'text-red-500 bg-red-500/5' : 
+                          'text-blue-500 bg-blue-500/5'}`}>
+                        {status.type === 'success' ? <CheckCircle2 size={12} /> : 
+                         status.type === 'error' ? <AlertCircle size={12} /> : 
+                         <Loader2 size={12} className="animate-spin" />}
                         {status.message}
                     </div>
                 )}
+
+                <ToastNotification />
 
                 {isSearching && (
                     <div className={`px-10 py-4 flex items-center gap-3 border-t animate-pulse ${isDark ? "border-white/5" : "border-black/5"}`}>
@@ -303,7 +322,9 @@ export const SpotlightView: React.FC<SpotlightViewProps> = ({ theme = 'dark' }) 
                                         {download.state.status === 'error' && (
                                             <>
                                                 <AlertCircle size={10} className="text-red-500" />
-                                                <span className="text-[9px] text-red-500">{t('spotlight.error')}</span>
+                                                <span className="text-[9px] text-red-500 truncate max-w-[200px]">
+                                                    {download.state.msg || t('spotlight.error')}
+                                                </span>
                                             </>
                                         )}
                                     </div>

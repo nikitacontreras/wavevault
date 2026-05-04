@@ -5,7 +5,7 @@ import { useSettings } from "../context/SettingsContext";
 import { useLibrary } from "../context/LibraryContext";
 
 export const useDownloadHandlers = () => {
-    const { addLog } = useApp();
+    const { addLog, showNotification, setView } = useApp();
     const { config } = useSettings();
     const {
         addToHistory, itemStates, updateItemState,
@@ -47,6 +47,14 @@ export const useDownloadHandlers = () => {
             updateItemState(id, { status: 'error', msg: 'Error' });
             updateActiveDownload(item.url, { status: 'error', msg: 'Error' });
             addLog("❌ Error: " + e.message);
+            if (e.message.includes('actividad sospechosa')) {
+                showNotification(
+                    'error', 
+                    "YouTube detectó actividad sospechosa. Debes iniciar sesión para descargar.",
+                    "Configurar Auth",
+                    () => setView('settings')
+                );
+            }
         }
     }, [config, itemStates, updateItemState, addLog, addToHistory, addActiveDownload, updateActiveDownload]);
 
@@ -137,9 +145,9 @@ export const useDownloadHandlers = () => {
             addLog(`✅ Descarga completada: ${newItem.title}`);
         });
 
-        const unsubProgress = window.api.onDownloadProgress(({ url, message }: any) => {
-            updateActiveDownload(url, { status: 'loading', msg: message });
-            updateItemState(url, { status: 'loading', msg: message });
+        const unsubProgress = window.api.onDownloadProgress(({ url, message, progress }: any) => {
+            updateActiveDownload(url, { status: 'loading', msg: message, progress });
+            updateItemState(url, { status: 'loading', msg: message, progress });
         });
 
         const unsubError = window.api.onDownloadError(({ url, error }: any) => {

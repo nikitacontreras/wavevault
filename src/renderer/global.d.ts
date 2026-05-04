@@ -99,6 +99,11 @@ declare global {
             backupDB: () => Promise<void>;
             restoreDB: () => Promise<void>;
 
+            // YouTube Auth
+            youtubeLogin: () => Promise<any>;
+            youtubeStatus: () => Promise<{ success: boolean, data: { connected: boolean } }>;
+            youtubeLogout: () => Promise<any>;
+
             // Updates
             downloadUpdate: () => Promise<void>;
             installUpdate: () => Promise<void>;

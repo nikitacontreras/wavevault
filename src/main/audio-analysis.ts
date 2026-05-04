@@ -8,6 +8,27 @@ import { getFFmpegPath, getFFprobePath } from "./config";
 
 import { getClassifyAudioPath } from './binaries';
 
+function extractJson(str: string): any {
+    if (!str) return null;
+    // Try to find the last valid JSON block that has a 'success' property
+    const blocks = str.match(/\{[\s\S]*?\}/g);
+    if (blocks) {
+        for (let i = blocks.length - 1; i >= 0; i--) {
+            try {
+                const parsed = JSON.parse(blocks[i]);
+                if (parsed && typeof parsed === 'object') return parsed;
+            } catch (e) {}
+        }
+    }
+    // Greedy fallback
+    const greedy = str.match(/\{[\s\S]*\}/);
+    if (greedy) {
+        try {
+            return JSON.parse(greedy[0]);
+        } catch (e) {}
+    }
+    return null;
+}
 export async function analyzeBPM(filePath: string): Promise<number | undefined> {
     try {
         const binPath = getClassifyAudioPath();
@@ -17,15 +38,9 @@ export async function analyzeBPM(filePath: string): Promise<number | undefined> 
         const args = isUnified ? ['classify', filePath] : [filePath];
 
         const result = await PythonShell.run(binPath, args);
-        
-        // Robust JSON parsing: find the first { and last } to avoid noise/warnings
-        const rawOutput = result.stdout;
-        const jsonMatch = rawOutput.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) throw new Error("No JSON found in python output: " + rawOutput);
-        
-        const data = JSON.parse(jsonMatch[0]);
+        const data = extractJson(result.stdout);
 
-        if (data.success && data.features && data.features.bpm) {
+        if (data && data.success && data.features && data.features.bpm) {
             return Math.round(data.features.bpm);
         }
     } catch (e) {
@@ -65,15 +80,9 @@ export async function analyzeKey(filePath: string): Promise<string | undefined> 
         const args = isUnified ? ['classify', filePath] : [filePath];
 
         const result = await PythonShell.run(binPath, args);
-        
-        // Robust JSON parsing: find the first { and last } to avoid noise/warnings
-        const rawOutput = result.stdout;
-        const jsonMatch = rawOutput.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) throw new Error("No JSON found in python output: " + rawOutput);
-        
-        const data = JSON.parse(jsonMatch[0]);
+        const data = extractJson(result.stdout);
 
-        if (data.success && data.key) {
+        if (data && data.success && data.key) {
             return data.key;
         }
     } catch (e) {

@@ -24,6 +24,13 @@ if (isMac) {
     app.commandLine.appendSwitch('ignore-gpu-blocklist');
 }
 
+// Bypass "Insecure Browser" detection by Google
+app.commandLine.appendSwitch('disable-blink-features', 'AutomationControlled');
+app.commandLine.appendSwitch('disable-features', 'UserAgentClientHints');
+app.commandLine.appendSwitch('disable-site-isolation-trials');
+app.commandLine.appendSwitch('lang', 'es-ES');
+console.log("[WaveVault] Core initialized - v1.0.17");
+
 // Single Instance Lock
 const gotTheLock = app.requestSingleInstanceLock();
 if (!gotTheLock) {

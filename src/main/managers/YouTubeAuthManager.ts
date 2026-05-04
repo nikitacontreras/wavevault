@@ -41,7 +41,6 @@ export class YouTubeAuthManager {
                 contextIsolation: true,
                 sandbox: true,
                 spellcheck: true,
-                webauthn: true,
                 userAgent: standardUA
             }
         });

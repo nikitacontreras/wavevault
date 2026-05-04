@@ -59,12 +59,12 @@ export class PythonShell {
                 }
 
                 if (options.onProgress) {
-                    subprocess.stdout?.on('data', (data) => {
-                        const line = data.toString();
+                    subprocess.stdout?.on('data', (data: Buffer | string) => {
+                        const line: string = data.toString();
                         // Typical yt-dlp progress line: [download]  10.0% of 10.00MiB at  1.00MiB/s ETA 00:00
                         const match = line.match(/\[download\]\s+([\d.]+)%/);
                         if (match && match[1]) {
-                            options.onProgress(parseFloat(match[1]));
+                            options.onProgress!(parseFloat(match[1]));
                         }
                     });
                 }

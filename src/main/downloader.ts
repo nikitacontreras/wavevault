@@ -153,8 +153,8 @@ export async function searchYoutube(query: string, offset: number = 0, limit: nu
         ], { verbose: false });
 
         const results = stdout.split('\n')
-            .filter(l => l.trim().startsWith('{')) // Only take lines that look like JSON
-            .map(l => {
+            .filter((l: string) => l.trim().startsWith('{')) // Only take lines that look like JSON
+            .map((l: string) => {
                 try {
                     const sanitized = l.replace(/:NA([,}])/g, ':null$1');
                     const e = JSON.parse(sanitized);
@@ -177,7 +177,7 @@ export async function searchYoutube(query: string, offset: number = 0, limit: nu
                     return null;
                 }
             })
-            .filter((r): r is SearchResult => r !== null);
+            .filter((r: SearchResult | null): r is SearchResult => r !== null);
 
         console.log(`[downloader] Search completed in ${Date.now() - startTime}ms. Found ${results.length} results.`);
         return results;
@@ -209,19 +209,19 @@ export async function batchSearchAndStream(queries: string[]): Promise<any[]> {
                 ], { verbose: false });
 
                 const results = stdout.split('\n')
-                    .filter(l => !!l.trim())
-                    .map(line => {
+                    .filter((l: string) => !!l.trim())
+                    .map((line: string) => {
                         try {
                             return JSON.parse(line);
                         } catch (e) {
                             return null;
                         }
                     })
-                    .filter(r => r !== null);
+                    .filter((r: any): r is any => r !== null);
 
                 if (results.length === 0) return null;
 
-                return results.find(r =>
+                return results.find((r: any) =>
                     r.uploader?.toLowerCase().endsWith("- topic") ||
                     r.uploader?.toLowerCase().includes("official")
                 ) || results[0];

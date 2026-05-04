@@ -112,7 +112,7 @@ jobs:
         with:
           version: 9
           run_install: false
-          cache: 'pnpm'
+          cache: true
 
       - name: Setup Python (Windows)
         if: runner.os == 'Windows'

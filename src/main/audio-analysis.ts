@@ -55,9 +55,9 @@ export async function analyzeBPM(filePath: string): Promise<number | undefined> 
             '-ar', '44100',
             '-t', '60',
             'pipe:1'
-        ], { encoding: null });
+        ], { encoding: 'buffer' });
 
-        const buffer = stdout as Buffer;
+        const buffer = Buffer.from(stdout);
         const pcmData = new Float32Array(buffer.length / 2);
         for (let i = 0; i < pcmData.length; i++) {
             pcmData[i] = buffer.readInt16LE(i * 2) / 32768;
@@ -120,7 +120,8 @@ export async function getDuration(filePath: string): Promise<string | undefined>
             '-of', 'default=noprint_wrappers=1:nokey=1',
             filePath
         ]);
-        const seconds = parseFloat(stdout.trim());
+        const stdoutStr = stdout?.toString() || "";
+        const seconds = parseFloat(stdoutStr.trim());
         if (isNaN(seconds)) return undefined;
 
         const mins = Math.floor(seconds / 60);

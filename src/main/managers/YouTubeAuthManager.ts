@@ -35,7 +35,6 @@ export class YouTubeAuthManager {
             title: 'YouTube Login - WaveVault',
             show: false,
             backgroundColor: '#000000',
-            userAgent: standardUA,
             webPreferences: {
                 partition: 'persist:youtube',
                 nodeIntegration: false,
@@ -44,6 +43,8 @@ export class YouTubeAuthManager {
                 spellcheck: true
             }
         });
+        
+        this.loginWindow.webContents.setUserAgent(standardUA);
 
         this.loginWindow.setMenu(null);
 

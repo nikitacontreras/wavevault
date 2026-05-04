@@ -27,6 +27,7 @@ export interface ItemState {
     status: DownloadStatus;
     path?: string;
     msg?: string;
+    progress?: number;
 }
 
 export interface HistoryItem {

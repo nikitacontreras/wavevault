@@ -111,12 +111,24 @@ export const ActivityPanel: React.FC = () => {
                                 </h4>
                                 <div className="flex items-center gap-2">
                                     {download.state.status === 'loading' && (
-                                        <>
-                                            <Loader2 size={12} className="animate-spin text-wv-gray" />
-                                            <span className="text-[10px] text-wv-gray font-medium">
-                                                {download.state.msg || "Descargando..."}
-                                            </span>
-                                        </>
+                                        <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+                                            <div className="flex items-center justify-between text-[10px] font-medium">
+                                                <span className="text-wv-gray">
+                                                    {download.state.msg || "Descargando..."}
+                                                </span>
+                                                {download.state.progress !== undefined && (
+                                                    <span className="text-blue-500 font-bold">{Math.round(download.state.progress)}%</span>
+                                                )}
+                                            </div>
+                                            {download.state.progress !== undefined && (
+                                                <div className={`h-1 w-full rounded-full overflow-hidden ${isDark ? "bg-white/5" : "bg-black/5"}`}>
+                                                    <div
+                                                        className="h-full bg-blue-500 transition-all duration-300"
+                                                        style={{ width: `${download.state.progress}%` }}
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
                                     )}
                                     {download.state.status === 'success' && (
                                         <>

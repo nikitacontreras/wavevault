@@ -4,7 +4,7 @@ import { useApp } from "../context/AppContext";
 import { useLibrary } from "../context/LibraryContext";
 
 export const useSearchManager = () => {
-    const { addLog } = useApp();
+    const { addLog, showNotification, setView } = useApp();
     const { resetItemStates } = useLibrary();
     const [query, setQuery] = useState("");
     const [results, setResults] = useState<SearchResult[]>([]);
@@ -39,6 +39,14 @@ export const useSearchManager = () => {
                     }]);
                 } catch (err: any) {
                     addLog("Error al obtener metadatos: " + err.message);
+                    if (err.message.includes('actividad sospechosa')) {
+                        showNotification(
+                            'error', 
+                            "YouTube detectó actividad sospechosa. Debes iniciar sesión para continuar.",
+                            "Ir a Ajustes",
+                            () => setView('settings')
+                        );
+                    }
                 }
             } else {
                 addLog(`Buscando: ${query}...`);

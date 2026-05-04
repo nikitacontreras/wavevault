@@ -255,7 +255,12 @@
         "stemsQualityBest": "Mejor (4 Pistas, Limpio)",
         "stemsQualityPro": "Pro (6 Pistas: Guitarra y Piano)",
         "autoCheckUpdates": "Búsqueda automática de actualizaciones",
-        "autoCheckUpdatesDesc": "Buscar nuevas versiones automáticamente al iniciar"
+        "autoCheckUpdatesDesc": "Buscar nuevas versiones automáticamente al iniciar",
+        "youtubeAccount": "Cuenta de YouTube",
+        "youtubeAccountDesc": "Inicia sesión para evitar la detección de bots y acceder a contenido con restricción de edad.",
+        "youtubeLogin": "LOGIN",
+        "youtubeLogout": "Cerrar Sesión",
+        "youtubeConnected": "Conectado"
     },
     "deps": {
         "title": "Verificando Sistema",

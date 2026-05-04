@@ -116,6 +116,11 @@ contextBridge.exposeInMainWorld("api", {
     savePeaks: (type: string, id: string, peaks: any) => safeInvoke("save-peaks", type, id, peaks),
     getCachedPeaks: (id: string) => safeInvoke("get-cached-peaks", id),
 
+    // YouTube Auth
+    youtubeLogin: () => safeInvoke("youtube:login"),
+    youtubeStatus: () => safeInvoke("youtube:status"),
+    youtubeLogout: () => safeInvoke("youtube:logout"),
+
     // Remote Control
     startRemote: () => safeInvoke("remote:start"),
     stopRemote: () => safeInvoke("remote:stop"),

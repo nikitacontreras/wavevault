@@ -20,6 +20,7 @@ import { WindowManager } from './WindowManager';
 import { indexLocalConnect } from '../localLibrary';
 import { ShortcutManager } from './ShortcutManager';
 import { UpdateManager } from './UpdateManager';
+import { YouTubeAuthManager } from './YouTubeAuthManager';
 import path from 'path';
 
 export function setupIpcHandlers() {
@@ -34,8 +35,8 @@ export function setupIpcHandlers() {
                 url, outDir: outDir || app.getPath("music"),
                 format, bitrate, sampleRate, normalize, smartOrganize,
                 signal: new AbortController().signal,
-                onProgress: (msg) => {
-                    evt.sender.send("download-progress", { url, message: msg });
+                onProgress: (msg, progress) => {
+                    evt.sender.send("download-progress", { url, message: msg, progress });
                 }
             });
             return createSuccessResponse(result);
@@ -307,6 +308,21 @@ export function setupIpcHandlers() {
 
     ipcMain.handle("window-close", () => {
         wm.mainWindow?.close();
+        return createSuccessResponse(true);
+    });
+
+    // YouTube Auth
+    ipcMain.handle("youtube:login", async () => {
+        await YouTubeAuthManager.openLoginWindow();
+        return createSuccessResponse(true);
+    });
+
+    ipcMain.handle("youtube:status", () => {
+        return createSuccessResponse({ connected: YouTubeAuthManager.hasCookies() });
+    });
+
+    ipcMain.handle("youtube:logout", () => {
+        YouTubeAuthManager.logout();
         return createSuccessResponse(true);
     });
 

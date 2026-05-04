@@ -237,7 +237,12 @@
         "stemsQualityBest": "Best (4 Stems, AI+)",
         "stemsQualityPro": "Pro (6 Stems: Guitar & Piano)",
         "autoCheckUpdates": "Automatic Update Search",
-        "autoCheckUpdatesDesc": "Check for new versions automatically on startup"
+        "autoCheckUpdatesDesc": "Check for new versions automatically on startup",
+        "youtubeAccount": "YouTube Account",
+        "youtubeAccountDesc": "Sign in to bypass bot detection and access age-restricted content.",
+        "youtubeLogin": "LOGIN",
+        "youtubeLogout": "Logout",
+        "youtubeConnected": "Connected"
     },
     "deps": {
         "title": "System Check",

@@ -11,6 +11,9 @@ interface AppContextType {
     logs: string[];
     addLog: (msg: string) => void;
     clearLogs: () => void;
+    notification: { type: 'success' | 'error' | 'info', message: string, actionLabel?: string, onAction?: () => void } | null;
+    showNotification: (type: 'success' | 'error' | 'info', message: string, actionLabel?: string, onAction?: () => void) => void;
+    hideNotification: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -21,6 +24,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('sidebarCollapsed') === 'true');
     const [debugMode, setDebugMode] = useState(false);
     const [logs, setLogs] = useState<string[]>([]);
+    const [notification, setNotification] = useState<{ type: 'success' | 'error' | 'info', message: string, actionLabel?: string, onAction?: () => void } | null>(null);
 
     useEffect(() => {
         window.api.getAppVersion().then(setVersion);
@@ -43,6 +47,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const clearLogs = useCallback(() => setLogs([]), []);
 
+    const showNotification = useCallback((type: 'success' | 'error' | 'info', message: string, actionLabel?: string, onAction?: () => void) => {
+        setNotification({ type, message, actionLabel, onAction });
+    }, []);
+
+    const hideNotification = useCallback(() => setNotification(null), []);
+
     // Secret Debug Key Sequence
     useEffect(() => {
         let sequence = "";
@@ -60,7 +70,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return (
         <AppContext.Provider value={{
             view, setView, version, sidebarCollapsed, setSidebarCollapsed,
-            debugMode, setDebugMode, logs, addLog, clearLogs
+            debugMode, setDebugMode, logs, addLog, clearLogs,
+            notification, showNotification, hideNotification
         }}>
             {children}
         </AppContext.Provider>

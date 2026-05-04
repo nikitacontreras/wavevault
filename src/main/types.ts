@@ -12,7 +12,7 @@ export interface DownloadJob {
     shortcut?: boolean;
     signal?: AbortSignal;
     smartOrganize?: boolean;
-    onProgress?: (msg: string) => void;
+    onProgress?: (msg: string, progress?: number) => void;
 }
 
 export interface VideoMeta {

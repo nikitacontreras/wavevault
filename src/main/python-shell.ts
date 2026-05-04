@@ -9,6 +9,7 @@ export interface PythonOptions {
     verbose?: boolean;
     signal?: AbortSignal;
     pipeOutput?: boolean;
+    onProgress?: (progress: number) => void;
 }
 
 /**
@@ -55,6 +56,17 @@ export class PythonShell {
                 if (options.verbose) {
                     subprocess.stdout?.pipe(process.stdout);
                     subprocess.stderr?.pipe(process.stderr);
+                }
+
+                if (options.onProgress) {
+                    subprocess.stdout?.on('data', (data) => {
+                        const line = data.toString();
+                        // Typical yt-dlp progress line: [download]  10.0% of 10.00MiB at  1.00MiB/s ETA 00:00
+                        const match = line.match(/\[download\]\s+([\d.]+)%/);
+                        if (match && match[1]) {
+                            options.onProgress(parseFloat(match[1]));
+                        }
+                    });
                 }
 
                 return await subprocess;

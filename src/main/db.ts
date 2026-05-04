@@ -191,6 +191,24 @@ export function initDB() {
     migrateOldData();
 }
 
+export function setConfigDB(id: string, value: any) {
+    const db = getDB();
+    const valStr = JSON.stringify(value);
+    db.prepare('INSERT OR REPLACE INTO config (id, value) VALUES (?, ?)').run(id, valStr);
+    return true;
+}
+
+export function getConfigDB(id: string) {
+    const db = getDB();
+    const row = db.prepare('SELECT value FROM config WHERE id = ?').get(id) as { value: string } | undefined;
+    if (!row) return null;
+    try {
+        return JSON.parse(row.value);
+    } catch (e) {
+        return row.value;
+    }
+}
+
 function migrateOldData() {
     const db = getDB();
     let oldDbPath: string;

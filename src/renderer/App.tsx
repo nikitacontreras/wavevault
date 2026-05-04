@@ -23,6 +23,7 @@ import { ProjectsView } from "./components/ProjectsView";
 import { SettingsView } from "./components/SettingsView";
 import { PlaylistModal } from "./components/PlaylistModal";
 import { UpdateNotification } from "./components/UpdateNotification";
+import { ToastNotification } from "./components/ToastNotification";
 import { useTranslation } from "react-i18next";
 import "./i18n";
 
@@ -222,6 +223,7 @@ export const App: React.FC = () => {
 
             <ActivityPanel />
             <UpdateNotification />
+            <ToastNotification />
             {playlistUrl && <PlaylistModal url={playlistUrl} onClose={() => setPlaylistUrl(null)} onDownloadBatch={handleBatchDownload} />}
         </div>
     );

@@ -60,35 +60,39 @@ export class PythonShell {
                 return await subprocess;
             } catch (e: any) {
                 // Specific retry logic for well-known python issues
-                if (e.stderr?.includes("unsupported version of Python") && configPython !== "python3") {
-                    console.warn(`[PythonShell] Retrying with fallback "python3" due to version mismatch`);
-                    return await execa("python3", args, { ...options, env });
+                if (e.stderr?.includes("unsupported version of Python")) {
+                    const fallback = configPython === "python" ? "python3" : configPython;
+                    if (executable !== fallback) {
+                        console.warn(`[PythonShell] Retrying with fallback "${fallback}" due to version mismatch`);
+                        const retryArgs = [executable, ...args];
+                        return await execa(fallback, retryArgs, { ...options, env });
+                    }
                 }
                 throw e;
             }
         };
 
-        // Binary logic: 
-        // 1. If it's Windows, we always execute directly (extension handles it)
-        // 2. If it's a script (.py), we MUST use configPython prefix
-        // 3. If it's a binary without extension (like yt-dlp on Unix):
-        //    - Try direct execution (execa handles chmod +x and shebangs)
-        //    - If it fails with shebang issues or doesn't exist, we fallback
         const scriptExtensions = [".py", ".pyc"];
-        const isScript = scriptExtensions.some(ext => bin.endsWith(ext));
+        const isScript = scriptExtensions.some(ext => bin.endsWith(ext)) || bin.endsWith("yt-dlp");
 
-        if (isWin || !isScript) {
-            if (fs.existsSync(bin)) {
-                return await execute(bin, runArgs);
-            } else {
-                // If the binary doesn't exist at the specific path, 
-                // it might be a script that needs python prefix or just missing
-                console.warn(`[PythonShell] Binary not found at ${bin}, attempting with ${configPython}`);
-                return await execute(configPython, [bin, ...runArgs]);
-            }
-        } else {
+        if (isWin) {
+            return await execute(bin, runArgs);
+        }
+
+        // If it's a script or we want to force a specific python version
+        if (isScript) {
+            // If bin is an absolute path that exists, use it. 
+            // If it's just a command name, we try to run it with python
             return await execute(configPython, [bin, ...runArgs]);
         }
+
+        // Binary logic:
+        if (path.isAbsolute(bin) && fs.existsSync(bin)) {
+            return await execute(bin, runArgs);
+        }
+
+        // Fallback for names in PATH
+        return await execute(bin, runArgs);
     }
 
     /**

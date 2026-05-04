@@ -85,7 +85,21 @@ export function getBinaryPath(packageName: string, binName: string): string {
 }
 
 export function getYtDlpPath(): string {
-    return getBinaryPath('yt-dlp-exec', 'yt-dlp');
+    const p = getBinaryPath('yt-dlp-exec', 'yt-dlp');
+    if (fs.existsSync(p)) return p;
+    
+    // Fallback: search in common locations
+    const possiblePaths = [
+        path.join(process.cwd(), 'node_modules', 'yt-dlp-exec', 'bin', 'yt-dlp'),
+        path.join(process.cwd(), 'bin', 'yt-dlp'),
+        'yt-dlp' // Just the name, let the shell find it
+    ];
+    
+    for (const pp of possiblePaths) {
+        if (fs.existsSync(pp)) return pp;
+    }
+    
+    return 'yt-dlp';
 }
 
 export function fixAsarPath(p: string): string {

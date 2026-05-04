@@ -152,7 +152,8 @@ export async function searchYoutube(query: string, offset: number = 0, limit: nu
             "--print", "{\"id\":%(id)j,\"title\":%(title)j,\"channel\":%(uploader)j,\"thumbnail\":%(thumbnail)j,\"duration\":%(duration)j,\"url\":%(webpage_url)j,\"streamUrl\":%(url)j}"
         ], { verbose: false });
 
-        const results = stdout.split('\n')
+        const stdoutStr = stdout || "";
+        const results = stdoutStr.split('\n')
             .filter((l: string) => l.trim().startsWith('{')) // Only take lines that look like JSON
             .map((l: string) => {
                 try {
@@ -208,7 +209,8 @@ export async function batchSearchAndStream(queries: string[]): Promise<any[]> {
                     "--print", "{\"id\":%(id)j,\"title\":%(title)j,\"thumbnail\":%(thumbnail)j,\"youtubeUrl\":%(webpage_url)j,\"streamUrl\":%(url)j,\"duration\":%(duration)j,\"uploader\":%(uploader)j}"
                 ], { verbose: false });
 
-                const results = stdout.split('\n')
+                const stdoutStr = stdout || "";
+                const results = stdoutStr.split('\n')
                     .filter((l: string) => !!l.trim())
                     .map((line: string) => {
                         try {
@@ -249,7 +251,8 @@ export async function fetchMeta(url: string): Promise<VideoMeta | any> {
             "--print", "{\"id\":%(id)j,\"title\":%(title)j,\"uploader\":%(uploader)j,\"upload_date\":%(upload_date)j,\"description\":%(description)j,\"thumbnail\":%(thumbnail)j,\"duration\":%(duration)j,\"streamUrl\":%(url)j}"
         ], { verbose: false });
 
-        const lines = stdout.split('\n').filter((l: string) => l.trim().startsWith('{'));
+        const stdoutStr = stdout || "";
+        const lines = stdoutStr.split('\n').filter((l: string) => l.trim().startsWith('{'));
         if (lines.length === 0) throw new Error("No metadata found in output");
 
         const lastLine = lines[lines.length - 1];
@@ -271,7 +274,7 @@ export async function fetchPlaylistMeta(url: string): Promise<{ title: string, e
             "--no-warnings"
         ]);
 
-        const info = JSON.parse(stdout);
+        const info = JSON.parse(stdout || "{}");
         return {
             title: info.title || "Playlist",
             entries: (info.entries || []).map((e: any) => ({
@@ -299,7 +302,7 @@ export async function getStreamUrl(url: string): Promise<string> {
             "--no-warnings"
         ]);
 
-        return stdout.trim();
+        return (stdout || "").trim();
     } catch (e) {
         console.error("Failed to get stream URL:", e);
         throw e;
@@ -326,7 +329,8 @@ async function downloadBestAudio(url: string, outDir: string, signal?: AbortSign
         '--print', 'after_move:filepath' // Get exact final path after all moves
     ], { signal, onProgress });
 
-    const fullPath = stdout.trim().split('\n').pop()?.trim();
+    const stdoutStr = stdout || "";
+    const fullPath = stdoutStr.trim().split('\n').pop()?.trim();
     if (!fullPath) throw new Error("Could not determine downloaded filename");
 
     // Verify file exists

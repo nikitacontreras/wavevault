@@ -191,24 +191,25 @@ export function initDB() {
     migrateOldData();
 }
 
-export function setConfigDB(id: string, value: any) {
+// Config Helpers
+export function setConfigDB(key: string, value: any) {
     const db = getDB();
     const valStr = JSON.stringify(value);
-    db.prepare('INSERT OR REPLACE INTO config (id, value) VALUES (?, ?)').run(id, valStr);
+    db.prepare('INSERT OR REPLACE INTO config (id, value) VALUES (?, ?)').run(key, valStr);
     return true;
 }
 
-export function getConfigDB(id: string) {
-    const db = getDB();
-    const row = db.prepare('SELECT value FROM config WHERE id = ?').get(id) as { value: string } | undefined;
-    if (!row) return null;
+export function getConfigDB(key: string, defaultValue: any = null) {
     try {
-        return JSON.parse(row.value);
+        const db = getDB();
+        const row = db.prepare('SELECT value FROM config WHERE id = ?').get(key) as { value: string } | undefined;
+        return row ? JSON.parse(row.value) : defaultValue;
     } catch (e) {
-        return row.value;
+        return defaultValue;
     }
 }
 
+// Migration function called during DB initialization
 function migrateOldData() {
     const db = getDB();
     let oldDbPath: string;
@@ -267,19 +268,7 @@ function migrateOldData() {
     }
 }
 
-// Config Helpers
-export function setConfigDB(key: string, value: any) {
-    getDB().prepare('INSERT OR REPLACE INTO config (id, value) VALUES (?, ?)').run(key, JSON.stringify(value));
-}
-
-export function getConfigDB(key: string, defaultValue: any = null) {
-    try {
-        const row = getDB().prepare('SELECT value FROM config WHERE id = ?').get(key) as { value: string } | undefined;
-        return row ? JSON.parse(row.value) : defaultValue;
-    } catch (e) {
-        return defaultValue;
-    }
-}
+// End of file
 
 // Project Store Logic
 export function getFullProjectDB() {

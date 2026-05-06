@@ -35,14 +35,15 @@ export function getResourceBinaryPath(binName: string): string {
         root = path.join(appPath, 'resources', 'bin', binName);
     }
 
-    if (fs.existsSync(root) && fs.statSync(root).isDirectory()) {
-        return path.join(root, finalBinName);
+    const resolvedPath = (fs.existsSync(root) && fs.statSync(root).isDirectory()) 
+        ? path.join(root, finalBinName) 
+        : root;
+
+    if (!fs.existsSync(resolvedPath)) {
+        console.warn(`[binaries] Resource not found at: ${resolvedPath}`);
     }
 
-    const oneFilePath = root;
-    if (fs.existsSync(oneFilePath)) return oneFilePath;
-
-    return path.join(root, finalBinName);
+    return resolvedPath;
 }
 
 export function getAIEnginePath(): string {
@@ -88,17 +89,29 @@ export function getYtDlpPath(): string {
     const p = getBinaryPath('yt-dlp-exec', 'yt-dlp');
     if (fs.existsSync(p)) return p;
     
+    console.warn(`[binaries] yt-dlp not found at default path: ${p}`);
+
     // Fallback: search in common locations
+    const isPackaged = app.isPackaged;
     const possiblePaths = [
+        path.join(process.resourcesPath, 'app.asar.unpacked', 'node_modules', 'yt-dlp-exec', 'bin', 'yt-dlp'),
+        path.join(process.resourcesPath, 'node_modules', 'yt-dlp-exec', 'bin', 'yt-dlp'),
         path.join(process.cwd(), 'node_modules', 'yt-dlp-exec', 'bin', 'yt-dlp'),
         path.join(process.cwd(), 'bin', 'yt-dlp'),
-        'yt-dlp' // Just the name, let the shell find it
     ];
     
-    for (const pp of possiblePaths) {
-        if (fs.existsSync(pp)) return pp;
+    if (!isPackaged) {
+        possiblePaths.push(path.join(app.getAppPath(), 'node_modules', 'yt-dlp-exec', 'bin', 'yt-dlp'));
     }
     
+    for (const pp of possiblePaths) {
+        if (fs.existsSync(pp)) {
+            console.log(`[binaries] yt-dlp found at fallback: ${pp}`);
+            return pp;
+        }
+    }
+    
+    console.error("[binaries] CRITICAL: yt-dlp not found anywhere. Falling back to shell command.");
     return 'yt-dlp';
 }
 

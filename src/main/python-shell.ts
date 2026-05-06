@@ -88,25 +88,29 @@ export class PythonShell {
         };
 
         const scriptExtensions = [".py", ".pyc"];
-        const isScript = scriptExtensions.some(ext => bin.endsWith(ext)) || bin.endsWith("yt-dlp");
+        const isPyScript = scriptExtensions.some(ext => bin.endsWith(ext));
+        const isYtDlp = bin.endsWith("yt-dlp");
 
         if (isWin) {
             return await execute(bin, runArgs);
         }
 
-        // If it's a script or we want to force a specific python version
-        if (isScript) {
-            // If bin is an absolute path that exists, use it. 
-            // If it's just a command name, we try to run it with python
-            return await execute(configPython, [bin, ...runArgs]);
-        }
-
-        // Binary logic:
+        // 1. If it's an absolute path that exists, we try to run it directly
+        // UNLESS it's explicitly a .py script
         if (path.isAbsolute(bin) && fs.existsSync(bin)) {
+            if (isPyScript) {
+                return await execute(configPython, [bin, ...runArgs]);
+            }
             return await execute(bin, runArgs);
         }
 
-        // Fallback for names in PATH
+        // 2. Fallback for relative names or missing absolute paths
+        // If it looks like a script or yt-dlp, try with python as last resort
+        if (isPyScript || isYtDlp) {
+            return await execute(configPython, [bin, ...runArgs]);
+        }
+
+        // 3. Last fallback: try executing directly as a command in PATH
         return await execute(bin, runArgs);
     }
 

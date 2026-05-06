@@ -150,7 +150,7 @@ export async function searchYoutube(query: string, offset: number = 0, limit: nu
             "--no-cache-dir",
             "-f", "bestaudio/best",
             "--print", "{\"id\":%(id)j,\"title\":%(title)j,\"channel\":%(uploader)j,\"thumbnail\":%(thumbnail)j,\"duration\":%(duration)j,\"url\":%(webpage_url)j,\"streamUrl\":%(url)j}"
-        ], { verbose: false });
+        ], { verbose: 'none' });
 
         const stdoutStr = stdout || "";
         const results = stdoutStr.split('\n')
@@ -207,7 +207,7 @@ export async function batchSearchAndStream(queries: string[]): Promise<any[]> {
                     "--no-warnings",
                     "-f", "bestaudio/best",
                     "--print", "{\"id\":%(id)j,\"title\":%(title)j,\"thumbnail\":%(thumbnail)j,\"youtubeUrl\":%(webpage_url)j,\"streamUrl\":%(url)j,\"duration\":%(duration)j,\"uploader\":%(uploader)j}"
-                ], { verbose: false });
+                ], { verbose: 'none' });
 
                 const stdoutStr = stdout || "";
                 const results = stdoutStr.split('\n')
@@ -249,7 +249,7 @@ export async function fetchMeta(url: string): Promise<VideoMeta | any> {
             "--no-check-certificate",
             "--no-warnings",
             "--print", "{\"id\":%(id)j,\"title\":%(title)j,\"uploader\":%(uploader)j,\"upload_date\":%(upload_date)j,\"description\":%(description)j,\"thumbnail\":%(thumbnail)j,\"duration\":%(duration)j,\"streamUrl\":%(url)j}"
-        ], { verbose: false });
+        ], { verbose: 'none' });
 
         const stdoutStr = stdout || "";
         const lines = stdoutStr.split('\n').filter((l: string) => l.trim().startsWith('{'));

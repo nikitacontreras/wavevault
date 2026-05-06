@@ -6,7 +6,7 @@ import { getPythonPath, getFFmpegPath, getFFprobePath } from "./config";
 
 export interface PythonOptions {
     args?: string[];
-    verbose?: boolean;
+    verbose?: boolean | 'none' | 'short' | 'full';
     signal?: AbortSignal;
     pipeOutput?: boolean;
     onProgress?: (progress: number) => void;
@@ -48,12 +48,15 @@ export class PythonShell {
 
         const execute = async (executable: string, args: string[]) => {
             try {
+                const execaVerbose = options.verbose === false ? 'none' : (options.verbose === true ? 'short' : options.verbose);
                 const subprocess = execa(executable, args, {
                     ...options,
+                    verbose: execaVerbose,
                     env: { ...env, ...options.env }
                 });
 
-                if (options.verbose) {
+                const isVerbose = options.verbose === true || options.verbose === 'full';
+                if (isVerbose) {
                     subprocess.stdout?.pipe(process.stdout);
                     subprocess.stderr?.pipe(process.stderr);
                 }

@@ -45,7 +45,9 @@
     },
     "mac": {
       "category": "public.app-category.music",
-      "icon": "build/icon.png",
+      "icon": "icon.png",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
       "identity": null,
       "target": [
         "dmg",
@@ -57,7 +59,7 @@
         "nsis",
         "portable"
       ],
-      "icon": "build/icon.png"
+      "icon": "icon.png"
     },
     "linux": {
       "target": [

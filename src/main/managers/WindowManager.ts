@@ -1,4 +1,4 @@
-import { BrowserWindow, nativeTheme, shell, Menu, app } from 'electron';
+import { BrowserWindow, nativeTheme, shell, Menu, app, nativeImage } from 'electron';
 import path from 'path';
 import fs from 'fs';
 
@@ -25,14 +25,31 @@ export class WindowManager {
     }
 
     updateAppIcon() {
-        const iconPath = this.getAppIconPath();
-        if (process.platform === 'darwin' && app.dock && iconPath) {
-            app.dock.setIcon(iconPath);
+        if (process.platform === 'darwin' && app.dock) {
+            app.name = "WaveVault";
+
+            // Cargamos el icon.png que generamos con sharp (que tiene el squircle correcto)
+            const iconPath = this.getAppIconPath();
+            if (iconPath) {
+                const image = nativeImage.createFromPath(iconPath);
+                if (!image.isEmpty()) {
+                    app.dock.setIcon(image);
+                    return;
+                }
+            }
         }
-        if (this.mainWindow && iconPath) {
-            this.mainWindow.setIcon(iconPath);
+
+        // Fallback por defecto
+        const iconPath = this.getAppIconPath();
+        if (iconPath) {
+            if (process.platform === 'darwin' && app.dock) {
+                app.dock.setIcon(iconPath);
+            } else if (this.mainWindow) {
+                this.mainWindow.setIcon(iconPath);
+            }
         }
     }
+
 
     createMainWindow(preloadPath: string, rendererPath: string, isMac: boolean, template: any[]) {
         const isDark = nativeTheme.shouldUseDarkColors;

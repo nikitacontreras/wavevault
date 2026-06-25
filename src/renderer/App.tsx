@@ -24,6 +24,7 @@ import { SettingsView } from "./components/SettingsView";
 import { PlaylistModal } from "./components/PlaylistModal";
 import { UpdateNotification } from "./components/UpdateNotification";
 import { ToastNotification } from "./components/ToastNotification";
+import { StatsOverlay } from "./components/StatsOverlay";
 import { useTranslation } from "react-i18next";
 import "./i18n";
 
@@ -239,6 +240,7 @@ export const App: React.FC = () => {
             <ActivityPanel />
             <UpdateNotification />
             <ToastNotification />
+            <StatsOverlay />
             {playlistUrl && <PlaylistModal url={playlistUrl} onClose={() => setPlaylistUrl(null)} onDownloadBatch={handleBatchDownload} />}
         </div>
     );

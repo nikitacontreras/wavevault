@@ -148,26 +148,41 @@ export const App: React.FC = () => {
                         </div>
                     </header>
 
-                    <div className={`flex-1 flex flex-col min-h-0 ${isDark ? "bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.02),transparent_35%)]" : "bg-[radial-gradient(circle_at_top_right,rgba(0,0,0,0.02),transparent_35%)]"}`}>
-                        {view === 'search' && (
+                     <div className={`flex-grow flex flex-col min-h-0 relative ${isDark ? "bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.02),transparent_35%)]" : "bg-[radial-gradient(circle_at_top_right,rgba(0,0,0,0.02),transparent_35%)]"}`}>
+                        {/* 1. SearchView Container */}
+                        <div className={view === 'search' ? "flex-1 flex flex-col min-h-0" : "hidden"} style={view !== 'search' ? { display: 'none' } : undefined}>
                             <SearchView
                                 query={query} setQuery={setQuery} isSearching={isSearching} results={results}
                                 itemStates={itemStates} history={history} onSearch={handleSearch}
                                 onDownload={handleDownload} onOpenItem={(p) => p && window.api.openItem(p)}
                                 onStartDrag={() => setIsDragging(true)} onLoadMore={handleLoadMore}
                             />
-                        )}
-                        {view === 'library' && (
+                        </div>
+
+                        {/* 2. LibraryView Container */}
+                        <div className={view === 'library' ? "flex-1 flex flex-col min-h-0" : "hidden"} style={view !== 'library' ? { display: 'none' } : undefined}>
                             <LibraryView onStartDrag={() => setIsDragging(true)} />
-                        )}
-                        {view === 'converter' && <ConverterView theme={config.theme} />}
-                        {view === 'discovery' && (
+                        </div>
+
+                        {/* 3. ConverterView Container */}
+                        <div className={view === 'converter' ? "flex-1 flex flex-col min-h-0" : "hidden"} style={view !== 'converter' ? { display: 'none' } : undefined}>
+                            <ConverterView theme={config.theme} />
+                        </div>
+
+                        {/* 4. DiscoveryView Container */}
+                        <div className={view === 'discovery' ? "flex-1 flex flex-col min-h-0" : "hidden"} style={view !== 'discovery' ? { display: 'none' } : undefined}>
                             <DiscoveryView onStartDrag={() => setIsDragging(true)} />
-                        )}
-                        {view === 'projects' && <ProjectsView theme={config.theme} />}
-                        {view === 'settings' && (
+                        </div>
+
+                        {/* 5. ProjectsView Container */}
+                        <div className={view === 'projects' ? "flex-1 flex flex-col min-h-0" : "hidden"} style={view !== 'projects' ? { display: 'none' } : undefined}>
+                            <ProjectsView theme={config.theme} />
+                        </div>
+
+                        {/* 6. SettingsView Container */}
+                        <div className={view === 'settings' ? "flex-1 flex flex-col min-h-0" : "hidden"} style={view !== 'settings' ? { display: 'none' } : undefined}>
                             <SettingsView />
-                        )}
+                        </div>
                     </div>
 
                     <footer className={`relative h-20 border-t flex items-center px-8 gap-10 z-[100] shadow-[0_-4px_20px_rgba(0,0,0,0.03)] transition-all duration-300 ${isDark ? "bg-wv-sidebar border-white/5" : "bg-white border-black/10"}`}>

@@ -59,18 +59,29 @@ export const useDownloadHandlers = () => {
     }, [config, itemStates, updateItemState, addLog, addToHistory, addActiveDownload, updateActiveDownload]);
 
     const handleBatchDownload = useCallback(async (entries: any[]) => {
-        addLog(`📦 Iniciando descarga por lotes: ${entries.length} pistas`);
-        for (const entry of entries) {
-            handleDownload({
-                id: entry.id,
-                title: entry.title,
-                url: entry.url,
-                channel: entry.uploader || "Playlist",
-                thumbnail: `https://i.ytimg.com/vi/${entry.id}/mqdefault.jpg`,
-                duration: entry.duration ? new Date(entry.duration * 1000).toISOString().substr(14, 5) : "Video"
-            });
-            await new Promise(r => setTimeout(r, 500));
-        }
+        addLog(`📦 Iniciando descarga por lotes: ${entries.length} pistas (concurrencia máx: 3)`);
+        
+        const limit = 3;
+        const queue = [...entries];
+
+        const runWorker = async () => {
+            while (queue.length > 0) {
+                const entry = queue.shift();
+                if (!entry) break;
+
+                await handleDownload({
+                    id: entry.id,
+                    title: entry.title,
+                    url: entry.url,
+                    channel: entry.uploader || "Playlist",
+                    thumbnail: `https://i.ytimg.com/vi/${entry.id}/mqdefault.jpg`,
+                    duration: entry.duration ? new Date(entry.duration * 1000).toISOString().substr(14, 5) : "Video"
+                });
+            }
+        };
+
+        const workers = Array(Math.min(limit, entries.length)).fill(null).map(runWorker);
+        await Promise.all(workers);
     }, [handleDownload, addLog]);
 
     const handleDownloadFromUrl = useCallback(async (url: string, title: string) => {

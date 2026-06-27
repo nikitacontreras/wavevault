@@ -41,6 +41,7 @@ export function setupIpcHandlers() {
             });
             return createSuccessResponse(result);
         } catch (e: any) {
+            console.error("[IpcManager] Download handler failed:", e);
             return createErrorResponse(e.message);
         }
     });
@@ -318,7 +319,10 @@ export function setupIpcHandlers() {
     });
 
     ipcMain.handle("youtube:status", () => {
-        return createSuccessResponse({ connected: YouTubeAuthManager.hasCookies() });
+        return createSuccessResponse({ 
+            connected: YouTubeAuthManager.hasCookies(),
+            profile: YouTubeAuthManager.getProfile()
+        });
     });
 
     ipcMain.handle("youtube:logout", () => {

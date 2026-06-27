@@ -4,6 +4,18 @@ const path = require('path');
 const util = require('util');
 
 const execAsync = util.promisify(exec);
+const { spawn } = require('child_process');
+
+function runCmd(commandLine, options = {}) {
+    return new Promise((resolve, reject) => {
+        const proc = spawn(commandLine, { stdio: 'inherit', shell: true, ...options });
+        proc.on('close', (code) => {
+            if (code === 0) resolve();
+            else reject(new Error(`Command failed with exit code ${code}`));
+        });
+        proc.on('error', (err) => reject(err));
+    });
+}
 
 async function buildPython() {
     console.log('🚧 Iniciando construcción de motores de IA (Versión Estable)...');
@@ -27,7 +39,7 @@ async function buildPython() {
 
     try {
         const venvPath = path.join(__dirname, '../.venv_build');
-        if (!fs.existsSync(venvPath)) await execAsync(`${pythonBin} -m venv "${venvPath}"`);
+        if (!fs.existsSync(venvPath)) await runCmd(`${pythonBin} -m venv "${venvPath}"`);
 
         const isWin = process.platform === 'win32';
         const binFolder = isWin ? 'Scripts' : 'bin';
@@ -40,21 +52,20 @@ async function buildPython() {
 
         if (process.platform === "darwin") {
             // macOS: Standard PyPI works fine and is preferred (no CPU/CUDA split needed)
-            await execAsync(`"${pip}" install ${torchDeps} ${generalDeps}`, { timeout: 600000 });
+            await runCmd(`"${pip}" install ${torchDeps} ${generalDeps}`, { timeout: 600000 });
         } else {
             // Linux/Windows: Force CPU Torch first to avoid 2GB+ CUDA bloat
             console.log('   - Installing CPU Torch...');
-            await execAsync(`"${pip}" install ${torchDeps} --index-url https://download.pytorch.org/whl/cpu`, { timeout: 600000 });
+            await runCmd(`"${pip}" install ${torchDeps} --index-url https://download.pytorch.org/whl/cpu`, { timeout: 600000 });
             console.log('   - Installing General Deps...');
-            await execAsync(`"${pip}" install ${generalDeps}`, { timeout: 600000 });
+            await runCmd(`"${pip}" install ${generalDeps}`, { timeout: 600000 });
         }
 
         console.log('🔨 Compilando ai_engine (Unified)...');
         const aiScript = path.join(__dirname, '../scripts/ai_engine.py');
 
-        // Compile unified binary
-        // Note: collecting librosa and sklearn explicitly to avoid missing imports in onefile mode
-        await execAsync(`"${pyinstaller}" --clean --noconfirm --onefile --distpath "${binDir}" --name ai_engine --collect-all demucs --collect-all torchaudio --collect-all librosa --collect-all sklearn --copy-metadata torch --copy-metadata torchaudio --copy-metadata demucs --hidden-import="sklearn.utils._cython_blas" --hidden-import="sklearn.neighbors.typedefs" --hidden-import="sklearn.neighbors.quad_tree" --hidden-import="sklearn.tree._utils" "${aiScript}"`);
+        // Compile unified binary with exclusions to keep size down
+        await runCmd(`"${pyinstaller}" --clean --noconfirm --onefile --distpath "${binDir}" --name ai_engine --collect-all demucs --collect-all torchaudio --collect-all librosa --collect-all sklearn --copy-metadata torch --copy-metadata torchaudio --copy-metadata demucs --hidden-import="sklearn.utils._cython_blas" --hidden-import="sklearn.neighbors.typedefs" --hidden-import="sklearn.neighbors.quad_tree" --hidden-import="sklearn.tree._utils" --exclude-module="matplotlib" --exclude-module="tkinter" "${aiScript}"`);
 
         console.log(`✅ Motores listos en: ${binDir}`);
 

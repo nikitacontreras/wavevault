@@ -1,4 +1,24 @@
-const { contextBridge, ipcRenderer } = require("electron");
+const { contextBridge, ipcRenderer, webFrame } = require("electron");
+
+// Spoof properties to bypass Google's "secure browser" check
+if (window.location.protocol.startsWith('http')) {
+    const spoofScript = `
+        Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+        Object.defineProperty(navigator, 'languages', { get: () => ['es-ES', 'es', 'en-US', 'en'] });
+        Object.defineProperty(navigator, 'platform', { get: () => 'MacIntel' });
+        Object.defineProperty(navigator, 'vendor', { get: () => 'Apple Computer, Inc.' });
+        window.chrome = {
+            app: { isInstalled: false },
+            webstore: { onInstallStageChanged: {}, onDownloadProgress: {} },
+            runtime: { PlatformOs: { MAC: 'mac', WIN: 'win' } }
+        };
+    `;
+    try {
+        webFrame.executeJavaScript(spoofScript);
+    } catch (e) {
+        console.error("Failed to inject spoof script:", e);
+    }
+}
 
 const safeInvoke = async (channel: string, ...args: any[]) => {
     const response = await ipcRenderer.invoke(channel, ...args);

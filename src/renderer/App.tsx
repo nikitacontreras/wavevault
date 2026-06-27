@@ -140,7 +140,7 @@ export const App: React.FC = () => {
                 <Sidebar />
 
                 <main className="flex-1 flex flex-col min-w-0 bg-wv-bg">
-                    <header className={`px-8 py-4 border-b flex justify-between items-center z-20 transition-all ${isDark ? "bg-wv-bg border-white/5" : "bg-white border-black/5"}`}>
+                    <header className={`px-8 py-4 border-b flex justify-between items-center z-20 shrink-0 transition-all ${isDark ? "bg-wv-bg border-white/5" : "bg-white border-black/5"}`}>
                         <div className="flex items-center gap-4">
                             <button onClick={() => setSidebarCollapsed(!sidebarCollapsed)} className={`p-1.5 rounded-lg transition-colors ${isDark ? "hover:bg-white/5 text-wv-gray hover:text-white" : "hover:bg-black/5 text-black/40 hover:text-black"}`}>
                                 {sidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
@@ -186,7 +186,7 @@ export const App: React.FC = () => {
                         </div>
                     </div>
 
-                    <footer className={`relative h-20 border-t flex items-center px-8 gap-10 z-[100] shadow-[0_-4px_20px_rgba(0,0,0,0.03)] transition-all duration-300 ${isDark ? "bg-wv-sidebar border-white/5" : "bg-white border-black/10"}`}>
+                    <footer className={`relative h-20 shrink-0 border-t flex items-center px-8 gap-10 z-[100] shadow-[0_-4px_20px_rgba(0,0,0,0.03)] transition-all duration-300 ${isDark ? "bg-wv-bg border-white/5" : "bg-white border-black/10"}`}>
                         <div className="absolute -top-[1px] left-0 right-0 h-1 z-50 group/progress">
                             <input type="range" min="0" max={duration || 100} step="0.1" value={currentTime} onChange={(e) => seek(parseFloat(e.target.value))} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
                             <div className={`absolute top-0 left-0 right-0 h-0.5 group-hover/progress:h-1.5 transition-all ${isDark ? "bg-white/10" : "bg-black/5"}`}>

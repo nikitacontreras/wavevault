@@ -20,6 +20,7 @@ async function runYtDlp(args: string[], options: any = {}) {
 
     try {
         // Robust flags to avoid 403 Forbidden and other extraction issues
+        // Use Chrome UA by default (required for media chunk downloads/CDN requests)
         const baseArgs = [
             "--no-check-certificate",
             "--no-warnings",
@@ -27,18 +28,10 @@ async function runYtDlp(args: string[], options: any = {}) {
             "--force-ipv4",
             "--user-agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
             "--referer", "https://www.youtube.com/",
-            "--add-header", "Sec-Ch-Ua-Platform: \"macOS\"",
         ];
 
-        // Inject cookies from DB if available
-        const cookies = YouTubeAuthManager.getCookies();
-        if (cookies && Array.isArray(cookies) && cookies.length > 0) {
-            cookieFile = path.join(os.tmpdir(), `wv_cookies_${Date.now()}.txt`);
-            const cookieContent = YouTubeAuthManager.formatCookiesToNetscape(cookies);
-            await fs.writeFile(cookieFile, cookieContent);
-            baseArgs.push("--cookies", cookieFile);
-        }
-
+        // Do NOT inject cookies by default to prevent YouTube's session validation blocks.
+        // We will try running without cookies first, and fall back to cookies on failure.
         const combinedArgs = [...baseArgs, ...args];
 
         const run = async (runArgs: string[]) => {
@@ -50,7 +43,15 @@ async function runYtDlp(args: string[], options: any = {}) {
                 });
             } catch (e: any) {
                 const stderr = e.stderr || "";
-                // Fallback for missing format
+
+                // 1. Retry with android player client only as last resort for 403s (very common on media downloads)
+                if (stderr.includes("403: Forbidden") && !runArgs.includes("youtube:player-client=android")) {
+                    console.warn("[runYtDlp] 403 Forbidden. Retrying with android player client...");
+                    const retryArgs = [...runArgs, "--extractor-args", "youtube:player-client=android"];
+                    return await run(retryArgs);
+                }
+
+                // 2. Fallback for missing format
                 if (stderr.includes("Requested format is not available") && runArgs.includes("-f")) {
                     console.warn("[runYtDlp] Requested format not available. Retrying without format restriction...");
                     const retryArgs = [...runArgs];
@@ -61,14 +62,34 @@ async function runYtDlp(args: string[], options: any = {}) {
                     return await run(retryArgs);
                 }
 
-                // Retry with android player client only as last resort for 403s
-                if (stderr.includes("403: Forbidden") && !runArgs.includes("youtube:player-client=android")) {
-                    console.warn("[runYtDlp] 403 Forbidden. Retrying with android player client...");
-                    const retryArgs = [...runArgs, "--extractor-args", "youtube:player-client=android"];
-                    return await run(retryArgs);
+                // 3. Fallback: If command failed (e.g. due to age restriction) without cookies, and cookies are available in DB, retry with cookies
+                if (!runArgs.includes("--cookies") && YouTubeAuthManager.hasCookies()) {
+                    console.warn("[runYtDlp] Failed without cookies. Retrying with cookies (and Safari UA)...");
+                    const cookies = YouTubeAuthManager.getCookies();
+                    if (cookies && Array.isArray(cookies) && cookies.length > 0) {
+                        cookieFile = path.join(os.tmpdir(), `wv_cookies_${Date.now()}.txt`);
+                        const cookieContent = YouTubeAuthManager.formatCookiesToNetscape(cookies);
+                        await fs.writeFile(cookieFile, cookieContent);
+                        
+                        // Swap to Safari UA to match the cookie session
+                        const retryArgs = [...runArgs, "--cookies", cookieFile];
+                        const uaIdx = retryArgs.indexOf("--user-agent");
+                        if (uaIdx !== -1 && uaIdx + 1 < retryArgs.length) {
+                            retryArgs[uaIdx + 1] = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2.1 Safari/605.1.15";
+                        }
+                        
+                        return await run(retryArgs);
+                    }
                 }
+
                 if (stderr.includes("confirm you’re not a bot") || stderr.includes("Sign in to confirm")) {
                     throw new Error("YouTube detectó actividad sospechosa. Por favor, inicia sesión en YouTube desde Ajustes para continuar.");
+                }
+
+                // Recover stdout if it contains JSON objects, even on non-zero exit code (useful when --ignore-errors is active but exit code is 1)
+                if (e.stdout && e.stdout.trim().split('\n').some((l: string) => l.trim().startsWith('{'))) {
+                    console.warn("[runYtDlp] Command failed but printed results. Recovering stdout.");
+                    return { stdout: e.stdout, stderr: e.stderr } as any;
                 }
 
                 throw e;
@@ -145,11 +166,12 @@ export async function searchYoutube(query: string, offset: number = 0, limit: nu
             `ytsearch${end}:${query}`,
             "--no-playlist",
             "--playlist-items", `${start}:${end}`,
+            "--flat-playlist",
+            "--ignore-errors",
             "--no-check-certificate",
             "--no-warnings",
             "--no-cache-dir",
-            "-f", "bestaudio/best",
-            "--print", "{\"id\":%(id)j,\"title\":%(title)j,\"channel\":%(uploader)j,\"thumbnail\":%(thumbnail)j,\"duration\":%(duration)j,\"url\":%(webpage_url)j,\"streamUrl\":%(url)j}"
+            "--print", "{\"id\":%(id)j,\"title\":%(title)j,\"channel\":%(uploader)j,\"thumbnail\":%(thumbnail)j,\"duration\":%(duration)j,\"url\":%(webpage_url)j}"
         ], { verbose: 'none' });
 
         const stdoutStr = stdout || "";
@@ -203,6 +225,7 @@ export async function batchSearchAndStream(queries: string[]): Promise<any[]> {
                 const { stdout } = await runYtDlp([
                     `ytsearch2:${query}`,
                     "--no-playlist",
+                    "--ignore-errors",
                     "--no-check-certificate",
                     "--no-warnings",
                     "-f", "bestaudio/best",

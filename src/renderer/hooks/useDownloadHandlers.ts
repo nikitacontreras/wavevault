@@ -148,11 +148,20 @@ export const useDownloadHandlers = () => {
         const unsubProgress = window.api.onDownloadProgress(({ url, message, progress }: any) => {
             updateActiveDownload(url, { status: 'loading', msg: message, progress });
             updateItemState(url, { status: 'loading', msg: message, progress });
+            const ytId = getYouTubeId(url);
+            if (ytId) {
+                updateItemState(ytId, { status: 'loading', msg: message, progress });
+            }
         });
 
         const unsubError = window.api.onDownloadError(({ url, error }: any) => {
             updateActiveDownload(url, { status: 'error', msg: error });
             addLog(`❌ Error en descarga: ${error}`);
+            updateItemState(url, { status: 'error', msg: error });
+            const ytId = getYouTubeId(url);
+            if (ytId) {
+                updateItemState(ytId, { status: 'error', msg: error });
+            }
         });
 
         return () => {
@@ -162,3 +171,23 @@ export const useDownloadHandlers = () => {
 
     return { handleDownload, handleBatchDownload, handleDownloadFromUrl };
 };
+
+function getYouTubeId(url: string): string | null {
+    if (!url) return null;
+    if (url.includes("youtu.be/")) {
+        const parts = url.split("youtu.be/");
+        if (parts[1]) {
+            return parts[1].split(/[?#]/)[0];
+        }
+    }
+    const match = url.match(/[?&]v=([^&#]+)/);
+    if (match && match[1]) {
+        return match[1];
+    }
+    const embedMatch = url.match(/(?:embed|v)\/([^&#?]+)/);
+    if (embedMatch && embedMatch[1]) {
+        return embedMatch[1];
+    }
+    return null;
+}
+

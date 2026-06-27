@@ -168,6 +168,7 @@ const RemoteSettingsSection = ({ isDark }: { isDark: boolean }) => {
 
 const YouTubeAuthSection = ({ isDark }: { isDark: boolean }) => {
     const [connected, setConnected] = React.useState(false);
+    const [profile, setProfile] = React.useState<{ name: string; handle: string; avatar: string; id: string; } | null>(null);
     const [loading, setLoading] = React.useState(true);
     const { t } = useTranslation();
 
@@ -175,7 +176,10 @@ const YouTubeAuthSection = ({ isDark }: { isDark: boolean }) => {
         setLoading(true);
         try {
             const res = await window.api.youtubeStatus();
-            if (res?.success) setConnected(res.data.connected);
+            if (res) {
+                setConnected(res.connected);
+                setProfile(res.profile || null);
+            }
         } catch (err) {
             console.error("Failed to fetch YouTube status:", err);
         }
@@ -188,6 +192,7 @@ const YouTubeAuthSection = ({ isDark }: { isDark: boolean }) => {
         // Listen for real-time updates from main process
         const unsub = window.api.on('youtube:status-changed', (data: any) => {
             setConnected(data.connected);
+            setProfile(data.profile || null);
         });
 
         return () => unsub();
@@ -217,9 +222,23 @@ const YouTubeAuthSection = ({ isDark }: { isDark: boolean }) => {
     return (
         <div className={cardClass}>
             <div className="flex items-center justify-between">
-                <div className="flex flex-col gap-1">
-                    <span className="text-sm font-semibold">{t('settings.youtubeAccount')}</span>
-                    <span className="text-xs text-wv-text-muted">{t('settings.youtubeAccountDesc')}</span>
+                <div className="flex items-center gap-4">
+                    {connected && profile?.avatar && (
+                        <img 
+                            src={profile.avatar} 
+                            className="w-10 h-10 rounded-full object-cover border border-white/10" 
+                            alt="" 
+                            referrerPolicy="no-referrer" 
+                        />
+                    )}
+                    <div className="flex flex-col gap-1">
+                        <span className="text-sm font-semibold">
+                            {connected && profile?.name ? profile.name : t('settings.youtubeAccount')}
+                        </span>
+                        <span className="text-xs text-wv-text-muted">
+                            {connected && profile?.handle ? `${profile.handle} • ID: ${profile.id}` : t('settings.youtubeAccountDesc')}
+                        </span>
+                    </div>
                 </div>
                 {loading ? (
                     <div className="w-4 h-4 border-2 border-wv-gray border-t-transparent rounded-full animate-spin" />

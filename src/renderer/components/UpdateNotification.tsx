@@ -17,7 +17,6 @@ export const UpdateNotification: React.FC = () => {
             setEvent(evt);
             setVisible(true);
 
-            // Auto-hide if no update or error after some time
             if (evt.type === 'not-available') {
                 setTimeout(() => setVisible(false), 5000);
             }

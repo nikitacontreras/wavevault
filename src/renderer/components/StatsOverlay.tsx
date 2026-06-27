@@ -24,7 +24,7 @@ export const StatsOverlay: React.FC = () => {
             const now = performance.now();
             const delta = now - lastTimeRef.current;
             lastTimeRef.current = now;
-            
+
             // Frame time is delta for current frame in ms
             setFrameTime(delta);
 
@@ -62,13 +62,12 @@ export const StatsOverlay: React.FC = () => {
     if (!showStats) return null;
 
     return (
-        <div 
+        <div
             id="stats-overlay"
             className="fixed top-12 left-4 z-[9999] pointer-events-none bg-black/80 backdrop-blur-md border border-white/10 rounded-lg p-3 text-[10px] font-mono text-green-400 select-none shadow-xl flex flex-col gap-1 w-44"
         >
             <div className="flex justify-between border-b border-white/5 pb-1 mb-1">
                 <span className="text-white font-bold tracking-wider uppercase text-[9px]">Performance</span>
-                <span className="animate-pulse">● Live</span>
             </div>
             <div className="flex justify-between">
                 <span className="text-gray-400">FPS:</span>

@@ -49,8 +49,14 @@ export class PythonShell {
         const execute = async (executable: string, args: string[]) => {
             try {
                 const execaVerbose = options.verbose === false ? 'none' : (options.verbose === true ? 'short' : options.verbose);
+                const execaOptions = { ...options };
+                if (execaOptions.signal) {
+                    execaOptions.cancelSignal = execaOptions.signal;
+                    delete execaOptions.signal;
+                }
+
                 const subprocess = execa(executable, args, {
-                    ...options,
+                    ...execaOptions,
                     verbose: execaVerbose,
                     env: { ...env, ...options.env }
                 });

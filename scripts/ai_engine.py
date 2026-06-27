@@ -9,7 +9,7 @@ import classify_audio
 
 def main():
     if len(sys.argv) < 2:
-        print(json.dumps({"type": "error", "data": "Usage: ai_engine <command> [args...]"}));
+        print(json.dumps({"type": "error", "data": "Usage: ai_engine <command> [args...]"}))
         sys.exit(1)
 
     command = sys.argv[1]
@@ -39,7 +39,7 @@ def main():
             classify_audio.run_streaming_mode()
             
     else:
-        print(json.dumps({"type": "error", "data": f"Unknown command: {command}"}));
+        print(json.dumps({"type": "error", "data": f"Unknown command: {command}"}))
         sys.exit(1)
 
 if __name__ == "__main__":

@@ -32,7 +32,22 @@ export const LibraryProvider: React.FC<{ children: ReactNode }> = ({ children })
     });
 
     useEffect(() => {
+        const loadHistory = async () => {
+            try {
+                const dbHistory = await window.api.getHistory();
+                if (dbHistory && dbHistory.length > 0) {
+                    setHistory(dbHistory);
+                }
+            } catch (e) {
+                console.error("Failed to load history from DB:", e);
+            }
+        };
+        loadHistory();
+    }, []);
+
+    useEffect(() => {
         localStorage.setItem('downloadHistory', JSON.stringify(history));
+        window.api.saveHistory(history).catch(e => console.error("Failed to save history to DB:", e));
     }, [history]);
 
     const addToHistory = useCallback((item: HistoryItem) => {

@@ -296,6 +296,18 @@ export function setupIpcHandlers() {
         return createSuccessResponse(true);
     });
 
+    ipcMain.handle("save-history", (_evt, history) => {
+        const { setConfigDB } = require('../db');
+        setConfigDB("download_history", history);
+        return createSuccessResponse(true);
+    });
+
+    ipcMain.handle("get-history", () => {
+        const { getConfigDB } = require('../db');
+        const history = getConfigDB("download_history");
+        return createSuccessResponse(history || []);
+    });
+
     ipcMain.handle("remote:get-status", async () => {
         const { getRemoteStatus } = require('../remote');
         return createSuccessResponse(getRemoteStatus());

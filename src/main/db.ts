@@ -73,10 +73,17 @@ export function initDB() {
             type TEXT,
             lastModified INTEGER,
             isUnorganized INTEGER DEFAULT 0,
+            metadata TEXT,
             FOREIGN KEY(trackId) REFERENCES tracks(id) ON DELETE CASCADE,
             FOREIGN KEY(workspaceId) REFERENCES workspaces(id) ON DELETE SET NULL
         )
     `).run();
+
+    try {
+        db.prepare(`ALTER TABLE versions ADD COLUMN metadata TEXT`).run();
+    } catch (e) {
+        // Column may already exist
+    }
 
     // 5. Download History / Samples Table
     db.prepare(`
@@ -322,12 +329,13 @@ export function addToUnorganizedDB(version: any, workspaceId?: string) {
     const db = getDB();
     try {
         db.prepare(`
-            INSERT INTO versions(id, name, path, type, lastModified, isUnorganized, workspaceId)
-    VALUES(?, ?, ?, ?, ?, 1, ?)
+            INSERT INTO versions(id, name, path, type, lastModified, isUnorganized, workspaceId, metadata)
+            VALUES(?, ?, ?, ?, ?, 1, ?, ?)
             ON CONFLICT(path) DO UPDATE SET
-    lastModified = excluded.lastModified,
-        workspaceId = COALESCE(excluded.workspaceId, versions.workspaceId)
-            `).run(version.id, version.name, version.path, version.type, version.lastModified, workspaceId || null);
+                lastModified = excluded.lastModified,
+                workspaceId = COALESCE(excluded.workspaceId, versions.workspaceId),
+                metadata = COALESCE(excluded.metadata, versions.metadata)
+        `).run(version.id, version.name, version.path, version.type, version.lastModified, workspaceId || null, version.metadata || null);
     } catch (e) {
         console.error("DB Error adding to unorganized:", e);
     }

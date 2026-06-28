@@ -15,6 +15,7 @@ interface ProjectVersion {
     workspaceId?: string;
     workspaceName?: string;
     isUnorganized: number;
+    metadata?: string;
 }
 
 interface ProjectTrack {
@@ -23,23 +24,26 @@ interface ProjectTrack {
     status: 'Idea' | 'Arreglo' | 'Mezcla' | 'Master' | 'Terminado';
     bpm?: number;
     key?: string;
-    tags: string[];
+    tags?: string[];
+    createdAt: number;
     versions: ProjectVersion[];
 }
 
 interface ProjectAlbum {
     id: string;
     name: string;
-    artist: string;
+    artist?: string;
+    artwork?: string;
+    createdAt: number;
     tracks: ProjectTrack[];
 }
 
-interface ProjectsDB {
+interface ProjectDB {
     albums: ProjectAlbum[];
     allVersions: ProjectVersion[];
 }
 
-type ModalType = 'create-album' | 'edit-album' | 'create-track' | 'edit-track' | 'daw-settings' | 'add-workspace';
+type ModalType = 'create-album' | 'edit-album' | 'create-track' | 'edit-track' | 'daw-settings' | 'add-workspace' | 'project-details';
 
 import { useTranslation } from "react-i18next";
 
@@ -77,6 +81,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
         title: string;
         id?: string;
         inputs: { label: string, key: string, placeholder: string, value: string, type?: 'text' | 'select', options?: string[] }[];
+        data?: any;
     }>({
         show: false,
         type: 'create-album',
@@ -319,6 +324,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
                         try {
                             setIsLoading(true);
                             await (window as any).api.addWorkspace(values.name, pendingWorkspacePath);
+                            await (window as any).api.scanProjects();
                         } catch (err: any) {
                             if (err.message.includes('UNIQUE constraint failed')) {
                                 alert(t('projects.workspaceExists'));
@@ -592,6 +598,33 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
                                                 </div>
                                             </div>
                                         </div>
+                                        {(() => {
+                                            if (!version.metadata) return null;
+                                            try {
+                                                const meta = JSON.parse(version.metadata);
+                                                return (
+                                                    <div className="mb-3 flex flex-wrap gap-1.5 text-[8px] font-bold text-wv-gray">
+                                                        {meta.bpm && (
+                                                            <span className={`px-1.5 py-0.5 rounded ${isDark ? "bg-white/5 text-white/70" : "bg-black/5 text-black/70"} flex items-center gap-1`}>
+                                                                <Activity size={8} /> {meta.bpm} BPM
+                                                            </span>
+                                                        )}
+                                                        {meta.flVersion && (
+                                                            <span className={`px-1.5 py-0.5 rounded ${isDark ? "bg-white/5 text-white/70" : "bg-black/5 text-black/70"} flex items-center gap-1`}>
+                                                                FL {meta.flVersion.split(' ')[0] || meta.flVersion}
+                                                            </span>
+                                                        )}
+                                                        {meta.plugins && meta.plugins.length > 0 && (
+                                                            <span className={`px-1.5 py-0.5 rounded ${isDark ? "bg-white/5 text-white/70" : "bg-black/5 text-black/70"} flex items-center gap-1`}>
+                                                                <Cpu size={8} /> {meta.plugins.length} Plugins
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                );
+                                            } catch (e) {
+                                                return null;
+                                            }
+                                        })()}
                                         <div className="flex gap-1.5">
                                             <button
                                                 onClick={() => setMovingVersion(version)}
@@ -599,6 +632,26 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
                                             >
                                                 {version.trackId ? t('projects.reNest') : t('projects.nest')} <ArrowRight size={10} />
                                             </button>
+                                            {version.metadata && (
+                                                <button
+                                                    onClick={() => {
+                                                        try {
+                                                            const meta = JSON.parse(version.metadata!);
+                                                            setModalData({
+                                                                show: true,
+                                                                type: 'project-details',
+                                                                title: version.name,
+                                                                inputs: [],
+                                                                data: meta
+                                                            });
+                                                        } catch (e) {}
+                                                    }}
+                                                    className={`p-1.5 rounded-lg transition-all ${isDark ? "bg-white/5 hover:bg-white/10" : "bg-black/5"}`}
+                                                    title={t('common.info') || "Detalles"}
+                                                >
+                                                    <FolderSearch size={10} />
+                                                </button>
+                                            )}
                                             <button onClick={() => handleOpenVersion(version.path)} className={`p-1.5 rounded-lg transition-all ${isDark ? "bg-white/5 hover:bg-white/10" : "bg-black/5"}`}>
                                                 <ExternalLink size={10} />
                                             </button>
@@ -886,7 +939,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
             {
                 modalData.show && (
                     <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[999] flex items-center justify-center p-6">
-                        <div className={`${modalData.type === 'daw-settings' ? 'max-w-xl' : 'max-w-sm'} w-full p-8 rounded-[2.5rem] border shadow-2xl ${isDark ? "bg-wv-sidebar border-white/10" : "bg-white border-black/10"}`}>
+                        <div className={`${modalData.type === 'daw-settings' || modalData.type === 'project-details' ? 'max-w-xl' : 'max-w-sm'} w-full p-8 rounded-[2.5rem] border shadow-2xl ${isDark ? "bg-wv-sidebar border-white/10" : "bg-white border-black/10"}`}>
                             <div className="mb-6 flex justify-between items-center">
                                 <div>
                                     <h2 className="text-xl font-black tracking-tight mb-1">{modalData.title}</h2>
@@ -947,6 +1000,70 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
                                                 </div>
                                             ))}
                                         </div>
+                                    </div>
+                                </div>
+                            ) : modalData.type === 'project-details' ? (
+                                <div className="space-y-4 text-wv-gray max-h-[60vh] overflow-y-auto pr-1 projects-scroll text-xs">
+                                    <div className={`grid grid-cols-2 gap-3 p-4 rounded-2xl ${isDark ? 'bg-black/20' : 'bg-black/[0.03]'}`}>
+                                        <div>
+                                            <span className="text-[8px] font-black uppercase tracking-wider block opacity-50 mb-0.5">BPM / Tempo</span>
+                                            <span className={`font-black text-sm ${isDark ? 'text-white' : 'text-black'}`}>{modalData.data?.bpm ? `${modalData.data.bpm} BPM` : '--'}</span>
+                                        </div>
+                                        <div>
+                                            <span className="text-[8px] font-black uppercase tracking-wider block opacity-50 mb-0.5">FL Studio Version</span>
+                                            <span className={`font-black text-sm ${isDark ? 'text-white' : 'text-black'}`}>{modalData.data?.flVersion || '--'}</span>
+                                        </div>
+                                        <div>
+                                            <span className="text-[8px] font-black uppercase tracking-wider block opacity-50 mb-0.5">Time Signature</span>
+                                            <span className={`font-black text-sm ${isDark ? 'text-white' : 'text-black'}`}>{modalData.data?.timeSignature || '--'}</span>
+                                        </div>
+                                        <div>
+                                            <span className="text-[8px] font-black uppercase tracking-wider block opacity-50 mb-0.5">Genre</span>
+                                            <span className={`font-black text-sm ${isDark ? 'text-white' : 'text-black'}`}>{modalData.data?.genre || '--'}</span>
+                                        </div>
+                                        {modalData.data?.artists && (
+                                            <div className="col-span-2">
+                                                <span className="text-[8px] font-black uppercase tracking-wider block opacity-50 mb-0.5">Artists</span>
+                                                <span className={`font-black text-sm ${isDark ? 'text-white' : 'text-black'}`}>{modalData.data.artists}</span>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {modalData.data?.comments && (
+                                        <div className={`p-4 rounded-2xl ${isDark ? 'bg-black/20' : 'bg-black/[0.03]'}`}>
+                                            <span className="text-[8px] font-black uppercase tracking-wider block opacity-50 mb-1.5">Comments</span>
+                                            <p className={`font-bold whitespace-pre-wrap leading-relaxed ${isDark ? 'text-white/80' : 'text-black/80'}`}>{modalData.data.comments}</p>
+                                        </div>
+                                    )}
+
+                                    {modalData.data?.plugins && modalData.data.plugins.length > 0 && (
+                                        <div className={`p-4 rounded-2xl ${isDark ? 'bg-black/20' : 'bg-black/[0.03]'}`}>
+                                            <span className="text-[8px] font-black uppercase tracking-wider block opacity-50 mb-2">Plugins Used ({modalData.data.plugins.length})</span>
+                                            <div className="flex flex-wrap gap-1">
+                                                {modalData.data.plugins.map((plugin: string, idx: number) => (
+                                                    <span key={idx} className={`px-2 py-1 rounded-lg text-[9px] font-bold border ${isDark ? 'bg-white/5 text-white/90 border-white/5' : 'bg-black/5 text-black/90 border-black/5'}`}>
+                                                        {plugin}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {modalData.data?.samples && modalData.data.samples.length > 0 && (
+                                        <div className={`p-4 rounded-2xl ${isDark ? 'bg-black/20' : 'bg-black/[0.03]'}`}>
+                                            <span className="text-[8px] font-black uppercase tracking-wider block opacity-50 mb-2">Audio Samples Used ({modalData.data.samples.length})</span>
+                                            <div className="space-y-1 max-h-40 overflow-y-auto projects-scroll pr-1">
+                                                {modalData.data.samples.map((sample: string, idx: number) => (
+                                                    <p key={idx} className={`text-[9px] truncate font-mono p-1.5 rounded ${isDark ? 'bg-white/5 text-white/70' : 'bg-black/5 text-black/70'}`} title={sample}>
+                                                        {sample}
+                                                    </p>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div className="pt-2 flex">
+                                        <button onClick={() => setModalData({ ...modalData, show: false })} className={`flex-1 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest ${isDark ? "bg-white/5 hover:bg-white/10" : "bg-black/5 hover:bg-black/10"}`}>{t('common.close') || 'Cerrar'}</button>
                                     </div>
                                 </div>
                             ) : (

@@ -1,7 +1,9 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import crypto from "node:crypto";
 
 import { addToUnorganizedDB } from "./db";
+import { parseDAWProject } from "./dawParser";
 
 export interface ProjectFile {
     id: string;
@@ -10,6 +12,7 @@ export interface ProjectFile {
     type: 'flp' | 'zip';
     album?: string;
     lastModified: number;
+    metadata?: string;
 }
 
 export async function scanProjects(rootPath: string, workspaceId?: string): Promise<ProjectFile[]> {
@@ -29,13 +32,17 @@ export async function scanProjects(rootPath: string, workspaceId?: string): Prom
                 const ext = path.extname(entry.name).toLowerCase();
                 if (ext === '.flp' || ext === '.zip') {
                     const stats = await fs.stat(fullPath);
+                    const id = "VER-" + crypto.createHash("md5").update(fullPath).digest("hex").slice(0, 16);
+
+                    const meta = parseDAWProject(fullPath);
 
                     const version = {
-                        id: "VER-" + stats.ino || Date.now().toString(),
+                        id,
                         name: path.basename(entry.name, ext),
                         path: fullPath,
                         type: (ext === '.flp' ? 'flp' : 'zip') as 'flp' | 'zip',
-                        lastModified: stats.mtimeMs
+                        lastModified: stats.mtimeMs,
+                        metadata: meta ? JSON.stringify(meta) : undefined
                     };
 
                     addToUnorganizedDB(version, workspaceId);

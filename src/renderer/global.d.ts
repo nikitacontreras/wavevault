@@ -81,6 +81,8 @@ declare global {
             checkForUpdates: () => Promise<any>;
             getPlatform: () => Promise<string>;
             getPlatformInfo: () => Promise<any>;
+            saveHistory: (history: any[]) => Promise<any>;
+            getHistory: () => Promise<any[]>;
 
             startDrag: (filepath: string, iconpath?: string) => void;
 

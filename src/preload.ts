@@ -135,6 +135,8 @@ contextBridge.exposeInMainWorld("api", {
     convertFile: (job: any) => safeInvoke("convert-file", job),
     savePeaks: (type: string, id: string, peaks: any) => safeInvoke("save-peaks", type, id, peaks),
     getCachedPeaks: (id: string) => safeInvoke("get-cached-peaks", id),
+    saveHistory: (history: any[]) => safeInvoke("save-history", history),
+    getHistory: () => safeInvoke("get-history"),
 
     // YouTube Auth
     youtubeLogin: () => safeInvoke("youtube:login"),

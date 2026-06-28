@@ -50,7 +50,7 @@ import { useTranslation } from "react-i18next";
 export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
     const { t } = useTranslation();
     const isDark = theme === 'dark';
-    const [db, setDb] = useState<ProjectsDB>({ albums: [], allVersions: [] });
+    const [db, setDb] = useState<ProjectDB>({ albums: [], allVersions: [] });
     const [viewMode, setViewMode] = useState<'projects' | 'todos'>('projects');
     const [filterMode, setFilterMode] = useState<'all' | 'raw' | 'nested'>('all');
     const [selectedAlbumId, setSelectedAlbumId] = useState<string | null>(null);
@@ -197,7 +197,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
             title: t('projects.editProject'),
             inputs: [
                 { label: t('projects.name'), key: 'name', placeholder: '', value: album.name },
-                { label: t('projects.artist'), key: 'artist', placeholder: '', value: album.artist }
+                { label: t('projects.artist'), key: 'artist', placeholder: '', value: album.artist || '' }
             ]
         });
         setActiveAlbumMenu(null);
@@ -344,8 +344,8 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
         loadDB();
     };
 
-    const currentAlbum = db.albums.find(a => a.id === selectedAlbumId);
-    const filteredVersions = db.allVersions.filter(v => {
+    const currentAlbum = db.albums.find((a: any) => a.id === selectedAlbumId);
+    const filteredVersions = db.allVersions.filter((v: any) => {
         const name = v.name || "";
         const matchesSearch = name.toLowerCase().includes(projectSearch.toLowerCase());
         if (!matchesSearch) return false;
@@ -402,7 +402,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
                             </div>
                             {db.allVersions.length > 0 && (
                                 <span className={`px-1.5 py-0.5 rounded-md text-[8px] font-bold ${viewMode === 'todos' ? (isDark ? "bg-black text-white" : "bg-white text-black") : "bg-blue-600 text-white"}`}>
-                                    {db.allVersions.filter(v => v.isUnorganized === 1).length}
+                                    {db.allVersions.filter((v: any) => v.isUnorganized === 1).length}
                                 </span>
                             )}
                         </button>
@@ -450,7 +450,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
                     </div>
 
                     <div className="flex-1 space-y-0.5 overflow-y-auto pr-1 projects-scroll">
-                        {db.albums.map(album => (
+                        {db.albums.map((album: any) => (
                             <div key={album.id} className="relative group/item">
                                 <button
                                     onClick={() => { setSelectedAlbumId(album.id); setViewMode('projects'); }}
@@ -574,7 +574,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
 
                         <div className="flex-1 overflow-y-auto projects-scroll pr-2 -mr-2">
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5 pb-20">
-                                {filteredVersions.map(version => (
+                                {filteredVersions.map((version: any) => (
                                     <div key={version.id} className={`p-3 rounded-2xl border transition-all ${isDark ? "bg-wv-sidebar/30 border-white/5 hover:bg-wv-sidebar/50" : "bg-white border-black/5 shadow-sm"}`}>
                                         <div className="flex items-center gap-2.5 mb-3">
                                             <div className={`p-1.5 rounded-lg shrink-0 ${version.type === 'flp' ? 'bg-orange-500/10 text-orange-500' : 'bg-blue-500/10 text-blue-500'}`}>
@@ -697,7 +697,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
 
                                     {/* Lista de Tracks Compacta */}
                                     <div className="flex-1 overflow-y-auto px-8 py-6 space-y-4 pr-1 projects-scroll">
-                                        {currentAlbum.tracks.map(track => (
+                                        {currentAlbum.tracks.map((track: any) => (
                                             <div key={track.id} className={`p-5 rounded-[1.5rem] border transition-all ${isDark ? "bg-wv-sidebar/20 border-white/5 hover:bg-wv-sidebar/30" : "bg-white border-black/5"}`}>
                                                 <div className="flex items-center justify-between mb-4">
                                                     <div className="flex items-center gap-4 min-w-0">
@@ -740,7 +740,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
                                                 </div>
 
                                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                                                    {track.versions.map(version => (
+                                                    {track.versions.map((version: any) => (
                                                         <div key={version.id} className={`group/ver px-3 py-2 rounded-xl border flex items-center justify-between transition-all ${isDark ? "bg-black/20 border-white/5 hover:bg-black/40" : "bg-black/[0.01]"}`}>
                                                             <div className="flex items-center gap-3 min-w-0 cursor-pointer" onClick={() => handleOpenVersion(version.path)}>
                                                                 <div className={`p-1.5 rounded-lg ${version.type === 'flp' ? 'bg-orange-500/10 text-orange-500' : 'bg-blue-500/10 text-blue-500'}`}>
@@ -792,7 +792,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
                                 {!movingToAlbumId ? (
                                     <>
                                         <h3 className="text-[9px] font-black uppercase tracking-widest text-wv-gray/40 px-2 mb-2">{t('projects.selectCollection')}</h3>
-                                        {db.albums.map(album => (
+                                        {db.albums.map((album: any) => (
                                             <button
                                                 key={album.id}
                                                 onClick={() => setMovingToAlbumId(album.id)}
@@ -812,14 +812,13 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
                                         )}
                                     </>
                                 ) : (
-                                    <>
-                                        <div className="flex items-center gap-2 mb-4">
+                                    <>                                        <div className="flex items-center gap-2 mb-4">
                                             <button onClick={() => setMovingToAlbumId(null)} className="p-1.5 rounded-lg hover:bg-white/5 text-wv-gray"><X size={14} /></button>
-                                            <h3 className="text-[9px] font-black uppercase tracking-widest text-wv-gray/40">{t('projects.collectionLabel')} {db.albums.find(a => a.id === movingToAlbumId)?.name}</h3>
+                                            <h3 className="text-[9px] font-black uppercase tracking-widest text-wv-gray/40">{t('projects.collectionLabel')} {db.albums.find((a: any) => a.id === movingToAlbumId)?.name}</h3>
                                         </div>
 
                                         <div className="grid grid-cols-1 gap-1.5">
-                                            {db.albums.find(a => a.id === movingToAlbumId)?.tracks.map(track => (
+                                            {db.albums.find((a: any) => a.id === movingToAlbumId)?.tracks.map((track: any) => (
                                                 <button key={track.id} onClick={() => handleMoveToTrack(track.id)} className={`flex items-center justify-between px-5 py-3 rounded-xl border transition-all ${isDark ? "bg-white/5 border-white/5 hover:bg-blue-600 text-white" : "bg-black/5 hover:bg-black/10"}`}>
                                                     <span className="text-[10px] font-black uppercase tracking-tight">{track.name}</span>
                                                     <span className={`px-1.5 py-0.5 rounded text-[7px] font-black uppercase opacity-60 border border-current`}>{track.status}</span>
@@ -881,7 +880,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
                             <div className="text-center mb-6">
                                 <Plus size={24} className="text-blue-500 mx-auto mb-3" />
                                 <h2 className="text-lg font-black tracking-tight">{t('projects.linkProject')}</h2>
-                                <p className="text-[10px] text-wv-gray font-bold uppercase tracking-widest mt-1">{t('projects.selectRawFor', { name: db.albums.flatMap(a => a.tracks).find(t => t.id === pickingVersionForTrackId)?.name })}</p>
+                                <p className="text-[10px] text-wv-gray font-bold uppercase tracking-widest mt-1">{t('projects.selectRawFor', { name: db.albums.flatMap((a: any) => a.tracks).find((t: any) => t.id === pickingVersionForTrackId)?.name || "" })}</p>
                             </div>
 
                             <div className="mb-4 relative group">
@@ -901,11 +900,11 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
                                 )}
                             </div>
 
-                            <div className="flex-1 overflow-y-auto min-h-0 space-y-2 pr-1 mb-6 projects-scroll">
+                             <div className="flex-1 overflow-y-auto min-h-0 space-y-2 pr-1 mb-6 projects-scroll">
                                 {db.allVersions
-                                    .filter(v => v.isUnorganized === 1)
-                                    .filter(v => !linkSearch || (v.name && v.name.toLowerCase().includes(linkSearch.toLowerCase())))
-                                    .map(version => (
+                                    .filter((v: any) => v.isUnorganized === 1)
+                                    .filter((v: any) => !linkSearch || (v.name && v.name.toLowerCase().includes(linkSearch.toLowerCase())))
+                                    .map((version: any) => (
                                         <button
                                             key={version.id}
                                             onClick={() => {
@@ -924,7 +923,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
                                         </button>
                                     ))
                                 }
-                                {db.allVersions.filter(v => v.isUnorganized === 1).filter(v => !linkSearch || (v.name && v.name.toLowerCase().includes(linkSearch.toLowerCase()))).length === 0 && (
+                                {db.allVersions.filter((v: any) => v.isUnorganized === 1).filter((v: any) => !linkSearch || (v.name && v.name.toLowerCase().includes(linkSearch.toLowerCase()))).length === 0 && (
                                     <div className="text-center py-10 opacity-30 border border-dashed border-white/10 rounded-2xl">
                                         <p className="text-[10px] font-black uppercase tracking-widest">{t('projects.noResults')}</p>
                                     </div>

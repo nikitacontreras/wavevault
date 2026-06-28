@@ -176,9 +176,9 @@ const YouTubeAuthSection = ({ isDark }: { isDark: boolean }) => {
         setLoading(true);
         try {
             const res = await window.api.youtubeStatus();
-            if (res) {
-                setConnected(res.connected);
-                setProfile(res.profile || null);
+            if (res && res.success && res.data) {
+                setConnected(res.data.connected);
+                setProfile((res.data as any).profile || null);
             }
         } catch (err) {
             console.error("Failed to fetch YouTube status:", err);

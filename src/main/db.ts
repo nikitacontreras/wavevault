@@ -341,6 +341,28 @@ export function addToUnorganizedDB(version: any, workspaceId?: string) {
     }
 }
 
+export function addBatchToUnorganizedDB(versions: any[], workspaceId?: string) {
+    const db = getDB();
+    try {
+        const stmt = db.prepare(`
+            INSERT INTO versions(id, name, path, type, lastModified, isUnorganized, workspaceId, metadata)
+            VALUES(?, ?, ?, ?, ?, 1, ?, ?)
+            ON CONFLICT(path) DO UPDATE SET
+                lastModified = excluded.lastModified,
+                workspaceId = COALESCE(excluded.workspaceId, versions.workspaceId),
+                metadata = COALESCE(excluded.metadata, versions.metadata)
+        `);
+        const transaction = db.transaction((items) => {
+            for (const item of items) {
+                stmt.run(item.id, item.name, item.path, item.type, item.lastModified, workspaceId || null, item.metadata || null);
+            }
+        });
+        transaction(versions);
+    } catch (e) {
+        console.error("DB Error batch adding to unorganized:", e);
+    }
+}
+
 export function moveVersionToTrackDB(versionId: string, trackId: string) {
     getDB().prepare('UPDATE versions SET trackId = ?, isUnorganized = 0 WHERE id = ?').run(trackId, versionId);
     return true;

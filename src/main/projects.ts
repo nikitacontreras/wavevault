@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
 
-import { addToUnorganizedDB } from "./db";
+import { addBatchToUnorganizedDB } from "./db";
 import { parseDAWProject } from "./dawParser";
 
 export interface ProjectFile {
@@ -45,7 +45,6 @@ export async function scanProjects(rootPath: string, workspaceId?: string): Prom
                         metadata: meta ? JSON.stringify(meta) : undefined
                     };
 
-                    addToUnorganizedDB(version, workspaceId);
                     results.push({ ...version, id: version.id });
                 }
             }
@@ -54,6 +53,7 @@ export async function scanProjects(rootPath: string, workspaceId?: string): Prom
 
     try {
         await walk(rootPath);
+        addBatchToUnorganizedDB(results, workspaceId);
     } catch (e) {
         console.error(`Error scanning path ${rootPath}: `, e);
     }

@@ -1,162 +1,59 @@
 import { parentPort } from 'worker_threads';
 import { parseFile } from 'music-metadata';
 import path from 'path';
-import { ChildProcess } from 'child_process';
-import EventEmitter from 'events';
-import { PythonShell } from './python-shell';
-
-// Persistent Python Process Manager
-const lineReader = new EventEmitter();
-
-function getPythonProcess() {
-    const { getClassifyAudioPath } = require('./binaries');
-    const binPath = getClassifyAudioPath();
-
-    const proc = PythonShell.getPersistent('classify', binPath, ['classify']);
-
-    // Only attach listeners once or handle properly
-    if (proc.stdout && !proc.stdout.listenerCount('data')) {
-        let buffer = '';
-        proc.stdout.on('data', (data) => {
-            buffer += data.toString();
-            let lines = buffer.split('\n');
-            buffer = lines.pop() || '';
-
-            for (const line of lines) {
-                if (line.trim()) lineReader.emit('line', line.trim());
-            }
-        });
-    }
-
-    return proc;
-}
-
-// Helper to send query and wait for response
-// Helper to safely write to Python
-function askPython(filePath: string): Promise<any> {
-    const proc = getPythonProcess();
-
-    // If we couldn't spawn, fallback immediately
-    if (!proc || !proc.stdin || proc.stdin.destroyed) {
-        // Force cleanup just in case
-        if (proc) killPython();
-        return Promise.resolve({ category: null });
-    }
-
-    return new Promise((resolve) => {
-        let isResolved = false;
-        let timeout: NodeJS.Timeout;
-
-        const cleanup = () => {
-            clearTimeout(timeout);
-            lineReader.off('line', onLine);
-            proc.stdin?.off('error', onStdinError);
-        };
-
-        const onLine = (line: string) => {
-            if (isResolved) return;
-            isResolved = true;
-            cleanup();
-
-            try {
-                const res = JSON.parse(line);
-                resolve(res);
-            } catch (e) {
-                resolve({ category: null });
-            }
-        };
-
-        const onStdinError = (err: Error) => {
-            if (!isResolved) {
-                isResolved = true;
-                cleanup();
-                // Kill process if pipe broke to ensure restart
-                killPython();
-                resolve({ category: null });
-            }
-        };
-
-        // Timeout to prevent hanging forever
-        timeout = setTimeout(() => {
-            if (!isResolved) {
-                isResolved = true;
-                cleanup();
-                // Too slow? probably stuck.
-                killPython();
-                resolve({ category: null });
-            }
-        }, 5000); // 5 sec timeout per file
-
-        lineReader.once('line', onLine);
-        proc.stdin!.on('error', onStdinError);
-
-        try {
-            const ok = proc.stdin!.write(filePath + '\n');
-            if (!ok) {
-                proc.stdin!.once('drain', () => { });
-            }
-        } catch (e) {
-            onStdinError(e as Error);
-        }
-    });
-}
-
-function killPython() {
-    PythonShell.killPersistent('classify');
-}
+import { classifyAudioNative } from './ai/audio-classifier';
 
 /**
- * Worker thread for extracting audio metadata without blocking the main process.
+ * Worker thread for extracting audio metadata and AI features without blocking the main process.
  */
-
-async function classifyWithPython(filePath: string): Promise<{ category: string | null, features?: any }> {
-    try {
-        const result = await askPython(filePath);
-        if (result && result.success) {
-            return { category: result.category, features: result.features };
-        }
-    } catch (e) {
-        // Silent fail
-    }
-    return { category: null };
-}
-
 async function processFile(fullPath: string) {
     try {
         const metadata = await parseFile(fullPath, { duration: true, skipCovers: true });
 
-        // Run AI Classification
-        const aiResult = await classifyWithPython(fullPath);
+        // Run Native AI Classification
+        const aiResult = await classifyAudioNative(fullPath);
 
-        // Merge BPM if librosa found it and metadata didn't? 
-        // Librosa BPM is often more accurate for loops, metadata for tagged files.
-        // We'll prefer metadata if present.
         let bpm = Math.round(metadata.common.bpm || 0);
-        if (bpm === 0 && aiResult.features && aiResult.features.bpm > 0) {
+        if (bpm === 0 && aiResult.success && aiResult.features && aiResult.features.bpm > 0) {
             bpm = Math.round(aiResult.features.bpm);
+        }
+
+        let key = metadata.common.key || '';
+        if (!key && aiResult.success && aiResult.key) {
+            key = aiResult.key;
         }
 
         return {
             path: fullPath,
+            title: metadata.common.title || path.basename(fullPath, path.extname(fullPath)),
+            artist: metadata.common.artist || '',
+            album: metadata.common.album || '',
+            genre: (metadata.common.genre || []).join(', '),
             duration: metadata.format.duration || 0,
-            bpm: bpm,
-            key: metadata.common.key || null,
-            category: aiResult.category, // New field
-            features: aiResult.features, // New field, maybe store as tags?
-            success: true
+            bpm: bpm || undefined,
+            key: key || undefined,
+            sampleRate: metadata.format.sampleRate || 44100,
+            bitrate: metadata.format.bitrate || 0,
+            format: path.extname(fullPath).replace('.', '').toUpperCase(),
+            category: aiResult.success ? aiResult.category : null,
+            features: aiResult.success ? aiResult.features : null
         };
     } catch (e: any) {
         return {
             path: fullPath,
-            success: false,
+            title: path.basename(fullPath, path.extname(fullPath)),
+            format: path.extname(fullPath).replace('.', '').toUpperCase(),
             error: e.message
         };
     }
 }
 
 if (parentPort) {
-    parentPort.on('message', async (filePath: string) => {
-        const result = await processFile(filePath);
-        parentPort?.postMessage(result);
+    parentPort.on('message', async (task: { id: string; files: string[] }) => {
+        const results = [];
+        for (const file of task.files) {
+            results.push(await processFile(file));
+        }
+        parentPort!.postMessage({ id: task.id, results });
     });
 }

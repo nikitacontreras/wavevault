@@ -9,8 +9,7 @@
     "dev": "npm run electron",
     "electron": "cross-env NODE_ENV=development node scripts/build.js && electron src/main/boot.js",
     "start": "npm run build && electron dist/main/main.js",
-    "build:python": "node scripts/build_python.js",
-    "build": "node scripts/generate-icons.js && cross-env NODE_ENV=production npm run build:python && node scripts/build.js && tsc",
+    "build": "node scripts/generate-icons.js && node scripts/build.js && tsc",
     "dist": "npm run build",
     "release": "cross-env NODE_ENV=production npm run build && npm version patch && npm run dist"
   },
@@ -27,7 +26,8 @@
     "asarUnpack": [
       "**/node_modules/yt-dlp-exec/bin/**",
       "**/node_modules/ffmpeg-static/**",
-      "**/node_modules/ffprobe-static/**"
+      "**/node_modules/ffprobe-static/**",
+      "**/node_modules/onnxruntime-node/bin/**"
     ],
     "extraResources": [
       {
@@ -116,6 +116,7 @@
     "music-metadata": "^11.9.0",
     "music-tempo": "^1.0.3",
     "node-id3": "^0.2.9",
+    "onnxruntime-node": "^1.30.0",
     "qrcode.react": "^4.2.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",

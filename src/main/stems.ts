@@ -1,11 +1,7 @@
-import { app, BrowserWindow } from 'electron';
+import { BrowserWindow } from 'electron';
 import path from 'path';
-import { spawn } from 'child_process';
-import { getSeparateStemsPath } from './binaries';
-import { PythonShell } from './python-shell';
-import fs from 'fs';
+import { OnnxStemSeparator } from './ai/onnx-stems';
 import { indexStemResults } from './localLibrary';
-
 
 interface StemsTask {
     filePath: string;
@@ -52,7 +48,6 @@ class StemsQueue {
         const task = this.activeTasks.get(filePath);
         if (!task) return null;
         try {
-            // Force deep clone to avoid IPC cloning errors (ReferenceError, Class instances, etc)
             return JSON.parse(JSON.stringify({
                 type: task.type,
                 data: task.data,
@@ -94,7 +89,7 @@ class StemsQueue {
                         filePath: task.filePath,
                         fileName: path.basename(task.filePath),
                         type: 'error',
-                        data: e.message
+                        data: e.message || 'Error en la separación de pistas'
                     });
                 }
             });
@@ -105,163 +100,46 @@ class StemsQueue {
         }
     }
 
-    private execute(filePath: string, outDir: string): Promise<any> {
-        const { app } = require('electron');
-        const env = PythonShell.getEnv();
-        const { config, getPythonPath } = require('./config');
-        const quality = config.stemsQuality || 'standard';
-        console.log(`[StemsQueue] STARTING SEPARATION. Selected Quality: ${quality}. Config:`, JSON.stringify(config));
+    private async execute(filePath: string, outDir: string): Promise<any> {
+        const fileName = path.basename(filePath);
 
-        const stemsPath = getSeparateStemsPath();
-        let finalPath = stemsPath;
-        let finalArgs = stemsPath.includes('ai_engine')
-            ? ['separate', filePath, outDir, quality]
-            : [filePath, outDir, quality];
-
-        let devScriptFound = false;
-
-        if (!app.isPackaged) {
-            const projectRoot = app.getAppPath();
-            const venvFolders = ['.venv_build', '.venv', 'venv'];
-            let venvPath: string | undefined;
-
-            console.log(`[StemsQueue] Searching VENV in ${projectRoot}...`);
-            for (const folder of venvFolders) {
-                const py3 = path.resolve(projectRoot, folder, 'bin/python3');
-                const py = path.resolve(projectRoot, folder, 'bin/python');
-                if (fs.existsSync(py3)) {
-                    venvPath = py3;
-                    break;
-                } else if (fs.existsSync(py)) {
-                    venvPath = py;
-                    break;
-                }
+        const updateUI = (type: 'progress' | 'error' | 'success', data: any) => {
+            const current = this.activeTasks.get(filePath);
+            if (current) {
+                current.type = type;
+                current.data = data;
             }
 
-            const pythonExec = venvPath || getPythonPath();
-            const possiblePaths = [
-                path.join(projectRoot, 'scripts', 'separate_stems.py'),
-                path.join(projectRoot, '..', 'scripts', 'separate_stems.py'),
-                path.resolve(__dirname, '../../scripts/separate_stems.py'),
-                path.resolve(__dirname, '../scripts/separate_stems.py'),
-            ];
+            BrowserWindow.getAllWindows().forEach(w => {
+                if (!w.isDestroyed()) {
+                    w.webContents.send('stems:update', {
+                        filePath,
+                        fileName,
+                        type,
+                        data
+                    });
+                }
+            });
+        };
 
-            const scriptPath = possiblePaths.find(p => fs.existsSync(p));
-            if (scriptPath) {
-                finalPath = pythonExec;
-                finalArgs = [scriptPath, filePath, outDir, quality];
-                devScriptFound = true;
-                console.log(`[StemsQueue] DEV MODE: Using script at ${scriptPath} with python: ${pythonExec}`);
-            }
+        try {
+            const result = await OnnxStemSeparator.separate(filePath, outDir, (type, data) => {
+                updateUI(type, data);
+            });
+
+            this.activeTasks.delete(filePath);
+
+            // Index stems in library
+            indexStemResults(result).catch(err => {
+                console.error("[StemsQueue] Failed to index stems:", err);
+            });
+
+            return result;
+        } catch (err: any) {
+            updateUI('error', err.message || 'Error en la separación de pistas');
+            this.activeTasks.delete(filePath);
+            throw err;
         }
-
-        if (!devScriptFound && !fs.existsSync(stemsPath)) {
-            throw new Error("El motor de separación de pistas no está listo. En desarrollo ejecuta 'npm run build:python' o instala las dependencias de IA en tu entorno.");
-        }
-
-        return new Promise((resolve, reject) => {
-            const proc = spawn(finalPath, finalArgs, { env });
-            const fileName = path.basename(filePath);
-
-            const updateUI = (type: string, data: any) => {
-                console.log(`[StemsQueue] updateUI: ${type} - ${JSON.stringify(data)}`);
-                // Update local status map
-                const current = this.activeTasks.get(filePath);
-                if (current) {
-                    current.type = type as any;
-                    current.data = data;
-                }
-
-                BrowserWindow.getAllWindows().forEach(w => {
-                    if (!w.isDestroyed()) {
-                        w.webContents.send('stems:update', {
-                            filePath,
-                            fileName,
-                            type,
-                            data
-                        });
-                    }
-                });
-            };
-
-            updateUI('progress', 'Iniciando motor de IA...');
-
-            let totalModels = 1;
-            let currentModelIndex = 0;
-            let lastPercent = 0;
-
-            proc.stdout.on('data', (data) => {
-                const lines = data.toString().split('\n');
-                for (const line of lines) {
-                    if (!line.trim()) continue;
-                    try {
-                        const json = JSON.parse(line);
-                        if (json.type === 'success') {
-                            updateUI('success', json.data);
-                            this.activeTasks.delete(filePath); // Clean up on success
-
-                            // Background indexing for library
-                            indexStemResults(json.data).catch(err => {
-                                console.error("[StemsQueue] Failed to index stems:", err);
-                            });
-
-                            resolve(json.data);
-
-                        } else if (json.type === 'error') {
-                            updateUI('error', json.data);
-                            this.activeTasks.delete(filePath);
-                            reject(new Error(json.data));
-                        } else {
-                            updateUI(json.type, json.data);
-                        }
-                    } catch (e) {
-                        if (line.includes('Selected model is a bag of')) {
-                            const match = line.match(/bag of (\d+) models/);
-                            if (match) totalModels = parseInt(match[1], 10);
-                        }
-                    }
-                }
-            });
-
-            proc.stderr.on('data', (data) => {
-                const str = data.toString();
-                const percentMatch = str.match(/(\d+)%/);
-
-                if (percentMatch) {
-                    const percent = parseInt(percentMatch[1], 10);
-                    if (percent < lastPercent && lastPercent > 80) {
-                        currentModelIndex++;
-                    }
-                    lastPercent = percent;
-                    const globalProgress = Math.min(99, Math.round(((currentModelIndex * 100) + percent) / totalModels));
-                    updateUI('progress', globalProgress);
-                } else {
-                    // Si no hay porcentaje pero hay texto, podría ser un log de descarga o inicio
-                    const lines = str.split('\n').filter((l: string) => l.trim().length > 0);
-                    const lastLine = lines[lines.length - 1]?.trim();
-                    if (lastLine && lastLine.length < 100 && !lastLine.includes('|')) {
-                        // Evitar ruido excesivo de logs internos de python si es posible
-                        if (lastLine.includes('Downloading') || lastLine.includes('Extracting') || lastLine.includes('Loading')) {
-                            updateUI('progress', lastLine);
-                        }
-                    }
-                }
-            });
-
-            proc.on('error', (err) => {
-                updateUI('error', `Error al ejecutar Python: ${err.message}`);
-                this.activeTasks.delete(filePath);
-                reject(err);
-            });
-
-            proc.on('close', (code) => {
-                if (code !== 0) {
-                    updateUI('error', `Motor falló (código ${code})`);
-                    this.activeTasks.delete(filePath);
-                    reject(new Error(`Motor falló con código ${code}`));
-                }
-            });
-        });
     }
 }
 

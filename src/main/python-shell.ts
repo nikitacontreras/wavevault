@@ -134,6 +134,10 @@ export class PythonShell {
             stdio: ["pipe", "pipe", "pipe"]
         });
 
+        proc.on("error", (err) => {
+            console.warn(`[PythonShell] Persistent process '${id}' error:`, err.message);
+            this.persistentProcesses.delete(id);
+        });
         proc.on("exit", () => this.persistentProcesses.delete(id));
         this.persistentProcesses.set(id, proc);
 

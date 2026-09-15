@@ -1,10 +1,10 @@
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AlertCircle, CheckCircle2, XCircle, RefreshCw, Cpu, Download, Info, Settings } from "lucide-react";
+import { AlertCircle, CheckCircle2, XCircle, RefreshCw, Cpu, Download, Info, Settings, X } from "lucide-react";
 import { useSettings } from "../context/SettingsContext";
 
-export const DependencyChecker: React.FC<{ dependencies: any, onRetry: () => void }> = ({
-    dependencies, onRetry
+export const DependencyChecker: React.FC<{ dependencies: any, onRetry: () => void, onDismiss?: () => void }> = ({
+    dependencies, onRetry, onDismiss
 }) => {
     const { config, updateConfig } = useSettings();
     const { pythonPath, ffmpegPath, ffprobePath, theme } = config;
@@ -18,18 +18,32 @@ export const DependencyChecker: React.FC<{ dependencies: any, onRetry: () => voi
 
     return (
         <div className={`fixed inset-0 z-[3000] backdrop-blur-xl flex items-center justify-center p-6 animate-in fade-in duration-500 transition-all ${isDark ? "bg-wv-bg/80" : "bg-black/10"}`}>
-            <div className={`max-w-md w-full border rounded-3xl p-8 shadow-2xl space-y-8 transition-all ${isDark ? "bg-wv-sidebar border-white/10 text-white" : "bg-white border-black/10 text-black"}`}>
-                <div className="flex flex-col items-center text-center space-y-4">
-                    <div className="h-16 w-16 bg-red-500/10 rounded-2xl flex items-center justify-center text-red-500 mb-2">
-                        <AlertCircle size={32} />
+            <div className={`relative max-w-md w-full border rounded-3xl p-8 shadow-2xl space-y-6 transition-all ${isDark ? "bg-wv-sidebar border-white/10 text-white" : "bg-white border-black/10 text-black"}`}>
+                {onDismiss && (
+                    <button
+                        onClick={onDismiss}
+                        className={`absolute top-6 right-6 p-2 rounded-xl border transition-all ${
+                            isDark
+                                ? "bg-white/5 hover:bg-white/10 border-white/10 text-wv-gray hover:text-white"
+                                : "bg-black/5 hover:bg-black/10 border-black/10 text-black/40 hover:text-black"
+                        }`}
+                        title={t('deps.continueAnyway')}
+                    >
+                        <X size={16} />
+                    </button>
+                )}
+
+                <div className="flex flex-col items-center text-center space-y-3">
+                    <div className="h-14 w-14 bg-red-500/10 rounded-2xl flex items-center justify-center text-red-500">
+                        <AlertCircle size={28} />
                     </div>
-                    <h2 className="text-2xl font-bold tracking-tight">{t('deps.missingTitle')}</h2>
-                    <p className="text-wv-gray text-sm leading-relaxed">
+                    <h2 className="text-xl font-bold tracking-tight">{t('deps.missingTitle')}</h2>
+                    <p className="text-wv-gray text-xs leading-relaxed max-w-sm">
                         {t('deps.missingDesc')}
                     </p>
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-2.5">
                     <DependencyRow
                         icon={<Cpu size={14} />}
                         name="Python 3"
@@ -53,9 +67,7 @@ export const DependencyChecker: React.FC<{ dependencies: any, onRetry: () => voi
                     />
                 </div>
 
-
-
-                <div className="space-y-4">
+                <div className="space-y-3">
                     <button
                         onClick={() => setShowConfig(!showConfig)}
                         className={`text-[10px] font-bold uppercase tracking-widest transition-colors flex items-center gap-2 ${isDark ? "text-wv-gray hover:text-white" : "text-black/40 hover:text-black"}`}
@@ -65,7 +77,7 @@ export const DependencyChecker: React.FC<{ dependencies: any, onRetry: () => voi
                     </button>
 
                     {showConfig && (
-                        <div className={`space-y-4 p-4 rounded-2xl border animate-in slide-in-from-top-2 duration-300 ${isDark ? "bg-black/20 border-white/5" : "bg-black/[0.02] border-black/5"}`}>
+                        <div className={`space-y-3 p-3 rounded-2xl border animate-in slide-in-from-top-2 duration-300 ${isDark ? "bg-black/20 border-white/5" : "bg-black/[0.02] border-black/5"}`}>
                             <MiniPathInput label={t('deps.pythonPath')} value={pythonPath} onChange={setPythonPath} theme={theme} />
                             <MiniPathInput label={t('deps.ffmpegPath')} value={ffmpegPath} onChange={setFfmpegPath} theme={theme} />
                             <MiniPathInput label={t('deps.ffprobePath')} value={ffprobePath} onChange={setFfprobePath} theme={theme} />
@@ -73,17 +85,29 @@ export const DependencyChecker: React.FC<{ dependencies: any, onRetry: () => voi
                     )}
                 </div>
 
-
-                <div className="pt-4 flex flex-col gap-3">
+                <div className="pt-2 flex flex-col gap-2.5">
                     <button
                         onClick={onRetry}
-                        className={`w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg ${isDark ? "bg-white text-black hover:bg-gray-200" : "bg-black text-white hover:bg-black/90"}`}
+                        className={`w-full py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all active:scale-95 shadow-md ${isDark ? "bg-white text-black hover:bg-gray-200" : "bg-black text-white hover:bg-black/90"}`}
                     >
-                        <RefreshCw size={16} />
+                        <RefreshCw size={14} />
                         {t('deps.retryVerification')}
                     </button>
 
-                    <p className="text-[10px] text-center text-wv-gray uppercase tracking-widest font-medium opacity-50">
+                    {onDismiss && (
+                        <button
+                            onClick={onDismiss}
+                            className={`w-full py-2 rounded-xl text-xs font-semibold transition-colors border ${
+                                isDark
+                                    ? "border-white/10 text-wv-gray hover:text-white hover:bg-white/5"
+                                    : "border-black/10 text-black/60 hover:text-black hover:bg-black/5"
+                            }`}
+                        >
+                            {t('deps.continueAnyway')}
+                        </button>
+                    )}
+
+                    <p className="text-[9px] text-center text-wv-gray uppercase tracking-widest font-medium opacity-50">
                         {t('deps.pathHint')}
                     </p>
                 </div>

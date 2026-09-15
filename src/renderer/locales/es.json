@@ -281,7 +281,11 @@
         "pathHint": "Asegúrate de que estén en tu PATH de sistema",
         "pythonPath": "Ruta Python",
         "ffmpegPath": "Ruta FFmpeg",
-        "ffprobePath": "Ruta FFprobe"
+        "ffprobePath": "Ruta FFprobe",
+        "continueAnyway": "Omitir por ahora y continuar",
+        "bannerWarning": "Faltan dependencias del sistema ({{missing}}). Algunas funciones avanzadas (como stems o descargas) estarán limitadas.",
+        "configure": "Configurar",
+        "bannerDismiss": "Ocultar"
     },
     "activeDownloads": {
         "title": "Descargas Activas",

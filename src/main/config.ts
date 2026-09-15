@@ -1,3 +1,4 @@
+import fs from "fs";
 import { ffmpegBinaryPath, ffprobeBinaryPath } from "./ffmpeg";
 import { getConfigDB, setConfigDB } from "./db";
 
@@ -89,10 +90,37 @@ export function loadConfig() {
 // Note: loadConfig() is called explicitly from IpcManager or Main startup
 // to avoid issues with DB initialization order.
 
+let resolvedPythonCache: string | null = null;
+
 export function getPythonPath(): string {
     if (config.pythonPath && config.pythonPath.trim().length > 0) {
         return config.pythonPath;
     }
+    if (resolvedPythonCache) {
+        return resolvedPythonCache;
+    }
+
+    if (process.platform === "darwin" || process.platform === "linux") {
+        const candidates = [
+            "/opt/homebrew/bin/python3",
+            "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3",
+            "/Library/Frameworks/Python.framework/Versions/3.12/bin/python3",
+            "/Library/Frameworks/Python.framework/Versions/3.11/bin/python3",
+            "/Library/Frameworks/Python.framework/Versions/3.10/bin/python3",
+            "/usr/local/bin/python3",
+        ];
+        for (const candidate of candidates) {
+            try {
+                if (fs.existsSync(candidate)) {
+                    resolvedPythonCache = candidate;
+                    return candidate;
+                }
+            } catch {
+                // ignore
+            }
+        }
+    }
+
     return "python3";
 }
 

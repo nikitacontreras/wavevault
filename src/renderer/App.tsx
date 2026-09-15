@@ -8,11 +8,12 @@ import { useSearchManager } from "./hooks/useSearchManager";
 import { useDownloadHandlers } from "./hooks/useDownloadHandlers";
 import { useDependenciesManager } from "./hooks/useDependenciesManager";
 import "./App.css";
-import { Play, Pause, Volume2, X, Music2, Loader2, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { Play, Pause, Volume2, X, Music2, Loader2, PanelLeftClose, PanelLeftOpen, AlertTriangle } from "lucide-react";
 import { SpotlightView } from "./components/SpotlightView";
 import { ActivityPanel } from "./components/ActivityPanel";
 import { CursorTrail } from "./components/CursorTrail";
 import { DependencyChecker } from "./components/DependencyChecker";
+import { DependencyBanner } from "./components/DependencyBanner";
 import { TitleBar } from "./components/TitleBar";
 import { Sidebar } from "./components/Sidebar";
 import { SearchView } from "./components/SearchView";
@@ -42,6 +43,8 @@ export const App: React.FC = () => {
     } = usePlayback();
 
     const [isDragging, setIsDragging] = useState(false);
+    const [showDepsModal, setShowDepsModal] = useState(true);
+    const [depsBannerDismissed, setDepsBannerDismissed] = useState(false);
 
     // Custom Hooks (now pre-configured with contexts internally)
     const { dependencies, checkDeps, hasAllDeps } = useDependenciesManager();
@@ -132,8 +135,12 @@ export const App: React.FC = () => {
             <CursorTrail isDragging={isDragging} />
             <TitleBar />
 
-            {!hasAllDeps && (
-                <DependencyChecker dependencies={dependencies} onRetry={checkDeps} />
+            {!hasAllDeps && showDepsModal && (
+                <DependencyChecker
+                    dependencies={dependencies}
+                    onRetry={checkDeps}
+                    onDismiss={() => setShowDepsModal(false)}
+                />
             )}
 
             <div className="flex-1 flex overflow-hidden">
@@ -147,7 +154,31 @@ export const App: React.FC = () => {
                             </button>
                             <h1 className="text-lg font-bold tracking-tight">{t(`header.${view}`)}</h1>
                         </div>
+
+                        {!hasAllDeps && (!showDepsModal && depsBannerDismissed) && (
+                            <button
+                                onClick={() => setShowDepsModal(true)}
+                                className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
+                                    isDark
+                                        ? "bg-amber-500/10 border-amber-500/20 text-amber-300 hover:bg-amber-500/20"
+                                        : "bg-amber-50 border-amber-200 text-amber-800 hover:bg-amber-100"
+                                }`}
+                                title={t('deps.missingTitle')}
+                            >
+                                <AlertTriangle size={13} className="text-amber-500" />
+                                <span>{t('deps.missingTitle')}</span>
+                            </button>
+                        )}
                     </header>
+
+                    {!hasAllDeps && !showDepsModal && !depsBannerDismissed && (
+                        <DependencyBanner
+                            dependencies={dependencies}
+                            onOpenChecker={() => setShowDepsModal(true)}
+                            onDismiss={() => setDepsBannerDismissed(true)}
+                            theme={config.theme}
+                        />
+                    )}
 
                      <div className={`flex-grow flex flex-col min-h-0 relative ${isDark ? "bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.02),transparent_35%)]" : "bg-[radial-gradient(circle_at_top_right,rgba(0,0,0,0.02),transparent_35%)]"}`}>
                         {/* 1. SearchView Container */}

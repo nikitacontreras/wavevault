@@ -264,7 +264,11 @@
         "pathHint": "Убедитесь, что они находятся в системном PATH",
         "pythonPath": "Путь к Python",
         "ffmpegPath": "Путь к FFmpeg",
-        "ffprobePath": "Путь к FFprobe"
+        "ffprobePath": "Путь к FFprobe",
+        "continueAnyway": "Пропустить и продолжить",
+        "bannerWarning": "Отсутствуют системные зависимости ({{missing}}). Расширенные функции (стемы, загрузка) будут ограничены.",
+        "configure": "Настроить",
+        "bannerDismiss": "Скрыть"
     },
     "activeDownloads": {
         "title": "Активные загрузки",

@@ -263,7 +263,11 @@
         "pathHint": "Make sure they are in your system PATH",
         "pythonPath": "Python Path",
         "ffmpegPath": "FFmpeg Path",
-        "ffprobePath": "FFprobe Path"
+        "ffprobePath": "FFprobe Path",
+        "continueAnyway": "Skip for now and continue",
+        "bannerWarning": "Missing system dependencies ({{missing}}). Advanced features (like stems or downloads) will be limited.",
+        "configure": "Configure",
+        "bannerDismiss": "Dismiss"
     },
     "activeDownloads": {
         "title": "Active Downloads",

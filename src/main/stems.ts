@@ -256,6 +256,12 @@ class StemsQueue {
                 }
             });
 
+            proc.on('error', (err) => {
+                updateUI('error', `Error al ejecutar Python: ${err.message}`);
+                this.activeTasks.delete(filePath);
+                reject(err);
+            });
+
             proc.on('close', (code) => {
                 if (code !== 0) {
                     updateUI('error', `Motor falló (código ${code})`);

@@ -8,8 +8,27 @@ import { useTranslation } from "react-i18next";
 
 import { useSettings } from "../context/SettingsContext";
 import { useApp } from "../context/AppContext";
+import { useDependenciesManager } from "../hooks/useDependenciesManager";
 
-const AdvancedPathInput = ({ label, value, onChange, placeholder, isDark }: { label: string, value: string | null, onChange: (v: string) => void, placeholder: string, isDark: boolean }) => {
+const AdvancedPathInput = ({
+    label,
+    value,
+    onChange,
+    placeholder,
+    isDark,
+    isValid,
+    version,
+    isLoading
+}: {
+    label: string;
+    value: string | null;
+    onChange: (v: string) => void;
+    placeholder: string;
+    isDark: boolean;
+    isValid?: boolean;
+    version?: string;
+    isLoading?: boolean;
+}) => {
     const { t } = useTranslation();
     const handlePick = async () => {
         const path = await window.api.pickFile();
@@ -19,7 +38,7 @@ const AdvancedPathInput = ({ label, value, onChange, placeholder, isDark }: { la
     return (
         <div className="flex flex-col gap-2">
             <label className="text-[9px] font-bold text-wv-gray uppercase tracking-widest">{label}</label>
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-center">
                 <input
                     type="text"
                     className={`flex-1 border rounded-lg px-3 py-2 text-xs outline-none transition-all ${isDark ? "bg-wv-bg border-white/5 text-white focus:border-white/20" : "bg-white border-black/[0.08] text-black focus:border-black/20"}`}
@@ -33,6 +52,35 @@ const AdvancedPathInput = ({ label, value, onChange, placeholder, isDark }: { la
                 >
                     {t('settings.browse')}
                 </button>
+
+                {/* Version badge right beside the browse button */}
+                <div className="shrink-0 flex items-center min-w-[100px] justify-end">
+                    {isLoading ? (
+                        <span className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border flex items-center gap-1.5 ${
+                            isDark ? "bg-white/5 border-white/5 text-wv-gray" : "bg-black/5 border-black/5 text-black/40"
+                        }`}>
+                            ...
+                        </span>
+                    ) : isValid ? (
+                        <span className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold tracking-wider border flex items-center gap-1.5 transition-all ${
+                            isDark
+                                ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+                                : "bg-emerald-50 border-emerald-200 text-emerald-700"
+                        }`}>
+                            <Check size={12} className="stroke-[2.5]" />
+                            <span>{version ? (version.startsWith('v') || version === 'Integrado' || version === 'OK' ? version : `v${version}`) : 'Detectado'}</span>
+                        </span>
+                    ) : (
+                        <span className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold tracking-wider border flex items-center gap-1.5 transition-all ${
+                            isDark
+                                ? "bg-red-500/10 border-red-500/20 text-red-400"
+                                : "bg-red-50 border-red-200 text-red-700"
+                        }`}>
+                            <X size={12} className="stroke-[2.5]" />
+                            <span>{version ? `v${version} (< 3.10)` : 'No detectado'}</span>
+                        </span>
+                    )}
+                </div>
             </div>
         </div>
     );
@@ -264,6 +312,7 @@ const YouTubeAuthSection = ({ isDark }: { isDark: boolean }) => {
 export const SettingsView: React.FC = () => {
     const { config, updateConfig, updateKeybind, resetKeybinds } = useSettings();
     const { logs, clearLogs, debugMode } = useApp();
+    const { dependencies } = useDependenciesManager();
     const { t, i18n } = useTranslation();
     const isDark = config.theme === 'dark';
     const theme = config.theme;
@@ -643,11 +692,38 @@ export const SettingsView: React.FC = () => {
                                 <div className="space-y-4">
                                     <div className={cardClass}>
                                         <div className="space-y-6">
-                                            <AdvancedPathInput label={t('settings.pythonPath')} value={pythonPath} onChange={setPythonPath} placeholder={t('settings.autoDetect')} isDark={isDark} />
+                                            <AdvancedPathInput
+                                                label={t('settings.pythonPath')}
+                                                value={pythonPath}
+                                                onChange={setPythonPath}
+                                                placeholder={t('settings.autoDetect')}
+                                                isDark={isDark}
+                                                isValid={dependencies?.python}
+                                                version={dependencies?.pythonVersion}
+                                                isLoading={!dependencies}
+                                            />
                                             <div className="h-px w-full bg-white/5" />
-                                            <AdvancedPathInput label={t('settings.ffmpegPath')} value={ffmpegPath} onChange={setFfmpegPath} placeholder={t('settings.integratedBinary')} isDark={isDark} />
+                                            <AdvancedPathInput
+                                                label={t('settings.ffmpegPath')}
+                                                value={ffmpegPath}
+                                                onChange={setFfmpegPath}
+                                                placeholder={t('settings.integratedBinary')}
+                                                isDark={isDark}
+                                                isValid={dependencies?.ffmpeg}
+                                                version={dependencies?.ffmpegVersion}
+                                                isLoading={!dependencies}
+                                            />
                                             <div className="h-px w-full bg-white/5" />
-                                            <AdvancedPathInput label={t('settings.ffprobePath')} value={ffprobePath} onChange={setFfprobePath} placeholder={t('settings.integratedBinary')} isDark={isDark} />
+                                            <AdvancedPathInput
+                                                label={t('settings.ffprobePath')}
+                                                value={ffprobePath}
+                                                onChange={setFfprobePath}
+                                                placeholder={t('settings.integratedBinary')}
+                                                isDark={isDark}
+                                                isValid={dependencies?.ffprobe}
+                                                version={dependencies?.ffprobeVersion}
+                                                isLoading={!dependencies}
+                                            />
                                         </div>
                                     </div>
 

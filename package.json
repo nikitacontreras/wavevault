@@ -20,7 +20,8 @@
       "dist/main/**/*",
       "dist/renderer/**/*",
       "dist/preload.js",
-      "package.json"
+      "package.json",
+      "icon.png"
     ],
     "asar": true,
     "asarUnpack": [

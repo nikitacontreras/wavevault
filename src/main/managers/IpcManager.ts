@@ -395,23 +395,54 @@ export function setupIpcHandlers() {
     });
 
     ipcMain.on('start-drag', (event, filePath, iconPath) => {
-        if (!fs.existsSync(filePath)) return;
+        if (!filePath) return;
 
-        let icon;
-        if (iconPath && fs.existsSync(iconPath)) {
-            icon = nativeImage.createFromPath(iconPath).resize({ width: 32, height: 32 });
-        } else {
-            // Use app icon as fallback
-            const defaultIconPath = path.join(process.cwd(), 'build', 'icon.png');
-            if (fs.existsSync(defaultIconPath)) {
-                icon = nativeImage.createFromPath(defaultIconPath).resize({ width: 32, height: 32 });
-            } else {
-                icon = nativeImage.createEmpty();
+        let cleanPath = filePath.startsWith('file://')
+            ? decodeURIComponent(filePath.replace(/^file:\/\//, ''))
+            : filePath;
+        cleanPath = path.resolve(cleanPath);
+
+        if (!fs.existsSync(cleanPath)) {
+            console.warn('[start-drag] File not found on disk:', cleanPath);
+            return;
+        }
+
+        let icon: Electron.NativeImage | undefined;
+        if (iconPath && typeof iconPath === 'string' && fs.existsSync(iconPath)) {
+            const img = nativeImage.createFromPath(iconPath);
+            if (!img.isEmpty()) {
+                icon = img.resize({ width: 32, height: 32 });
             }
         }
 
+        if (!icon || icon.isEmpty()) {
+            const candidateIconPaths = [
+                path.join(app.getAppPath(), 'icon.png'),
+                path.join(process.cwd(), 'icon.png'),
+                path.join(__dirname, '../../icon.png'),
+                path.join(__dirname, '../../../icon.png'),
+                path.join(process.resourcesPath || '', 'icon.png')
+            ];
+
+            for (const p of candidateIconPaths) {
+                if (p && fs.existsSync(p)) {
+                    const img = nativeImage.createFromPath(p);
+                    if (!img.isEmpty()) {
+                        icon = img.resize({ width: 32, height: 32 });
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Fallback: create a 32x32 buffer so icon is never empty on macOS/Windows
+        if (!icon || icon.isEmpty()) {
+            const buf = Buffer.alloc(32 * 32 * 4, 128);
+            icon = nativeImage.createFromBuffer(buf, { width: 32, height: 32 });
+        }
+
         event.sender.startDrag({
-            file: filePath,
+            file: cleanPath,
             icon: icon
         });
     });

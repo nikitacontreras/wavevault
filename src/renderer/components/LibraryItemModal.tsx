@@ -1,6 +1,6 @@
 import React, { useState, useRef } from "react";
 import { HistoryItem } from "../types";
-import { X, FolderOpen, Tag, Info, Calendar, Database, Activity, Scissors, Check, Loader2, ZoomIn, ZoomOut, Layers, Music2 } from "lucide-react";
+import { X, FolderOpen, Tag, Info, Calendar, Database, Activity, Scissors, Check, Loader2, ZoomIn, ZoomOut, Layers, Music2, AlertTriangle } from "lucide-react";
 import { Waveform } from "./Waveform";
 import { useStems } from "../hooks/useStems";
 import { useLibrary } from "../context/LibraryContext";
@@ -15,7 +15,7 @@ interface LibraryItemModalProps {
 
 export const LibraryItemModal: React.FC<LibraryItemModalProps> = ({ item, onClose, onOpenItem, onUpdateItem }) => {
     const { config } = useSettings();
-    const { addStemsTask } = useLibrary();
+    const { addStemsTask, removeStemsTask } = useLibrary();
     const theme = config.theme;
     const isDark = theme === 'dark';
     const [tagInput, setTagInput] = useState("");
@@ -197,14 +197,33 @@ export const LibraryItemModal: React.FC<LibraryItemModalProps> = ({ item, onClos
                         )}
 
                         {stemsError && (
-                            <div className={`p-4 rounded-xl border animate-in slide-in-from-top-4 ${isDark ? "bg-red-500/10 border-red-500/20" : "bg-red-50 border-red-200"}`}>
-                                <div className="flex items-center gap-3 mb-2">
-                                    <X size={16} className={`${isDark ? "text-red-400" : "text-red-600"}`} />
-                                    <span className="text-xs font-bold uppercase tracking-widest">Error en la separación</span>
+                            <div className={`p-4 rounded-2xl border transition-all animate-in slide-in-from-top-2 ${
+                                isDark ? "bg-red-500/10 border-red-500/20 text-red-200" : "bg-red-50 border-red-200 text-red-900"
+                            }`}>
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="flex items-start gap-3 min-w-0">
+                                        <div className={`p-2 rounded-xl shrink-0 mt-0.5 ${isDark ? "bg-red-500/20 text-red-400" : "bg-red-100 text-red-600"}`}>
+                                            <AlertTriangle size={16} />
+                                        </div>
+                                        <div className="space-y-1 min-w-0">
+                                            <h4 className="text-xs font-bold uppercase tracking-wider">
+                                                No se pudo procesar la separación
+                                            </h4>
+                                            <p className={`text-xs leading-relaxed ${isDark ? "text-red-300/80" : "text-red-800/80"}`}>
+                                                {stemsError}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => removeStemsTask(item.path)}
+                                        className={`p-1.5 rounded-lg transition-colors shrink-0 ${
+                                            isDark ? "hover:bg-white/10 text-red-400 hover:text-white" : "hover:bg-red-100 text-red-600 hover:text-black"
+                                        }`}
+                                        title="Cerrar aviso"
+                                    >
+                                        <X size={14} />
+                                    </button>
                                 </div>
-                                <p className={`text-[10px] leading-relaxed ${isDark ? "text-red-300/80" : "text-red-800/80"}`}>
-                                    {stemsError}
-                                </p>
                             </div>
                         )}
 

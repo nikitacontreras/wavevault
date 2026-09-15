@@ -1,7 +1,7 @@
 import { ipcMain, dialog, app, shell, clipboard, nativeImage } from 'electron';
 import fs from 'fs';
 import { createSuccessResponse, createErrorResponse } from '../core/ApiResponse';
-import { processJob, fetchMeta, getStreamUrl, searchYoutube, batchSearchAndStream, fetchPlaylistMeta } from '../downloader';
+import { processJob, fetchMeta, getStreamUrl, searchYoutube, batchSearchAndStream, fetchPlaylistMeta, trimAudio } from '../downloader';
 import { config, saveConfig, resetKeybinds } from '../config';
 import {
     getFullProjectDB, createAlbumDB, createTrackDB, moveVersionToTrackDB,
@@ -9,7 +9,7 @@ import {
     deleteVersionDB, addWorkspaceDB, removeWorkspaceDB, getLocalFoldersDB,
     removeLocalFolderDB, getLocalFilesDB, saveWaveformCacheDB, getWaveformCacheDB,
     getWorkspacesDB, getDAWPathsDB, saveDAWPathDB, getLocalFilesByCategoryDB,
-    getLocalFilesGroupedDB
+    getLocalFilesGroupedDB, addProjectVersionDB
 } from '../db';
 import { separateStems, getStemsStatus, getAllStemsStatuses } from '../stems';
 import { scanProjects } from '../projects';
@@ -21,29 +21,48 @@ import { indexLocalConnect } from '../localLibrary';
 import { ShortcutManager } from './ShortcutManager';
 import { UpdateManager } from './UpdateManager';
 import { YouTubeAuthManager } from './YouTubeAuthManager';
+import { BackupManager } from './BackupManager';
 import path from 'path';
 
 export function setupIpcHandlers() {
     console.log("Registering IPC Handlers...");
     const wm = WindowManager.getInstance();
     const updateManager = UpdateManager.getInstance();
+    const activeDownloadControllers = new Map<string, AbortController>();
 
     // Downloads
     ipcMain.handle("download", async (evt, url, format, bitrate, sampleRate, normalize, outDir, smartOrganize) => {
+        const controller = new AbortController();
+        activeDownloadControllers.set(url, controller);
         try {
             const result = await processJob({
                 url, outDir: outDir || app.getPath("music"),
                 format, bitrate, sampleRate, normalize, smartOrganize,
-                signal: new AbortController().signal,
+                signal: controller.signal,
                 onProgress: (msg, progress) => {
                     evt.sender.send("download-progress", { url, message: msg, progress });
                 }
             });
             return createSuccessResponse(result);
         } catch (e: any) {
+            if (controller.signal.aborted || e.message === "Aborted") {
+                return createSuccessResponse({ aborted: true });
+            }
             console.error("[IpcManager] Download handler failed:", e);
             return createErrorResponse(e.message);
+        } finally {
+            activeDownloadControllers.delete(url);
         }
+    });
+
+    ipcMain.handle("cancel-download", async (_evt, url) => {
+        const controller = activeDownloadControllers.get(url);
+        if (controller) {
+            controller.abort();
+            activeDownloadControllers.delete(url);
+            return createSuccessResponse(true);
+        }
+        return createSuccessResponse(false);
     });
 
     ipcMain.handle("getMeta", async (_evt, url) => {
@@ -179,16 +198,42 @@ export function setupIpcHandlers() {
     ipcMain.handle("update-album", async (_evt, albumId, updates) => createSuccessResponse(updateAlbumDB(albumId, updates)));
     ipcMain.handle("delete-album", async (_evt, albumId) => createSuccessResponse(deleteAlbumDB(albumId)));
     ipcMain.handle("create-track", async (_evt, name, albumId) => createSuccessResponse(createTrackDB(name, albumId)));
+    ipcMain.handle("add-project-version", async (_evt, trackId, filePath) => {
+        try {
+            return createSuccessResponse(addProjectVersionDB(trackId, filePath));
+        } catch (e: any) {
+            return createErrorResponse(e.message);
+        }
+    });
     ipcMain.handle("move-project-version", async (_evt, versionId, trackId) => createSuccessResponse(moveVersionToTrackDB(versionId, trackId)));
     ipcMain.handle("delete-track", async (_evt, trackId) => createSuccessResponse(deleteTrackDB(trackId)));
     ipcMain.handle("delete-version", async (_evt, versionId) => createSuccessResponse(deleteVersionDB(versionId)));
     ipcMain.handle("update-track-meta", async (_evt, trackId, updates) => createSuccessResponse(updateTrackMetaDB(trackId, updates)));
     ipcMain.handle("detect-daws", async () => createSuccessResponse(await detectDAWs()));
     ipcMain.handle("get-daw-paths", async () => createSuccessResponse(getDAWPathsDB()));
-    ipcMain.handle("save-daw-path", async (_evt, daw) => createSuccessResponse(saveDAWPathDB(daw)));
+    ipcMain.handle("backup-db", async (_evt, options) => {
+        try {
+            const result = await BackupManager.exportBackup(options);
+            if (!result.success && !result.canceled) {
+                return createErrorResponse(result.error || "Error al exportar respaldo");
+            }
+            return createSuccessResponse(result);
+        } catch (e: any) {
+            return createErrorResponse(e.message || "Error al exportar respaldo");
+        }
+    });
 
-    ipcMain.handle("backup-db", () => createSuccessResponse(true));
-    ipcMain.handle("restore-db", () => createSuccessResponse(true));
+    ipcMain.handle("restore-db", async (_evt, options) => {
+        try {
+            const result = await BackupManager.restoreBackup(options);
+            if (!result.success && !result.canceled) {
+                return createErrorResponse(result.error || "Error al restaurar respaldo");
+            }
+            return createSuccessResponse(result);
+        } catch (e: any) {
+            return createErrorResponse(e.message || "Error al restaurar respaldo");
+        }
+    });
     ipcMain.handle("convert-file", async (_evt, job) => {
         try {
             return createSuccessResponse(await convertFile(job));
@@ -233,7 +278,14 @@ export function setupIpcHandlers() {
         return createSuccessResponse(true);
     });
 
-    ipcMain.handle("trim-audio", () => createErrorResponse("Not implemented"));
+    ipcMain.handle("trim-audio", async (_evt, src, start, end) => {
+        try {
+            return createSuccessResponse(await trimAudio(src, start, end));
+        } catch (e: any) {
+            console.error("[IpcManager] trim-audio error:", e);
+            return createErrorResponse(e.message || "Error al recortar el audio");
+        }
+    });
     ipcMain.handle("check-for-updates", () => {
         return updateManager.checkForUpdates();
     });

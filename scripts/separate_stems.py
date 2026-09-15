@@ -17,7 +17,7 @@ try:
     import torchaudio
     import demucs.separate
 except ImportError as e:
-    print(json.dumps({"type": "error", "data": f"Error de dependencias: {str(e)}"}))
+    print(json.dumps({"type": "error", "data": f"Faltan dependencias de IA ({str(e)}). Para separar pistas en desarrollo instala 'torch' y 'demucs' o ejecuta 'npm run build:python'."}))
     sys.exit(1)
 
 def separate_stems_logic(file_path, output_root, quality="standard"):

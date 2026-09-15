@@ -106,23 +106,20 @@ class StemsQueue {
     }
 
     private execute(filePath: string, outDir: string): Promise<any> {
-        const stemsPath = getSeparateStemsPath();
-        if (!fs.existsSync(stemsPath)) {
-            throw new Error(`El motor de separación de pistas no se encuentra en: ${stemsPath}`);
-        }
-
+        const { app } = require('electron');
         const env = PythonShell.getEnv();
         const { config, getPythonPath } = require('./config');
         const quality = config.stemsQuality || 'standard';
         console.log(`[StemsQueue] STARTING SEPARATION. Selected Quality: ${quality}. Config:`, JSON.stringify(config));
 
-        // Use script in dev if available
+        const stemsPath = getSeparateStemsPath();
         let finalPath = stemsPath;
         let finalArgs = stemsPath.includes('ai_engine')
             ? ['separate', filePath, outDir, quality]
             : [filePath, outDir, quality];
 
-        const { app } = require('electron');
+        let devScriptFound = false;
+
         if (!app.isPackaged) {
             const projectRoot = app.getAppPath();
             const venvFolders = ['.venv_build', '.venv', 'venv'];
@@ -141,30 +138,25 @@ class StemsQueue {
                 }
             }
 
-            // Fallback for this machine
-            if (!venvPath && fs.existsSync('/Users/nikitastrike/Development/wavevault/.venv_build/bin/python3')) {
-                venvPath = '/Users/nikitastrike/Development/wavevault/.venv_build/bin/python3';
-            }
-
             const pythonExec = venvPath || getPythonPath();
-            console.log(`[StemsQueue] VENV Result: ${venvPath ? 'FOUND ' + venvPath : 'NOT FOUND, using default ' + pythonExec}`);
-
             const possiblePaths = [
                 path.join(projectRoot, 'scripts', 'separate_stems.py'),
                 path.join(projectRoot, '..', 'scripts', 'separate_stems.py'),
                 path.resolve(__dirname, '../../scripts/separate_stems.py'),
                 path.resolve(__dirname, '../scripts/separate_stems.py'),
-                '/Users/nikitastrike/Development/wavevault/scripts/separate_stems.py'
             ];
 
             const scriptPath = possiblePaths.find(p => fs.existsSync(p));
             if (scriptPath) {
                 finalPath = pythonExec;
                 finalArgs = [scriptPath, filePath, outDir, quality];
+                devScriptFound = true;
                 console.log(`[StemsQueue] DEV MODE: Using script at ${scriptPath} with python: ${pythonExec}`);
-            } else {
-                console.warn(`[StemsQueue] DEV MODE: Script NOT found in any location:`, possiblePaths);
             }
+        }
+
+        if (!devScriptFound && !fs.existsSync(stemsPath)) {
+            throw new Error("El motor de separación de pistas no está listo. En desarrollo ejecuta 'npm run build:python' o instala las dependencias de IA en tu entorno.");
         }
 
         return new Promise((resolve, reject) => {

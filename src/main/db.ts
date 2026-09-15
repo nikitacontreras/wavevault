@@ -5,16 +5,30 @@ import fs from 'node:fs';
 
 let _db: Database.Database | null = null;
 
+export function getDBPath(): string {
+    if (app) {
+        return path.join(app.getPath('userData'), 'wavevault.db');
+    }
+    throw new Error("Electron 'app' is not available.");
+}
+
+export function closeDB(): void {
+    if (_db) {
+        try {
+            _db.close();
+        } catch (e) {
+            console.error("[DB] Error closing database:", e);
+        }
+        _db = null;
+    }
+}
+
 export function getDB(): Database.Database {
     if (!_db) {
         let dbPath: string;
         try {
             // Check if app is available (Main process)
-            if (app) {
-                dbPath = path.join(app.getPath('userData'), 'wavevault.db');
-            } else {
-                throw new Error("Electron 'app' is not available.");
-            }
+            dbPath = getDBPath();
         } catch (e) {
             // Fallback for workers: they should NOT be initializing the DB
             console.error("[DB] Failed to resolve dbPath, likely in a worker thread.");
@@ -361,6 +375,28 @@ export function addBatchToUnorganizedDB(versions: any[], workspaceId?: string) {
     } catch (e) {
         console.error("DB Error batch adding to unorganized:", e);
     }
+}
+
+export function addProjectVersionDB(trackId: string, filePath: string) {
+    const db = getDB();
+    const id = `ver_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const name = path.basename(filePath);
+    const ext = path.extname(filePath).replace(".", "").toUpperCase() || "AUDIO";
+    let lastModified = Date.now();
+    try {
+        if (fs.existsSync(filePath)) {
+            const stat = fs.statSync(filePath);
+            lastModified = Math.floor(stat.mtimeMs);
+        }
+    } catch {}
+
+    db.prepare(`
+        INSERT INTO versions(id, trackId, name, path, type, lastModified, isUnorganized)
+        VALUES(?, ?, ?, ?, ?, ?, 0)
+        ON CONFLICT(path) DO UPDATE SET trackId = excluded.trackId, isUnorganized = 0
+    `).run(id, trackId, name, filePath, ext, lastModified);
+
+    return { id, trackId, name, path: filePath, type: ext, lastModified };
 }
 
 export function moveVersionToTrackDB(versionId: string, trackId: string) {

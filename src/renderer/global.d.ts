@@ -98,8 +98,8 @@ declare global {
             forgetDevice: (deviceId: string) => Promise<void>;
             onRemoteStatusUpdate: (cb: (data: any) => void) => () => void;
 
-            backupDB: () => Promise<void>;
-            restoreDB: () => Promise<void>;
+            backupDB: (options?: { includeMedia?: boolean; libraryPath?: string }) => Promise<{ success: boolean; canceled?: boolean; filePath?: string; includesMedia?: boolean; error?: string }>;
+            restoreDB: (options?: { targetLibraryPath?: string }) => Promise<{ success: boolean; canceled?: boolean; filePath?: string; restoredMedia?: boolean; restoredCount?: number; error?: string }>;
 
             // YouTube Auth
             youtubeLogin: () => Promise<any>;

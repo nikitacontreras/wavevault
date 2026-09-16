@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { SearchResult, ItemState } from "../types";
 import { ResultCard } from "./ResultCard";
 import { VirtualizedItem } from "./VirtualizedItem";
@@ -30,31 +30,17 @@ export const SearchView: React.FC<SearchViewProps> = ({
     const isDark = config.theme === 'dark';
     const theme = config.theme;
     const { t } = useTranslation();
-    const loaderRef = useRef<HTMLDivElement>(null);
-
-    // Infinite scroll observer
-    useEffect(() => {
-        const observer = new IntersectionObserver((entries) => {
-            const first = entries[0];
-            if (first.isIntersecting && results.length > 0 && !isSearching) {
-                onLoadMore();
-            }
-        }, { threshold: 0.1 });
-
-        const currentLoader = loaderRef.current;
-        if (currentLoader) {
-            observer.observe(currentLoader);
+    const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+        const target = e.currentTarget;
+        const threshold = 150; // trigger search 150px before reaching the bottom
+        const isNearBottom = target.scrollHeight - target.scrollTop - target.clientHeight < threshold;
+        if (isNearBottom && results.length > 0 && !isSearching) {
+            onLoadMore();
         }
-
-        return () => {
-            if (currentLoader) {
-                observer.unobserve(currentLoader);
-            }
-        };
     }, [results.length, isSearching, onLoadMore]);
 
     return (
-        <div className="flex-1 overflow-y-auto px-8 py-8 custom-scrollbar bg-wv-bg">
+        <div className="flex-1 overflow-y-auto px-8 py-8 custom-scrollbar bg-wv-bg" onScroll={handleScroll}>
             <form onSubmit={onSearch} className="relative mb-10">
                 <div className={`absolute inset-y-0 left-5 flex items-center pointer-events-none ${isDark ? "text-wv-gray" : "text-black/30"}`}>
                     <Search size={18} />
@@ -121,7 +107,7 @@ export const SearchView: React.FC<SearchViewProps> = ({
                         </div>
 
                         {/* Sentry for infinite scroll */}
-                        <div ref={loaderRef} className="h-20 flex items-center justify-center">
+                        <div className="h-20 flex items-center justify-center">
                             {isSearching && results.length > 0 && (
                                 <Loader2 className="animate-spin text-wv-gray opacity-30" size={32} />
                             )}

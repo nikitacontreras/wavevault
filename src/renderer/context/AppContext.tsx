@@ -8,6 +8,8 @@ interface AppContextType {
     setSidebarCollapsed: (collapsed: boolean) => void;
     debugMode: boolean;
     setDebugMode: (debug: boolean) => void;
+    showStats: boolean;
+    setShowStats: (show: boolean) => void;
     logs: string[];
     addLog: (msg: string) => void;
     clearLogs: () => void;
@@ -23,6 +25,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [version, setVersion] = useState("...");
     const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('sidebarCollapsed') === 'true');
     const [debugMode, setDebugMode] = useState(false);
+    const [showStats, setShowStats] = useState(false);
     const [logs, setLogs] = useState<string[]>([]);
     const [notification, setNotification] = useState<{ type: 'success' | 'error' | 'info', message: string, actionLabel?: string, onAction?: () => void } | null>(null);
 
@@ -53,13 +56,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const hideNotification = useCallback(() => setNotification(null), []);
 
-    // Secret Debug Key Sequence
+    // Secret Debug & Stats Key Sequences
     useEffect(() => {
         let sequence = "";
         const handleKeyPress = (e: KeyboardEvent) => {
-            sequence = (sequence + e.key).slice(-5);
-            if (sequence === "debug") {
-                setDebugMode(true);
+            sequence = (sequence + e.key).slice(-15);
+            if (sequence.endsWith("debug")) {
+                setDebugMode(prev => !prev);
+                sequence = "";
+            } else if (sequence.endsWith("showmestats")) {
+                setShowStats(prev => !prev);
                 sequence = "";
             }
         };
@@ -70,7 +76,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return (
         <AppContext.Provider value={{
             view, setView, version, sidebarCollapsed, setSidebarCollapsed,
-            debugMode, setDebugMode, logs, addLog, clearLogs,
+            debugMode, setDebugMode, showStats, setShowStats, logs, addLog, clearLogs,
             notification, showNotification, hideNotification
         }}>
             {children}

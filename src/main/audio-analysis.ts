@@ -1,92 +1,28 @@
 import { execa } from "execa";
-import MusicTempo from "music-tempo";
-
 import path from "node:path";
-import { getFFmpegPath, getFFprobePath } from "./config";
+import { getFFprobePath } from "./config";
+import { classifyAudioNative } from "./ai/audio-classifier";
 
-
-
-import { getClassifyAudioPath } from './binaries';
-
-function extractJson(str: string): any {
-    if (!str) return null;
-    // Try to find the last valid JSON block that has a 'success' property
-    const blocks = str.match(/\{[\s\S]*?\}/g);
-    if (blocks) {
-        for (let i = blocks.length - 1; i >= 0; i--) {
-            try {
-                const parsed = JSON.parse(blocks[i]);
-                if (parsed && typeof parsed === 'object') return parsed;
-            } catch (e) {}
-        }
-    }
-    // Greedy fallback
-    const greedy = str.match(/\{[\s\S]*\}/);
-    if (greedy) {
-        try {
-            return JSON.parse(greedy[0]);
-        } catch (e) {}
-    }
-    return null;
-}
 export async function analyzeBPM(filePath: string): Promise<number | undefined> {
     try {
-        const binPath = getClassifyAudioPath();
-        const { PythonShell } = require('./python-shell');
-
-        const isUnified = binPath.includes('ai_engine');
-        const args = isUnified ? ['classify', filePath] : [filePath];
-
-        const result = await PythonShell.run(binPath, args);
-        const data = extractJson(result.stdout);
-
-        if (data && data.success && data.features && data.features.bpm) {
-            return Math.round(data.features.bpm);
+        const result = await classifyAudioNative(filePath);
+        if (result.success && result.features && result.features.bpm > 0) {
+            return result.features.bpm;
         }
     } catch (e) {
-        console.warn("Python BPM analysis failed, falling back to MusicTempo:", e);
+        console.warn("BPM analysis error:", e);
     }
-
-    try {
-        const { stdout } = await execa(getFFmpegPath(), [
-            '-i', filePath,
-            '-f', 's16le',
-            '-ac', '1',
-            '-ar', '44100',
-            '-t', '60',
-            'pipe:1'
-        ], { encoding: 'buffer' });
-
-        const buffer = Buffer.from(stdout);
-        const pcmData = new Float32Array(buffer.length / 2);
-        for (let i = 0; i < pcmData.length; i++) {
-            pcmData[i] = buffer.readInt16LE(i * 2) / 32768;
-        }
-
-        const mt = new MusicTempo(pcmData);
-        return Math.round(mt.tempo);
-    } catch (e) {
-        console.error("BPM analysis failed:", e);
-        return undefined;
-    }
+    return undefined;
 }
 
 export async function analyzeKey(filePath: string): Promise<string | undefined> {
     try {
-        const binPath = getClassifyAudioPath();
-        const { PythonShell } = require('./python-shell');
-
-        const isUnified = binPath.includes('ai_engine');
-        const args = isUnified ? ['classify', filePath] : [filePath];
-
-        const result = await PythonShell.run(binPath, args);
-        const data = extractJson(result.stdout);
-
-        if (data && data.success && data.key) {
-            return data.key;
+        const result = await classifyAudioNative(filePath);
+        if (result.success && result.key) {
+            return result.key;
         }
     } catch (e) {
-        console.warn("Python key analysis failed, falling back to regex:", e);
+        console.warn("Key analysis error:", e);
     }
 
     // Fallback Regex Logic
@@ -114,8 +50,6 @@ export async function getDuration(filePath: string): Promise<string | undefined>
     try {
         const { stdout } = await execa(getFFprobePath(), [
             '-v', 'error',
-
-
             '-show_entries', 'format=duration',
             '-of', 'default=noprint_wrappers=1:nokey=1',
             filePath

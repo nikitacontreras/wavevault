@@ -8,7 +8,7 @@ interface ResultCardProps {
     inHistory: boolean;
     onDownload: (result: SearchResult) => void;
     onOpenItem: (path?: string) => void;
-    onTogglePreview: (url: string) => void;
+    onTogglePreview: (url: string, metadata?: any) => void;
     isPlaying: boolean;
     isPreviewLoading: boolean;
     theme: 'light' | 'dark';
@@ -63,7 +63,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
             <button
                 type="button"
                 className="relative aspect-video overflow-hidden w-full p-0 border-0 bg-transparent cursor-pointer"
-                onClick={() => onTogglePreview(result.url)}
+                onClick={() => onTogglePreview(result.url, result)}
             >
                 <img src={result.thumbnail} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" alt="" />
                 <div className={`absolute inset-0 bg-black/30 backdrop-blur-[2px] flex items-center justify-center transition-opacity duration-200 opacity-0 group-hover:opacity-100 ${isPlaying ? 'opacity-100' : ''}`}>
@@ -101,7 +101,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({
                     </div>
                 )}
 
-                <div className={`pt-4 border-t ${isDark ? "border-white/[0.08]" : "border-black/[0.08]"}`}>
+                <div className={`pt-4 border-t flex flex-col gap-2 ${isDark ? "border-white/[0.08]" : "border-black/[0.08]"}`}>
                     {isSuccess ? (
                         <button
                             type="button"
@@ -113,20 +113,41 @@ export const ResultCard: React.FC<ResultCardProps> = ({
                             <FolderOpen size={14} /> {t('search.openFile')}
                         </button>
                     ) : (
-                        <button
-                            type="button"
-                            className={`w-full py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg flex items-center justify-center gap-2 transition-all disabled:opacity-50 shadow-sm ${isDark
-                                ? "bg-white text-black hover:bg-white/90"
-                                : "bg-black text-white hover:bg-black/90"}`}
-                            onClick={() => onDownload(result)}
-                            disabled={isDownloading}
-                        >
-                            {isDownloading ? (
-                                <><Loader2 className="animate-spin" size={14} /> {t('search.downloading')}</>
-                            ) : (
-                                <><Download size={14} /> {t('search.download')}</>
+                        <>
+                            <button
+                                type="button"
+                                className={`w-full py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg flex items-center justify-center gap-2 transition-all disabled:opacity-50 shadow-sm ${isDark
+                                    ? "bg-white text-black hover:bg-white/90"
+                                    : "bg-black text-white hover:bg-black/90"}`}
+                                onClick={() => onDownload(result)}
+                                disabled={isDownloading}
+                            >
+                                {isDownloading ? (
+                                    <>
+                                        <Loader2 className="animate-spin" size={14} /> 
+                                        {t('search.downloading')}
+                                        {state.progress !== undefined ? ` (${Math.round(state.progress)}%)` : ''}
+                                    </>
+                                ) : (
+                                    <><Download size={14} /> {t('search.download')}</>
+                                )}
+                            </button>
+                            {isDownloading && state.progress !== undefined && (
+                                <div className="w-full mt-1 flex flex-col gap-1">
+                                    <div className={`h-1.5 w-full rounded-full overflow-hidden ${isDark ? "bg-white/10" : "bg-black/5"}`}>
+                                        <div
+                                            className="h-full bg-blue-500 rounded-full transition-all duration-300 ease-out"
+                                            style={{ width: `${state.progress}%` }}
+                                        />
+                                    </div>
+                                    {state.msg && (
+                                        <span className="text-[9px] text-wv-gray truncate max-w-full block text-center font-medium">
+                                            {state.msg}
+                                        </span>
+                                    )}
+                                </div>
                             )}
-                        </button>
+                        </>
                     )}
                 </div>
             </div>

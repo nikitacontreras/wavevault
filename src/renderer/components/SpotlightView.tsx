@@ -99,6 +99,7 @@ export const SpotlightView: React.FC<SpotlightViewProps> = ({ theme = 'dark' }) 
     const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
     const [status, setStatus] = useState<{ type: 'idle' | 'loading' | 'success' | 'error', message: string }>({ type: 'idle', message: "" });
     const inputRef = useRef<HTMLInputElement>(null);
+    const activeUrlRef = useRef<string | null>(null);
     const { downloads, addDownload, cancelDownload, clearDownloads } = useSpotlightDownloads();
     const { startDownload: performDownload } = useDownloadLogic();
     const { t } = useTranslation();
@@ -120,6 +121,23 @@ export const SpotlightView: React.FC<SpotlightViewProps> = ({ theme = 'dark' }) 
 
         window.addEventListener('keydown', handleKeys);
         return () => window.removeEventListener('keydown', handleKeys);
+    }, []);
+
+    useEffect(() => {
+        if (window.api) {
+            const unsubProgress = window.api.onDownloadProgress(({ url: progressUrl, message, progress }: any) => {
+                const activeUrl = activeUrlRef.current;
+                if (activeUrl && (progressUrl === activeUrl || progressUrl.includes(activeUrl) || activeUrl.includes(progressUrl))) {
+                    setStatus({
+                        type: 'loading',
+                        message: progress ? `${message} (${progress}%)` : message
+                    });
+                }
+            });
+            return () => {
+                unsubProgress();
+            };
+        }
     }, []);
 
 
@@ -146,6 +164,7 @@ export const SpotlightView: React.FC<SpotlightViewProps> = ({ theme = 'dark' }) 
 
 
     const startDownload = async (targetUrl: string, title?: string) => {
+        activeUrlRef.current = targetUrl;
         setIsLoading(true);
         setStatus({ type: 'loading', message: t('spotlight.startDownload') });
 
@@ -161,6 +180,7 @@ export const SpotlightView: React.FC<SpotlightViewProps> = ({ theme = 'dark' }) 
         try {
             await performDownload(targetUrl, options, {
                 onSuccess: () => {
+                    activeUrlRef.current = null;
                     setStatus({ type: 'success', message: t('spotlight.successSent', { title: title || targetUrl }) });
                     setUrl("");
                     setSearchResults([]);
@@ -170,6 +190,7 @@ export const SpotlightView: React.FC<SpotlightViewProps> = ({ theme = 'dark' }) 
                     }, 3000);
                 },
                 onError: (err: any) => {
+                    activeUrlRef.current = null;
                     const msg = err.message || t('spotlight.errorProcess');
                     setStatus({ type: 'error', message: msg });
                     if (msg.includes('actividad sospechosa')) {

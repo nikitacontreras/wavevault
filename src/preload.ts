@@ -1,4 +1,24 @@
-const { contextBridge, ipcRenderer } = require("electron");
+const { contextBridge, ipcRenderer, webFrame } = require("electron");
+
+// Spoof properties to bypass Google's "secure browser" check
+if (window.location.protocol.startsWith('http')) {
+    const spoofScript = `
+        Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+        Object.defineProperty(navigator, 'languages', { get: () => ['es-ES', 'es', 'en-US', 'en'] });
+        Object.defineProperty(navigator, 'platform', { get: () => 'MacIntel' });
+        Object.defineProperty(navigator, 'vendor', { get: () => 'Apple Computer, Inc.' });
+        window.chrome = {
+            app: { isInstalled: false },
+            webstore: { onInstallStageChanged: {}, onDownloadProgress: {} },
+            runtime: { PlatformOs: { MAC: 'mac', WIN: 'win' } }
+        };
+    `;
+    try {
+        webFrame.executeJavaScript(spoofScript);
+    } catch (e) {
+        console.error("Failed to inject spoof script:", e);
+    }
+}
 
 const safeInvoke = async (channel: string, ...args: any[]) => {
     const response = await ipcRenderer.invoke(channel, ...args);
@@ -110,11 +130,13 @@ contextBridge.exposeInMainWorld("api", {
     getLocalFilesByCategory: (category: string) => safeInvoke("get-local-files-by-category", category),
     getPlaylistMeta: (url: string) => safeInvoke('get-playlist-meta', url),
     batchSearchAndStream: (queries: string[]) => safeInvoke('batch-search-and-stream', queries),
-    backupDB: () => safeInvoke("backup-db"),
-    restoreDB: () => safeInvoke("restore-db"),
+    backupDB: (options?: { includeMedia?: boolean; libraryPath?: string }) => safeInvoke("backup-db", options),
+    restoreDB: (options?: { targetLibraryPath?: string }) => safeInvoke("restore-db", options),
     convertFile: (job: any) => safeInvoke("convert-file", job),
     savePeaks: (type: string, id: string, peaks: any) => safeInvoke("save-peaks", type, id, peaks),
     getCachedPeaks: (id: string) => safeInvoke("get-cached-peaks", id),
+    saveHistory: (history: any[]) => safeInvoke("save-history", history),
+    getHistory: () => safeInvoke("get-history"),
 
     // YouTube Auth
     youtubeLogin: () => safeInvoke("youtube:login"),

@@ -8,23 +8,64 @@ import { useTranslation } from "react-i18next";
 
 import { useSettings } from "../context/SettingsContext";
 import { useApp } from "../context/AppContext";
+import { useDependenciesManager } from "../hooks/useDependenciesManager";
 
-const AdvancedPathInput = ({ label, value, onChange, placeholder, isDark }: { label: string, value: string | null, onChange: (v: string) => void, placeholder: string, isDark: boolean }) => {
+const AdvancedPathInput = ({
+    label,
+    value,
+    onChange,
+    placeholder,
+    isDark,
+    isValid,
+    version,
+    isLoading
+}: {
+    label: string;
+    value: string | null;
+    onChange: (v: string) => void;
+    placeholder: string;
+    isDark: boolean;
+    isValid?: boolean;
+    version?: string;
+    isLoading?: boolean;
+}) => {
     const { t } = useTranslation();
+    const [localVal, setLocalVal] = React.useState(value || '');
+
+    React.useEffect(() => {
+        setLocalVal(value || '');
+    }, [value]);
+
+    const handleCommit = () => {
+        const trimmed = localVal.trim();
+        if (trimmed !== (value || '')) {
+            onChange(trimmed);
+        }
+    };
+
     const handlePick = async () => {
         const path = await window.api.pickFile();
-        if (path) onChange(path);
+        if (path) {
+            setLocalVal(path);
+            onChange(path);
+        }
     };
 
     return (
         <div className="flex flex-col gap-2">
             <label className="text-[9px] font-bold text-wv-gray uppercase tracking-widest">{label}</label>
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-center">
                 <input
                     type="text"
                     className={`flex-1 border rounded-lg px-3 py-2 text-xs outline-none transition-all ${isDark ? "bg-wv-bg border-white/5 text-white focus:border-white/20" : "bg-white border-black/[0.08] text-black focus:border-black/20"}`}
-                    value={value || ''}
-                    onChange={(e) => onChange(e.target.value)}
+                    value={localVal}
+                    onChange={(e) => setLocalVal(e.target.value)}
+                    onBlur={handleCommit}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                            e.currentTarget.blur();
+                        }
+                    }}
                     placeholder={placeholder}
                 />
                 <button
@@ -33,6 +74,32 @@ const AdvancedPathInput = ({ label, value, onChange, placeholder, isDark }: { la
                 >
                     {t('settings.browse')}
                 </button>
+
+                {/* Version badge right beside the browse button */}
+                <div className="shrink-0 flex items-center min-w-[100px] justify-end">
+                    {isLoading ? (
+                        <span className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border flex items-center gap-1.5 ${isDark ? "bg-white/5 border-white/5 text-wv-gray" : "bg-black/5 border-black/5 text-black/40"
+                            }`}>
+                            ...
+                        </span>
+                    ) : isValid ? (
+                        <span className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold tracking-wider border flex items-center gap-1.5 transition-all ${isDark
+                                ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+                                : "bg-emerald-50 border-emerald-200 text-emerald-700"
+                            }`}>
+                            <Check size={12} className="stroke-[2.5]" />
+                            <span>{version ? (version.startsWith('v') || version === 'Integrado' || version === 'OK' ? version : `v${version}`) : 'Detectado'}</span>
+                        </span>
+                    ) : (
+                        <span className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold tracking-wider border flex items-center gap-1.5 transition-all ${isDark
+                                ? "bg-red-500/10 border-red-500/20 text-red-400"
+                                : "bg-red-50 border-red-200 text-red-700"
+                            }`}>
+                            <X size={12} className="stroke-[2.5]" />
+                            <span>{version ? `v${version} (< 3.10)` : 'No detectado'}</span>
+                        </span>
+                    )}
+                </div>
             </div>
         </div>
     );
@@ -103,10 +170,10 @@ const RemoteSettingsSection = ({ isDark }: { isDark: boolean }) => {
                             <QRCodeSVG value={remoteUrl} size={160} />
                             <div className="text-[10px] font-bold uppercase tracking-widest border-t border-black/5 pt-4 w-full text-center opacity-40">Scan Access Key</div>
                         </div>
-                        
+
                         <div className="flex flex-col gap-2">
-                             <span className="text-[10px] font-bold text-wv-text-muted uppercase tracking-widest px-1">Access Point URL</span>
-                             <div className={`p-4 border font-mono text-xs select-all rounded-xl ${isDark ? "bg-black/40 border-white/10 text-white/60" : "bg-black/5 border-black/5 text-black/60"}`}>
+                            <span className="text-[10px] font-bold text-wv-text-muted uppercase tracking-widest px-1">Access Point URL</span>
+                            <div className={`p-4 border font-mono text-xs select-all rounded-xl ${isDark ? "bg-black/40 border-white/10 text-white/60" : "bg-black/5 border-black/5 text-black/60"}`}>
                                 {remoteUrl}
                             </div>
                         </div>
@@ -168,6 +235,7 @@ const RemoteSettingsSection = ({ isDark }: { isDark: boolean }) => {
 
 const YouTubeAuthSection = ({ isDark }: { isDark: boolean }) => {
     const [connected, setConnected] = React.useState(false);
+    const [profile, setProfile] = React.useState<{ name: string; handle: string; avatar: string; id: string; } | null>(null);
     const [loading, setLoading] = React.useState(true);
     const { t } = useTranslation();
 
@@ -175,7 +243,10 @@ const YouTubeAuthSection = ({ isDark }: { isDark: boolean }) => {
         setLoading(true);
         try {
             const res = await window.api.youtubeStatus();
-            if (res?.success) setConnected(res.data.connected);
+            if (res && res.success && res.data) {
+                setConnected(res.data.connected);
+                setProfile((res.data as any).profile || null);
+            }
         } catch (err) {
             console.error("Failed to fetch YouTube status:", err);
         }
@@ -188,6 +259,7 @@ const YouTubeAuthSection = ({ isDark }: { isDark: boolean }) => {
         // Listen for real-time updates from main process
         const unsub = window.api.on('youtube:status-changed', (data: any) => {
             setConnected(data.connected);
+            setProfile(data.profile || null);
         });
 
         return () => unsub();
@@ -217,9 +289,23 @@ const YouTubeAuthSection = ({ isDark }: { isDark: boolean }) => {
     return (
         <div className={cardClass}>
             <div className="flex items-center justify-between">
-                <div className="flex flex-col gap-1">
-                    <span className="text-sm font-semibold">{t('settings.youtubeAccount')}</span>
-                    <span className="text-xs text-wv-text-muted">{t('settings.youtubeAccountDesc')}</span>
+                <div className="flex items-center gap-4">
+                    {connected && profile?.avatar && (
+                        <img
+                            src={profile.avatar}
+                            className="w-10 h-10 rounded-full object-cover border border-white/10"
+                            alt=""
+                            referrerPolicy="no-referrer"
+                        />
+                    )}
+                    <div className="flex flex-col gap-1">
+                        <span className="text-sm font-semibold">
+                            {connected && profile?.name ? profile.name : t('settings.youtubeAccount')}
+                        </span>
+                        <span className="text-xs text-wv-text-muted">
+                            {connected && profile?.handle ? `${profile.handle} • ID: ${profile.id}` : t('settings.youtubeAccountDesc')}
+                        </span>
+                    </div>
                 </div>
                 {loading ? (
                     <div className="w-4 h-4 border-2 border-wv-gray border-t-transparent rounded-full animate-spin" />
@@ -245,6 +331,7 @@ const YouTubeAuthSection = ({ isDark }: { isDark: boolean }) => {
 export const SettingsView: React.FC = () => {
     const { config, updateConfig, updateKeybind, resetKeybinds } = useSettings();
     const { logs, clearLogs, debugMode } = useApp();
+    const { dependencies } = useDependenciesManager();
     const { t, i18n } = useTranslation();
     const isDark = config.theme === 'dark';
     const theme = config.theme;
@@ -353,12 +440,12 @@ export const SettingsView: React.FC = () => {
             {/* Content Area */}
             <div className={`flex-1 overflow-y-auto custom-scrollbar p-10 ${isDark ? "bg-wv-bg" : "bg-gray-50/50"}`}>
                 <div className="max-w-3xl mx-auto animate-in fade-in slide-in-from-bottom-2 duration-500">
-                    
+
                     {activeTab === 'general' && (
                         <div className="space-y-8">
                             <section>
                                 <h3 className={`text-md font-bold mb-6 ${isDark ? "text-white" : "text-black"}`}>{t('settings.orgAndSystem')}</h3>
-                                
+
                                 <div className="grid grid-cols-1 gap-4">
                                     <div className={cardClass}>
                                         <label className="text-xs font-semibold text-wv-text-muted flex items-center gap-2 mb-3">
@@ -573,7 +660,7 @@ export const SettingsView: React.FC = () => {
                                                     className={`flex-1 py-2 text-xs font-medium rounded-xl transition-all ${stemsQuality === q
                                                         ? (isDark ? "bg-white/10 text-white shadow-sm" : "bg-white text-black shadow-sm")
                                                         : (isDark ? "text-white/40 hover:text-white" : "text-black/40 hover:text-black")
-                                                    }`}
+                                                        }`}
                                                 >
                                                     {q.charAt(0).toUpperCase() + q.slice(1)}
                                                 </button>
@@ -624,11 +711,38 @@ export const SettingsView: React.FC = () => {
                                 <div className="space-y-4">
                                     <div className={cardClass}>
                                         <div className="space-y-6">
-                                            <AdvancedPathInput label={t('settings.pythonPath')} value={pythonPath} onChange={setPythonPath} placeholder={t('settings.autoDetect')} isDark={isDark} />
+                                            <AdvancedPathInput
+                                                label={t('settings.pythonPath')}
+                                                value={pythonPath}
+                                                onChange={setPythonPath}
+                                                placeholder={t('settings.autoDetect')}
+                                                isDark={isDark}
+                                                isValid={dependencies?.python}
+                                                version={dependencies?.pythonVersion}
+                                                isLoading={!dependencies}
+                                            />
                                             <div className="h-px w-full bg-white/5" />
-                                            <AdvancedPathInput label={t('settings.ffmpegPath')} value={ffmpegPath} onChange={setFfmpegPath} placeholder={t('settings.integratedBinary')} isDark={isDark} />
+                                            <AdvancedPathInput
+                                                label={t('settings.ffmpegPath')}
+                                                value={ffmpegPath}
+                                                onChange={setFfmpegPath}
+                                                placeholder={t('settings.integratedBinary')}
+                                                isDark={isDark}
+                                                isValid={dependencies?.ffmpeg}
+                                                version={dependencies?.ffmpegVersion}
+                                                isLoading={!dependencies}
+                                            />
                                             <div className="h-px w-full bg-white/5" />
-                                            <AdvancedPathInput label={t('settings.ffprobePath')} value={ffprobePath} onChange={setFfprobePath} placeholder={t('settings.integratedBinary')} isDark={isDark} />
+                                            <AdvancedPathInput
+                                                label={t('settings.ffprobePath')}
+                                                value={ffprobePath}
+                                                onChange={setFfprobePath}
+                                                placeholder={t('settings.integratedBinary')}
+                                                isDark={isDark}
+                                                isValid={dependencies?.ffprobe}
+                                                version={dependencies?.ffprobeVersion}
+                                                isLoading={!dependencies}
+                                            />
                                         </div>
                                     </div>
 
@@ -670,13 +784,13 @@ export const SettingsView: React.FC = () => {
                                     <div className={`w-24 h-24 mx-auto mb-8 flex items-center justify-center rounded-3xl transition-all hover:scale-105 duration-300 ${isDark ? "bg-white text-black shadow-lg" : "bg-black text-white shadow-xl"}`}>
                                         <span className="text-3xl font-black italic">WV</span>
                                     </div>
-                                    
+
                                     <h4 className="text-3xl font-bold mb-2">WaveVault</h4>
                                     <div className="flex items-center justify-center gap-3 mb-8">
                                         <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${isDark ? "bg-white/10 text-white/60" : "bg-black/5 text-black/60"}`}>v{appVersion}</span>
                                         <span className="text-[11px] font-medium opacity-40">{platformInfo}</span>
                                     </div>
-                                    
+
                                     <p className="text-sm text-wv-text-muted max-w-sm mx-auto leading-relaxed mb-10">
                                         Professional audio toolkit for high-fidelity stem separation and format conversion.
                                     </p>

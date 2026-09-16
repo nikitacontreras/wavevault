@@ -31,12 +31,14 @@ export const PlaybackProvider: React.FC<{ children: ReactNode }> = ({ children }
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
     const audioRef = useRef<HTMLAudioElement | null>(null);
+    const latestRequestUrlRef = useRef<string | null>(null);
 
     const seek = useCallback((time: number) => {
         if (audioRef.current) audioRef.current.currentTime = time;
     }, []);
 
     const stopPlayback = useCallback(() => {
+        latestRequestUrlRef.current = null;
         if (audioRef.current) {
             audioRef.current.pause();
             audioRef.current.src = "";
@@ -61,6 +63,15 @@ export const PlaybackProvider: React.FC<{ children: ReactNode }> = ({ children }
             return;
         }
 
+        // Synchronously stop current audio and reset source immediately
+        if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current.src = "";
+            audioRef.current.load();
+        }
+
+        latestRequestUrlRef.current = url;
+
         try {
             setPlayingUrl(url);
             setIsPreviewLoading(true);
@@ -77,6 +88,11 @@ export const PlaybackProvider: React.FC<{ children: ReactNode }> = ({ children }
                 finalUrl = await (window as any).api.getStreamUrl(url);
             }
 
+            // Discard if the user has requested another song while this async task was running
+            if (latestRequestUrlRef.current !== url) {
+                return;
+            }
+
             setStreamUrl(finalUrl);
             setIsPreviewLoading(false);
 
@@ -91,8 +107,10 @@ export const PlaybackProvider: React.FC<{ children: ReactNode }> = ({ children }
                 setActiveTrack({ title: url.split('/').pop() || "Unknown", artist: "Unknown" });
             }
         } catch (e: any) {
-            addLog("Error preview: " + e.message);
-            stopPlayback();
+            if (latestRequestUrlRef.current === url) {
+                addLog("Error preview: " + e.message);
+                stopPlayback();
+            }
         }
     }, [playingUrl, isPreviewLoading, history, addLog, stopPlayback]);
 

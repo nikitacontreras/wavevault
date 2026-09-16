@@ -5,16 +5,30 @@ import fs from 'node:fs';
 
 let _db: Database.Database | null = null;
 
+export function getDBPath(): string {
+    if (app) {
+        return path.join(app.getPath('userData'), 'wavevault.db');
+    }
+    throw new Error("Electron 'app' is not available.");
+}
+
+export function closeDB(): void {
+    if (_db) {
+        try {
+            _db.close();
+        } catch (e) {
+            console.error("[DB] Error closing database:", e);
+        }
+        _db = null;
+    }
+}
+
 export function getDB(): Database.Database {
     if (!_db) {
         let dbPath: string;
         try {
             // Check if app is available (Main process)
-            if (app) {
-                dbPath = path.join(app.getPath('userData'), 'wavevault.db');
-            } else {
-                throw new Error("Electron 'app' is not available.");
-            }
+            dbPath = getDBPath();
         } catch (e) {
             // Fallback for workers: they should NOT be initializing the DB
             console.error("[DB] Failed to resolve dbPath, likely in a worker thread.");
@@ -73,10 +87,17 @@ export function initDB() {
             type TEXT,
             lastModified INTEGER,
             isUnorganized INTEGER DEFAULT 0,
+            metadata TEXT,
             FOREIGN KEY(trackId) REFERENCES tracks(id) ON DELETE CASCADE,
             FOREIGN KEY(workspaceId) REFERENCES workspaces(id) ON DELETE SET NULL
         )
     `).run();
+
+    try {
+        db.prepare(`ALTER TABLE versions ADD COLUMN metadata TEXT`).run();
+    } catch (e) {
+        // Column may already exist
+    }
 
     // 5. Download History / Samples Table
     db.prepare(`
@@ -322,15 +343,60 @@ export function addToUnorganizedDB(version: any, workspaceId?: string) {
     const db = getDB();
     try {
         db.prepare(`
-            INSERT INTO versions(id, name, path, type, lastModified, isUnorganized, workspaceId)
-    VALUES(?, ?, ?, ?, ?, 1, ?)
+            INSERT INTO versions(id, name, path, type, lastModified, isUnorganized, workspaceId, metadata)
+            VALUES(?, ?, ?, ?, ?, 1, ?, ?)
             ON CONFLICT(path) DO UPDATE SET
-    lastModified = excluded.lastModified,
-        workspaceId = COALESCE(excluded.workspaceId, versions.workspaceId)
-            `).run(version.id, version.name, version.path, version.type, version.lastModified, workspaceId || null);
+                lastModified = excluded.lastModified,
+                workspaceId = COALESCE(excluded.workspaceId, versions.workspaceId),
+                metadata = COALESCE(excluded.metadata, versions.metadata)
+        `).run(version.id, version.name, version.path, version.type, version.lastModified, workspaceId || null, version.metadata || null);
     } catch (e) {
         console.error("DB Error adding to unorganized:", e);
     }
+}
+
+export function addBatchToUnorganizedDB(versions: any[], workspaceId?: string) {
+    const db = getDB();
+    try {
+        const stmt = db.prepare(`
+            INSERT INTO versions(id, name, path, type, lastModified, isUnorganized, workspaceId, metadata)
+            VALUES(?, ?, ?, ?, ?, 1, ?, ?)
+            ON CONFLICT(path) DO UPDATE SET
+                lastModified = excluded.lastModified,
+                workspaceId = COALESCE(excluded.workspaceId, versions.workspaceId),
+                metadata = COALESCE(excluded.metadata, versions.metadata)
+        `);
+        const transaction = db.transaction((items) => {
+            for (const item of items) {
+                stmt.run(item.id, item.name, item.path, item.type, item.lastModified, workspaceId || null, item.metadata || null);
+            }
+        });
+        transaction(versions);
+    } catch (e) {
+        console.error("DB Error batch adding to unorganized:", e);
+    }
+}
+
+export function addProjectVersionDB(trackId: string, filePath: string) {
+    const db = getDB();
+    const id = `ver_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const name = path.basename(filePath);
+    const ext = path.extname(filePath).replace(".", "").toUpperCase() || "AUDIO";
+    let lastModified = Date.now();
+    try {
+        if (fs.existsSync(filePath)) {
+            const stat = fs.statSync(filePath);
+            lastModified = Math.floor(stat.mtimeMs);
+        }
+    } catch {}
+
+    db.prepare(`
+        INSERT INTO versions(id, trackId, name, path, type, lastModified, isUnorganized)
+        VALUES(?, ?, ?, ?, ?, ?, 0)
+        ON CONFLICT(path) DO UPDATE SET trackId = excluded.trackId, isUnorganized = 0
+    `).run(id, trackId, name, filePath, ext, lastModified);
+
+    return { id, trackId, name, path: filePath, type: ext, lastModified };
 }
 
 export function moveVersionToTrackDB(versionId: string, trackId: string) {

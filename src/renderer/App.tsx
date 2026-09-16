@@ -8,11 +8,12 @@ import { useSearchManager } from "./hooks/useSearchManager";
 import { useDownloadHandlers } from "./hooks/useDownloadHandlers";
 import { useDependenciesManager } from "./hooks/useDependenciesManager";
 import "./App.css";
-import { Play, Pause, Volume2, X, Music2, Loader2, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { Play, Pause, Volume2, X, Music2, Loader2, PanelLeftClose, PanelLeftOpen, AlertTriangle } from "lucide-react";
 import { SpotlightView } from "./components/SpotlightView";
 import { ActivityPanel } from "./components/ActivityPanel";
 import { CursorTrail } from "./components/CursorTrail";
 import { DependencyChecker } from "./components/DependencyChecker";
+import { DependencyBanner } from "./components/DependencyBanner";
 import { TitleBar } from "./components/TitleBar";
 import { Sidebar } from "./components/Sidebar";
 import { SearchView } from "./components/SearchView";
@@ -24,6 +25,7 @@ import { SettingsView } from "./components/SettingsView";
 import { PlaylistModal } from "./components/PlaylistModal";
 import { UpdateNotification } from "./components/UpdateNotification";
 import { ToastNotification } from "./components/ToastNotification";
+import { StatsOverlay } from "./components/StatsOverlay";
 import { useTranslation } from "react-i18next";
 import "./i18n";
 
@@ -41,6 +43,8 @@ export const App: React.FC = () => {
     } = usePlayback();
 
     const [isDragging, setIsDragging] = useState(false);
+    const [showDepsModal, setShowDepsModal] = useState(true);
+    const [depsBannerDismissed, setDepsBannerDismissed] = useState(false);
 
     // Custom Hooks (now pre-configured with contexts internally)
     const { dependencies, checkDeps, hasAllDeps } = useDependenciesManager();
@@ -131,46 +135,89 @@ export const App: React.FC = () => {
             <CursorTrail isDragging={isDragging} />
             <TitleBar />
 
-            {!hasAllDeps && (
-                <DependencyChecker dependencies={dependencies} onRetry={checkDeps} />
+            {!hasAllDeps && showDepsModal && (
+                <DependencyChecker
+                    dependencies={dependencies}
+                    onRetry={checkDeps}
+                    onDismiss={() => setShowDepsModal(false)}
+                />
             )}
 
             <div className="flex-1 flex overflow-hidden">
                 <Sidebar />
 
                 <main className="flex-1 flex flex-col min-w-0 bg-wv-bg">
-                    <header className={`px-8 py-4 border-b flex justify-between items-center z-20 transition-all ${isDark ? "bg-wv-bg border-white/5" : "bg-white border-black/5"}`}>
+                    <header className={`px-8 py-4 border-b flex justify-between items-center z-20 shrink-0 transition-all ${isDark ? "bg-wv-bg border-white/5" : "bg-white border-black/5"}`}>
                         <div className="flex items-center gap-4">
                             <button onClick={() => setSidebarCollapsed(!sidebarCollapsed)} className={`p-1.5 rounded-lg transition-colors ${isDark ? "hover:bg-white/5 text-wv-gray hover:text-white" : "hover:bg-black/5 text-black/40 hover:text-black"}`}>
                                 {sidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
                             </button>
                             <h1 className="text-lg font-bold tracking-tight">{t(`header.${view}`)}</h1>
                         </div>
+
+                        {!hasAllDeps && (!showDepsModal && depsBannerDismissed) && (
+                            <button
+                                onClick={() => setShowDepsModal(true)}
+                                className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
+                                    isDark
+                                        ? "bg-amber-500/10 border-amber-500/20 text-amber-300 hover:bg-amber-500/20"
+                                        : "bg-amber-50 border-amber-200 text-amber-800 hover:bg-amber-100"
+                                }`}
+                                title={t('deps.missingTitle')}
+                            >
+                                <AlertTriangle size={13} className="text-amber-500" />
+                                <span>{t('deps.missingTitle')}</span>
+                            </button>
+                        )}
                     </header>
 
-                    <div className={`flex-1 flex flex-col min-h-0 ${isDark ? "bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.02),transparent_35%)]" : "bg-[radial-gradient(circle_at_top_right,rgba(0,0,0,0.02),transparent_35%)]"}`}>
-                        {view === 'search' && (
+                    {!hasAllDeps && !showDepsModal && !depsBannerDismissed && (
+                        <DependencyBanner
+                            dependencies={dependencies}
+                            onOpenChecker={() => setShowDepsModal(true)}
+                            onDismiss={() => setDepsBannerDismissed(true)}
+                            theme={config.theme}
+                        />
+                    )}
+
+                     <div className={`flex-grow flex flex-col min-h-0 relative ${isDark ? "bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.02),transparent_35%)]" : "bg-[radial-gradient(circle_at_top_right,rgba(0,0,0,0.02),transparent_35%)]"}`}>
+                        {/* 1. SearchView Container */}
+                        <div className={view === 'search' ? "flex-1 flex flex-col min-h-0" : "hidden"} style={view !== 'search' ? { display: 'none' } : undefined}>
                             <SearchView
                                 query={query} setQuery={setQuery} isSearching={isSearching} results={results}
                                 itemStates={itemStates} history={history} onSearch={handleSearch}
                                 onDownload={handleDownload} onOpenItem={(p) => p && window.api.openItem(p)}
                                 onStartDrag={() => setIsDragging(true)} onLoadMore={handleLoadMore}
                             />
-                        )}
-                        {view === 'library' && (
+                        </div>
+
+                        {/* 2. LibraryView Container */}
+                        <div className={view === 'library' ? "flex-1 flex flex-col min-h-0" : "hidden"} style={view !== 'library' ? { display: 'none' } : undefined}>
                             <LibraryView onStartDrag={() => setIsDragging(true)} />
-                        )}
-                        {view === 'converter' && <ConverterView theme={config.theme} />}
-                        {view === 'discovery' && (
+                        </div>
+
+                        {/* 3. ConverterView Container */}
+                        <div className={view === 'converter' ? "flex-1 flex flex-col min-h-0" : "hidden"} style={view !== 'converter' ? { display: 'none' } : undefined}>
+                            <ConverterView theme={config.theme} />
+                        </div>
+
+                        {/* 4. DiscoveryView Container */}
+                        <div className={view === 'discovery' ? "flex-1 flex flex-col min-h-0" : "hidden"} style={view !== 'discovery' ? { display: 'none' } : undefined}>
                             <DiscoveryView onStartDrag={() => setIsDragging(true)} />
-                        )}
-                        {view === 'projects' && <ProjectsView theme={config.theme} />}
-                        {view === 'settings' && (
+                        </div>
+
+                        {/* 5. ProjectsView Container */}
+                        <div className={view === 'projects' ? "flex-1 flex flex-col min-h-0" : "hidden"} style={view !== 'projects' ? { display: 'none' } : undefined}>
+                            <ProjectsView theme={config.theme} />
+                        </div>
+
+                        {/* 6. SettingsView Container */}
+                        <div className={view === 'settings' ? "flex-1 flex flex-col min-h-0" : "hidden"} style={view !== 'settings' ? { display: 'none' } : undefined}>
                             <SettingsView />
-                        )}
+                        </div>
                     </div>
 
-                    <footer className={`relative h-20 border-t flex items-center px-8 gap-10 z-[100] shadow-[0_-4px_20px_rgba(0,0,0,0.03)] transition-all duration-300 ${isDark ? "bg-wv-sidebar border-white/5" : "bg-white border-black/10"}`}>
+                    <footer className={`relative h-20 shrink-0 border-t flex items-center px-8 gap-10 z-[100] shadow-[0_-4px_20px_rgba(0,0,0,0.03)] transition-all duration-300 ${isDark ? "bg-wv-bg border-white/5" : "bg-white border-black/10"}`}>
                         <div className="absolute -top-[1px] left-0 right-0 h-1 z-50 group/progress">
                             <input type="range" min="0" max={duration || 100} step="0.1" value={currentTime} onChange={(e) => seek(parseFloat(e.target.value))} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
                             <div className={`absolute top-0 left-0 right-0 h-0.5 group-hover/progress:h-1.5 transition-all ${isDark ? "bg-white/10" : "bg-black/5"}`}>
@@ -224,6 +271,7 @@ export const App: React.FC = () => {
             <ActivityPanel />
             <UpdateNotification />
             <ToastNotification />
+            <StatsOverlay />
             {playlistUrl && <PlaylistModal url={playlistUrl} onClose={() => setPlaylistUrl(null)} onDownloadBatch={handleBatchDownload} />}
         </div>
     );

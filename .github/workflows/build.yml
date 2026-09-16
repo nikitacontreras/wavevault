@@ -130,8 +130,10 @@ jobs:
         run: |
           if [ "${{ runner.os }}" == "Windows" ]; then
             pnpm install -g node-gyp
+            pnpm install --no-frozen-lockfile --ignore-scripts
+          else
+            pnpm install --no-frozen-lockfile
           fi
-          pnpm install --no-frozen-lockfile
         shell: bash
 
       - name: Build Application

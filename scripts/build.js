@@ -68,6 +68,16 @@ async function build() {
     fs.copyFileSync('wavevault.svg', 'dist/renderer/wavevault.svg');
     fs.copyFileSync('wavevault.svg', 'dist/wavevault.svg');
   }
+
+  // Copy remote client static assets
+  const srcRemoteDir = path.join(__dirname, '../src/main/remote-client');
+  const distRemoteDir = path.join(__dirname, '../dist/main/remote-client');
+  if (fs.existsSync(srcRemoteDir)) {
+    fs.mkdirSync(distRemoteDir, { recursive: true });
+    fs.readdirSync(srcRemoteDir).forEach(file => {
+      fs.copyFileSync(path.join(srcRemoteDir, file), path.join(distRemoteDir, file));
+    });
+  }
 }
 
 

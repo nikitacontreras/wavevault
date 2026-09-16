@@ -1,9 +1,18 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSettings } from "../context/SettingsContext";
 
+export interface DependencyState {
+    python: boolean;
+    ffmpeg: boolean;
+    ffprobe: boolean;
+    pythonVersion?: string;
+    ffmpegVersion?: string;
+    ffprobeVersion?: string;
+}
+
 export const useDependenciesManager = () => {
     const { config } = useSettings();
-    const [dependencies, setDependencies] = useState<{ python: boolean, ffmpeg: boolean, ffprobe: boolean } | null>(null);
+    const [dependencies, setDependencies] = useState<DependencyState | null>(null);
 
     const checkDeps = useCallback(async () => {
         const result = await window.api.checkDependencies({

@@ -59,18 +59,29 @@ export const useDownloadHandlers = () => {
     }, [config, itemStates, updateItemState, addLog, addToHistory, addActiveDownload, updateActiveDownload]);
 
     const handleBatchDownload = useCallback(async (entries: any[]) => {
-        addLog(`📦 Iniciando descarga por lotes: ${entries.length} pistas`);
-        for (const entry of entries) {
-            handleDownload({
-                id: entry.id,
-                title: entry.title,
-                url: entry.url,
-                channel: entry.uploader || "Playlist",
-                thumbnail: `https://i.ytimg.com/vi/${entry.id}/mqdefault.jpg`,
-                duration: entry.duration ? new Date(entry.duration * 1000).toISOString().substr(14, 5) : "Video"
-            });
-            await new Promise(r => setTimeout(r, 500));
-        }
+        addLog(`📦 Iniciando descarga por lotes: ${entries.length} pistas (concurrencia máx: 3)`);
+        
+        const limit = 3;
+        const queue = [...entries];
+
+        const runWorker = async () => {
+            while (queue.length > 0) {
+                const entry = queue.shift();
+                if (!entry) break;
+
+                await handleDownload({
+                    id: entry.id,
+                    title: entry.title,
+                    url: entry.url,
+                    channel: entry.uploader || "Playlist",
+                    thumbnail: `https://i.ytimg.com/vi/${entry.id}/mqdefault.jpg`,
+                    duration: entry.duration ? new Date(entry.duration * 1000).toISOString().substr(14, 5) : "Video"
+                });
+            }
+        };
+
+        const workers = Array(Math.min(limit, entries.length)).fill(null).map(runWorker);
+        await Promise.all(workers);
     }, [handleDownload, addLog]);
 
     const handleDownloadFromUrl = useCallback(async (url: string, title: string) => {
@@ -148,11 +159,20 @@ export const useDownloadHandlers = () => {
         const unsubProgress = window.api.onDownloadProgress(({ url, message, progress }: any) => {
             updateActiveDownload(url, { status: 'loading', msg: message, progress });
             updateItemState(url, { status: 'loading', msg: message, progress });
+            const ytId = getYouTubeId(url);
+            if (ytId) {
+                updateItemState(ytId, { status: 'loading', msg: message, progress });
+            }
         });
 
         const unsubError = window.api.onDownloadError(({ url, error }: any) => {
             updateActiveDownload(url, { status: 'error', msg: error });
             addLog(`❌ Error en descarga: ${error}`);
+            updateItemState(url, { status: 'error', msg: error });
+            const ytId = getYouTubeId(url);
+            if (ytId) {
+                updateItemState(ytId, { status: 'error', msg: error });
+            }
         });
 
         return () => {
@@ -162,3 +182,23 @@ export const useDownloadHandlers = () => {
 
     return { handleDownload, handleBatchDownload, handleDownloadFromUrl };
 };
+
+function getYouTubeId(url: string): string | null {
+    if (!url) return null;
+    if (url.includes("youtu.be/")) {
+        const parts = url.split("youtu.be/");
+        if (parts[1]) {
+            return parts[1].split(/[?#]/)[0];
+        }
+    }
+    const match = url.match(/[?&]v=([^&#]+)/);
+    if (match && match[1]) {
+        return match[1];
+    }
+    const embedMatch = url.match(/(?:embed|v)\/([^&#?]+)/);
+    if (embedMatch && embedMatch[1]) {
+        return embedMatch[1];
+    }
+    return null;
+}
+

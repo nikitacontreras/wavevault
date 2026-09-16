@@ -15,6 +15,7 @@ interface ProjectVersion {
     workspaceId?: string;
     workspaceName?: string;
     isUnorganized: number;
+    metadata?: string;
 }
 
 interface ProjectTrack {
@@ -23,30 +24,33 @@ interface ProjectTrack {
     status: 'Idea' | 'Arreglo' | 'Mezcla' | 'Master' | 'Terminado';
     bpm?: number;
     key?: string;
-    tags: string[];
+    tags?: string[];
+    createdAt: number;
     versions: ProjectVersion[];
 }
 
 interface ProjectAlbum {
     id: string;
     name: string;
-    artist: string;
+    artist?: string;
+    artwork?: string;
+    createdAt: number;
     tracks: ProjectTrack[];
 }
 
-interface ProjectsDB {
+interface ProjectDB {
     albums: ProjectAlbum[];
     allVersions: ProjectVersion[];
 }
 
-type ModalType = 'create-album' | 'edit-album' | 'create-track' | 'edit-track' | 'daw-settings' | 'add-workspace';
+type ModalType = 'create-album' | 'edit-album' | 'create-track' | 'edit-track' | 'daw-settings' | 'add-workspace' | 'project-details';
 
 import { useTranslation } from "react-i18next";
 
 export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
     const { t } = useTranslation();
     const isDark = theme === 'dark';
-    const [db, setDb] = useState<ProjectsDB>({ albums: [], allVersions: [] });
+    const [db, setDb] = useState<ProjectDB>({ albums: [], allVersions: [] });
     const [viewMode, setViewMode] = useState<'projects' | 'todos'>('projects');
     const [filterMode, setFilterMode] = useState<'all' | 'raw' | 'nested'>('all');
     const [selectedAlbumId, setSelectedAlbumId] = useState<string | null>(null);
@@ -77,6 +81,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
         title: string;
         id?: string;
         inputs: { label: string, key: string, placeholder: string, value: string, type?: 'text' | 'select', options?: string[] }[];
+        data?: any;
     }>({
         show: false,
         type: 'create-album',
@@ -192,7 +197,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
             title: t('projects.editProject'),
             inputs: [
                 { label: t('projects.name'), key: 'name', placeholder: '', value: album.name },
-                { label: t('projects.artist'), key: 'artist', placeholder: '', value: album.artist }
+                { label: t('projects.artist'), key: 'artist', placeholder: '', value: album.artist || '' }
             ]
         });
         setActiveAlbumMenu(null);
@@ -319,6 +324,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
                         try {
                             setIsLoading(true);
                             await (window as any).api.addWorkspace(values.name, pendingWorkspacePath);
+                            await (window as any).api.scanProjects();
                         } catch (err: any) {
                             if (err.message.includes('UNIQUE constraint failed')) {
                                 alert(t('projects.workspaceExists'));
@@ -338,8 +344,8 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
         loadDB();
     };
 
-    const currentAlbum = db.albums.find(a => a.id === selectedAlbumId);
-    const filteredVersions = db.allVersions.filter(v => {
+    const currentAlbum = db.albums.find((a: any) => a.id === selectedAlbumId);
+    const filteredVersions = db.allVersions.filter((v: any) => {
         const name = v.name || "";
         const matchesSearch = name.toLowerCase().includes(projectSearch.toLowerCase());
         if (!matchesSearch) return false;
@@ -396,7 +402,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
                             </div>
                             {db.allVersions.length > 0 && (
                                 <span className={`px-1.5 py-0.5 rounded-md text-[8px] font-bold ${viewMode === 'todos' ? (isDark ? "bg-black text-white" : "bg-white text-black") : "bg-blue-600 text-white"}`}>
-                                    {db.allVersions.filter(v => v.isUnorganized === 1).length}
+                                    {db.allVersions.filter((v: any) => v.isUnorganized === 1).length}
                                 </span>
                             )}
                         </button>
@@ -444,7 +450,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
                     </div>
 
                     <div className="flex-1 space-y-0.5 overflow-y-auto pr-1 projects-scroll">
-                        {db.albums.map(album => (
+                        {db.albums.map((album: any) => (
                             <div key={album.id} className="relative group/item">
                                 <button
                                     onClick={() => { setSelectedAlbumId(album.id); setViewMode('projects'); }}
@@ -568,7 +574,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
 
                         <div className="flex-1 overflow-y-auto projects-scroll pr-2 -mr-2">
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5 pb-20">
-                                {filteredVersions.map(version => (
+                                {filteredVersions.map((version: any) => (
                                     <div key={version.id} className={`p-3 rounded-2xl border transition-all ${isDark ? "bg-wv-sidebar/30 border-white/5 hover:bg-wv-sidebar/50" : "bg-white border-black/5 shadow-sm"}`}>
                                         <div className="flex items-center gap-2.5 mb-3">
                                             <div className={`p-1.5 rounded-lg shrink-0 ${version.type === 'flp' ? 'bg-orange-500/10 text-orange-500' : 'bg-blue-500/10 text-blue-500'}`}>
@@ -592,6 +598,33 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
                                                 </div>
                                             </div>
                                         </div>
+                                        {(() => {
+                                            if (!version.metadata) return null;
+                                            try {
+                                                const meta = JSON.parse(version.metadata);
+                                                return (
+                                                    <div className="mb-3 flex flex-wrap gap-1.5 text-[8px] font-bold text-wv-gray">
+                                                        {meta.bpm && (
+                                                            <span className={`px-1.5 py-0.5 rounded ${isDark ? "bg-white/5 text-white/70" : "bg-black/5 text-black/70"} flex items-center gap-1`}>
+                                                                <Activity size={8} /> {meta.bpm} BPM
+                                                            </span>
+                                                        )}
+                                                        {meta.flVersion && (
+                                                            <span className={`px-1.5 py-0.5 rounded ${isDark ? "bg-white/5 text-white/70" : "bg-black/5 text-black/70"} flex items-center gap-1`}>
+                                                                FL {meta.flVersion.split(' ')[0] || meta.flVersion}
+                                                            </span>
+                                                        )}
+                                                        {meta.plugins && meta.plugins.length > 0 && (
+                                                            <span className={`px-1.5 py-0.5 rounded ${isDark ? "bg-white/5 text-white/70" : "bg-black/5 text-black/70"} flex items-center gap-1`}>
+                                                                <Cpu size={8} /> {meta.plugins.length} Plugins
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                );
+                                            } catch (e) {
+                                                return null;
+                                            }
+                                        })()}
                                         <div className="flex gap-1.5">
                                             <button
                                                 onClick={() => setMovingVersion(version)}
@@ -599,6 +632,26 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
                                             >
                                                 {version.trackId ? t('projects.reNest') : t('projects.nest')} <ArrowRight size={10} />
                                             </button>
+                                            {version.metadata && (
+                                                <button
+                                                    onClick={() => {
+                                                        try {
+                                                            const meta = JSON.parse(version.metadata!);
+                                                            setModalData({
+                                                                show: true,
+                                                                type: 'project-details',
+                                                                title: version.name,
+                                                                inputs: [],
+                                                                data: meta
+                                                            });
+                                                        } catch (e) {}
+                                                    }}
+                                                    className={`p-1.5 rounded-lg transition-all ${isDark ? "bg-white/5 hover:bg-white/10" : "bg-black/5"}`}
+                                                    title={t('common.info') || "Detalles"}
+                                                >
+                                                    <FolderSearch size={10} />
+                                                </button>
+                                            )}
                                             <button onClick={() => handleOpenVersion(version.path)} className={`p-1.5 rounded-lg transition-all ${isDark ? "bg-white/5 hover:bg-white/10" : "bg-black/5"}`}>
                                                 <ExternalLink size={10} />
                                             </button>
@@ -644,7 +697,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
 
                                     {/* Lista de Tracks Compacta */}
                                     <div className="flex-1 overflow-y-auto px-8 py-6 space-y-4 pr-1 projects-scroll">
-                                        {currentAlbum.tracks.map(track => (
+                                        {currentAlbum.tracks.map((track: any) => (
                                             <div key={track.id} className={`p-5 rounded-[1.5rem] border transition-all ${isDark ? "bg-wv-sidebar/20 border-white/5 hover:bg-wv-sidebar/30" : "bg-white border-black/5"}`}>
                                                 <div className="flex items-center justify-between mb-4">
                                                     <div className="flex items-center gap-4 min-w-0">
@@ -687,7 +740,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
                                                 </div>
 
                                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                                                    {track.versions.map(version => (
+                                                    {track.versions.map((version: any) => (
                                                         <div key={version.id} className={`group/ver px-3 py-2 rounded-xl border flex items-center justify-between transition-all ${isDark ? "bg-black/20 border-white/5 hover:bg-black/40" : "bg-black/[0.01]"}`}>
                                                             <div className="flex items-center gap-3 min-w-0 cursor-pointer" onClick={() => handleOpenVersion(version.path)}>
                                                                 <div className={`p-1.5 rounded-lg ${version.type === 'flp' ? 'bg-orange-500/10 text-orange-500' : 'bg-blue-500/10 text-blue-500'}`}>
@@ -739,7 +792,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
                                 {!movingToAlbumId ? (
                                     <>
                                         <h3 className="text-[9px] font-black uppercase tracking-widest text-wv-gray/40 px-2 mb-2">{t('projects.selectCollection')}</h3>
-                                        {db.albums.map(album => (
+                                        {db.albums.map((album: any) => (
                                             <button
                                                 key={album.id}
                                                 onClick={() => setMovingToAlbumId(album.id)}
@@ -759,14 +812,13 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
                                         )}
                                     </>
                                 ) : (
-                                    <>
-                                        <div className="flex items-center gap-2 mb-4">
+                                    <>                                        <div className="flex items-center gap-2 mb-4">
                                             <button onClick={() => setMovingToAlbumId(null)} className="p-1.5 rounded-lg hover:bg-white/5 text-wv-gray"><X size={14} /></button>
-                                            <h3 className="text-[9px] font-black uppercase tracking-widest text-wv-gray/40">{t('projects.collectionLabel')} {db.albums.find(a => a.id === movingToAlbumId)?.name}</h3>
+                                            <h3 className="text-[9px] font-black uppercase tracking-widest text-wv-gray/40">{t('projects.collectionLabel')} {db.albums.find((a: any) => a.id === movingToAlbumId)?.name}</h3>
                                         </div>
 
                                         <div className="grid grid-cols-1 gap-1.5">
-                                            {db.albums.find(a => a.id === movingToAlbumId)?.tracks.map(track => (
+                                            {db.albums.find((a: any) => a.id === movingToAlbumId)?.tracks.map((track: any) => (
                                                 <button key={track.id} onClick={() => handleMoveToTrack(track.id)} className={`flex items-center justify-between px-5 py-3 rounded-xl border transition-all ${isDark ? "bg-white/5 border-white/5 hover:bg-blue-600 text-white" : "bg-black/5 hover:bg-black/10"}`}>
                                                     <span className="text-[10px] font-black uppercase tracking-tight">{track.name}</span>
                                                     <span className={`px-1.5 py-0.5 rounded text-[7px] font-black uppercase opacity-60 border border-current`}>{track.status}</span>
@@ -828,7 +880,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
                             <div className="text-center mb-6">
                                 <Plus size={24} className="text-blue-500 mx-auto mb-3" />
                                 <h2 className="text-lg font-black tracking-tight">{t('projects.linkProject')}</h2>
-                                <p className="text-[10px] text-wv-gray font-bold uppercase tracking-widest mt-1">{t('projects.selectRawFor', { name: db.albums.flatMap(a => a.tracks).find(t => t.id === pickingVersionForTrackId)?.name })}</p>
+                                <p className="text-[10px] text-wv-gray font-bold uppercase tracking-widest mt-1">{t('projects.selectRawFor', { name: db.albums.flatMap((a: any) => a.tracks).find((t: any) => t.id === pickingVersionForTrackId)?.name || "" })}</p>
                             </div>
 
                             <div className="mb-4 relative group">
@@ -848,11 +900,11 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
                                 )}
                             </div>
 
-                            <div className="flex-1 overflow-y-auto min-h-0 space-y-2 pr-1 mb-6 projects-scroll">
+                             <div className="flex-1 overflow-y-auto min-h-0 space-y-2 pr-1 mb-6 projects-scroll">
                                 {db.allVersions
-                                    .filter(v => v.isUnorganized === 1)
-                                    .filter(v => !linkSearch || (v.name && v.name.toLowerCase().includes(linkSearch.toLowerCase())))
-                                    .map(version => (
+                                    .filter((v: any) => v.isUnorganized === 1)
+                                    .filter((v: any) => !linkSearch || (v.name && v.name.toLowerCase().includes(linkSearch.toLowerCase())))
+                                    .map((version: any) => (
                                         <button
                                             key={version.id}
                                             onClick={() => {
@@ -871,7 +923,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
                                         </button>
                                     ))
                                 }
-                                {db.allVersions.filter(v => v.isUnorganized === 1).filter(v => !linkSearch || (v.name && v.name.toLowerCase().includes(linkSearch.toLowerCase()))).length === 0 && (
+                                {db.allVersions.filter((v: any) => v.isUnorganized === 1).filter((v: any) => !linkSearch || (v.name && v.name.toLowerCase().includes(linkSearch.toLowerCase()))).length === 0 && (
                                     <div className="text-center py-10 opacity-30 border border-dashed border-white/10 rounded-2xl">
                                         <p className="text-[10px] font-black uppercase tracking-widest">{t('projects.noResults')}</p>
                                     </div>
@@ -886,7 +938,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
             {
                 modalData.show && (
                     <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[999] flex items-center justify-center p-6">
-                        <div className={`${modalData.type === 'daw-settings' ? 'max-w-xl' : 'max-w-sm'} w-full p-8 rounded-[2.5rem] border shadow-2xl ${isDark ? "bg-wv-sidebar border-white/10" : "bg-white border-black/10"}`}>
+                        <div className={`${modalData.type === 'daw-settings' || modalData.type === 'project-details' ? 'max-w-xl' : 'max-w-sm'} w-full p-8 rounded-[2.5rem] border shadow-2xl ${isDark ? "bg-wv-sidebar border-white/10" : "bg-white border-black/10"}`}>
                             <div className="mb-6 flex justify-between items-center">
                                 <div>
                                     <h2 className="text-xl font-black tracking-tight mb-1">{modalData.title}</h2>
@@ -947,6 +999,70 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({ theme }) => {
                                                 </div>
                                             ))}
                                         </div>
+                                    </div>
+                                </div>
+                            ) : modalData.type === 'project-details' ? (
+                                <div className="space-y-4 text-wv-gray max-h-[60vh] overflow-y-auto pr-1 projects-scroll text-xs">
+                                    <div className={`grid grid-cols-2 gap-3 p-4 rounded-2xl ${isDark ? 'bg-black/20' : 'bg-black/[0.03]'}`}>
+                                        <div>
+                                            <span className="text-[8px] font-black uppercase tracking-wider block opacity-50 mb-0.5">BPM / Tempo</span>
+                                            <span className={`font-black text-sm ${isDark ? 'text-white' : 'text-black'}`}>{modalData.data?.bpm ? `${modalData.data.bpm} BPM` : '--'}</span>
+                                        </div>
+                                        <div>
+                                            <span className="text-[8px] font-black uppercase tracking-wider block opacity-50 mb-0.5">FL Studio Version</span>
+                                            <span className={`font-black text-sm ${isDark ? 'text-white' : 'text-black'}`}>{modalData.data?.flVersion || '--'}</span>
+                                        </div>
+                                        <div>
+                                            <span className="text-[8px] font-black uppercase tracking-wider block opacity-50 mb-0.5">Time Signature</span>
+                                            <span className={`font-black text-sm ${isDark ? 'text-white' : 'text-black'}`}>{modalData.data?.timeSignature || '--'}</span>
+                                        </div>
+                                        <div>
+                                            <span className="text-[8px] font-black uppercase tracking-wider block opacity-50 mb-0.5">Genre</span>
+                                            <span className={`font-black text-sm ${isDark ? 'text-white' : 'text-black'}`}>{modalData.data?.genre || '--'}</span>
+                                        </div>
+                                        {modalData.data?.artists && (
+                                            <div className="col-span-2">
+                                                <span className="text-[8px] font-black uppercase tracking-wider block opacity-50 mb-0.5">Artists</span>
+                                                <span className={`font-black text-sm ${isDark ? 'text-white' : 'text-black'}`}>{modalData.data.artists}</span>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {modalData.data?.comments && (
+                                        <div className={`p-4 rounded-2xl ${isDark ? 'bg-black/20' : 'bg-black/[0.03]'}`}>
+                                            <span className="text-[8px] font-black uppercase tracking-wider block opacity-50 mb-1.5">Comments</span>
+                                            <p className={`font-bold whitespace-pre-wrap leading-relaxed ${isDark ? 'text-white/80' : 'text-black/80'}`}>{modalData.data.comments}</p>
+                                        </div>
+                                    )}
+
+                                    {modalData.data?.plugins && modalData.data.plugins.length > 0 && (
+                                        <div className={`p-4 rounded-2xl ${isDark ? 'bg-black/20' : 'bg-black/[0.03]'}`}>
+                                            <span className="text-[8px] font-black uppercase tracking-wider block opacity-50 mb-2">Plugins Used ({modalData.data.plugins.length})</span>
+                                            <div className="flex flex-wrap gap-1">
+                                                {modalData.data.plugins.map((plugin: string, idx: number) => (
+                                                    <span key={idx} className={`px-2 py-1 rounded-lg text-[9px] font-bold border ${isDark ? 'bg-white/5 text-white/90 border-white/5' : 'bg-black/5 text-black/90 border-black/5'}`}>
+                                                        {plugin}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {modalData.data?.samples && modalData.data.samples.length > 0 && (
+                                        <div className={`p-4 rounded-2xl ${isDark ? 'bg-black/20' : 'bg-black/[0.03]'}`}>
+                                            <span className="text-[8px] font-black uppercase tracking-wider block opacity-50 mb-2">Audio Samples Used ({modalData.data.samples.length})</span>
+                                            <div className="space-y-1 max-h-40 overflow-y-auto projects-scroll pr-1">
+                                                {modalData.data.samples.map((sample: string, idx: number) => (
+                                                    <p key={idx} className={`text-[9px] truncate font-mono p-1.5 rounded ${isDark ? 'bg-white/5 text-white/70' : 'bg-black/5 text-black/70'}`} title={sample}>
+                                                        {sample}
+                                                    </p>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div className="pt-2 flex">
+                                        <button onClick={() => setModalData({ ...modalData, show: false })} className={`flex-1 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest ${isDark ? "bg-white/5 hover:bg-white/10" : "bg-black/5 hover:bg-black/10"}`}>{t('common.close') || 'Cerrar'}</button>
                                     </div>
                                 </div>
                             ) : (

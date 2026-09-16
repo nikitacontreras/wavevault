@@ -250,7 +250,9 @@
         "youtubeAccountDesc": "Sign in to bypass bot detection and access age-restricted content.",
         "youtubeLogin": "LOGIN",
         "youtubeLogout": "Logout",
-        "youtubeConnected": "Connected"
+        "youtubeConnected": "Connected",
+        "general": "General",
+        "keys": "Hotkeys"
     },
     "deps": {
         "title": "System Check",
@@ -301,8 +303,11 @@
         "openFolder": "Open Folder",
         "remove": "Remove",
         "standard": "Standard",
-        "best": "Best",
-        "pro": "Pro (6S)"
+        "best": "Best Quality",
+        "pro": "Pro (6 Stems)",
+        "oneShots": "One-Shots",
+        "info": "Info",
+        "close": "Close"
     },
     "filters": {
         "tags": "Tags",
@@ -316,7 +321,9 @@
         "projects": "Project Manager",
         "search": "Search",
         "library": "Library",
-        "settings": "Settings"
+        "settings": "Settings",
+        "discovery": "Crate Digging",
+        "converter": "Audio Converter"
     },
     "footer": {
         "selectFile": "Select a file"
@@ -339,5 +346,21 @@
         "later": "Later",
         "restart": "Restart and Apply",
         "understand": "Understood"
+    },
+    "player": {
+        "none": "No track selected"
+    },
+    "library": {
+        "tabs": {
+            "downloads": "Downloads",
+            "local": "Local Library"
+        },
+        "local": {
+            "empty": "No local folders added",
+            "subtitle": "Add folders from your computer to index and search your local samples and sounds with AI",
+            "addFolder": "Add Local Folder",
+            "indexing": "Indexing local files...",
+            "stats": "{{count}} audio files indexed"
+        }
     }
 }

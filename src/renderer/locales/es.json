@@ -10,7 +10,7 @@
         "darkMode": "Modo Oscuro"
     },
     "player": {
-        "none": "Ninguno"
+        "none": "Ninguna pista seleccionada"
     },
     "discovery": {
         "title": "Crate Digging",
@@ -67,14 +67,14 @@
     "library": {
         "tabs": {
             "downloads": "Descargas",
-            "local": "Local"
+            "local": "Librería Local"
         },
         "local": {
-            "empty": "No hay carpetas indexadas",
-            "subtitle": "Añade tus propios directorios de samples para analizarlos",
-            "addFolder": "Añadir Carpeta",
-            "indexing": "Indexando...",
-            "stats": "{{count}} samples detectados"
+            "empty": "No hay carpetas locales agregadas",
+            "subtitle": "Agrega carpetas de tu equipo para indexar y buscar tus samples y sonidos locales con IA",
+            "addFolder": "Agregar Carpeta Local",
+            "indexing": "Indexando archivos locales...",
+            "stats": "{{count}} archivos de audio indexados"
         }
     },
     "spotlight": {
@@ -201,7 +201,7 @@
         "output": "Directorio Destino",
         "browse": "Buscar",
         "change": "Cambiar",
-        "keys": "Atajos de teclado",
+        "keys": "Atajos de Teclado",
         "smartOrganize": "Organización Inteligente",
         "smartOrganizeDesc": "Crear subcarpetas por Tonalidad (Camelot)",
         "smartOrganizeDesc2": "Crear carpetas por BPM/Key automáticamente",
@@ -262,8 +262,8 @@
         "stemsQualityStandard": "Estándar (4 Pistas, Rápido)",
         "stemsQualityBest": "Mejor (4 Pistas, Limpio)",
         "stemsQualityPro": "Pro (6 Pistas: Guitarra y Piano)",
-        "autoCheckUpdates": "Búsqueda automática de actualizaciones",
-        "autoCheckUpdatesDesc": "Buscar nuevas versiones automáticamente al iniciar",
+        "autoCheckUpdates": "Buscar Actualizaciones Automáticamente",
+        "autoCheckUpdatesDesc": "Buscar nuevas versiones automáticamente al iniciar la app",
         "youtubeAccount": "Cuenta de YouTube",
         "youtubeAccountDesc": "Inicia sesión para evitar la detección de bots y acceder a contenido con restricción de edad.",
         "youtubeLogin": "LOGIN",
@@ -319,8 +319,11 @@
         "openFolder": "Abrir Carpeta",
         "remove": "Eliminar",
         "standard": "Estándar",
-        "best": "Mejor",
-        "pro": "Pro (6S)"
+        "best": "Máxima Calidad",
+        "pro": "Pro (6 Pistas)",
+        "oneShots": "One-Shots",
+        "info": "Información",
+        "close": "Cerrar"
     },
     "filters": {
         "tags": "Tags",
@@ -335,7 +338,8 @@
         "projects": "Gestor de Proyectos",
         "search": "Buscar",
         "library": "Librería",
-        "settings": "Configuración"
+        "settings": "Configuración",
+        "converter": "Convertidor de Audio"
     },
     "footer": {
         "selectFile": "Selecciona un archivo"

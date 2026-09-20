@@ -23,6 +23,7 @@ import { DiscoveryView } from "./components/DiscoveryView";
 import { ProjectsView } from "./components/ProjectsView";
 import { SettingsView } from "./components/SettingsView";
 import { PlaylistModal } from "./components/PlaylistModal";
+import { DuplicatesModal } from "./components/DuplicatesModal";
 import { UpdateNotification } from "./components/UpdateNotification";
 import { ToastNotification } from "./components/ToastNotification";
 import { StatsOverlay } from "./components/StatsOverlay";
@@ -45,6 +46,7 @@ export const App: React.FC = () => {
     const [isDragging, setIsDragging] = useState(false);
     const [showDepsModal, setShowDepsModal] = useState(true);
     const [depsBannerDismissed, setDepsBannerDismissed] = useState(false);
+    const [showDuplicatesModal, setShowDuplicatesModal] = useState(false);
 
     // Custom Hooks (now pre-configured with contexts internally)
     const { dependencies, checkDeps, hasAllDeps } = useDependenciesManager();
@@ -213,7 +215,7 @@ export const App: React.FC = () => {
 
                         {/* 6. SettingsView Container */}
                         <div className={view === 'settings' ? "flex-1 flex flex-col min-h-0" : "hidden"} style={view !== 'settings' ? { display: 'none' } : undefined}>
-                            <SettingsView />
+                            <SettingsView onOpenDuplicates={() => setShowDuplicatesModal(true)} />
                         </div>
                     </div>
 
@@ -273,6 +275,7 @@ export const App: React.FC = () => {
             <ToastNotification />
             <StatsOverlay />
             {playlistUrl && <PlaylistModal url={playlistUrl} onClose={() => setPlaylistUrl(null)} onDownloadBatch={handleBatchDownload} />}
+            <DuplicatesModal isOpen={showDuplicatesModal} onClose={() => setShowDuplicatesModal(false)} isDark={config.theme === 'dark'} />
         </div>
     );
 };

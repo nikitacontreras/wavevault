@@ -268,7 +268,15 @@
         "youtubeAccountDesc": "Inicia sesión para evitar la detección de bots y acceder a contenido con restricción de edad.",
         "youtubeLogin": "LOGIN",
         "youtubeLogout": "Cerrar Sesión",
-        "youtubeConnected": "Conectado"
+        "youtubeConnected": "Conectado",
+        "storage": "Almacenamiento",
+        "storageAndMaintenance": "Almacenamiento y Mantenimiento",
+        "duplicateScanner": "Buscador de Duplicados",
+        "duplicateScannerDesc": "Analiza tu librería para detectar y eliminar archivos idénticos o repetidos.",
+        "scanDuplicates": "Escanear Duplicados",
+        "waveformCache": "Caché de Waveforms",
+        "waveformCacheDesc": "Libera espacio eliminando las formas de onda cacheadas de pistas procesadas.",
+        "clearCache": "Limpiar Caché"
     },
     "deps": {
         "title": "Verificando Sistema",
@@ -323,7 +331,9 @@
         "pro": "Pro (6 Pistas)",
         "oneShots": "One-Shots",
         "info": "Información",
-        "close": "Cerrar"
+        "close": "Cerrar",
+        "cleaned": "Limpio",
+        "cleaning": "Limpiando..."
     },
     "filters": {
         "tags": "Tags",

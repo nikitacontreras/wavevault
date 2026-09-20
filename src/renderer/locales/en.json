@@ -252,7 +252,15 @@
         "youtubeLogout": "Logout",
         "youtubeConnected": "Connected",
         "general": "General",
-        "keys": "Hotkeys"
+        "keys": "Hotkeys",
+        "storage": "Storage",
+        "storageAndMaintenance": "Storage & Maintenance",
+        "duplicateScanner": "Duplicate Scanner",
+        "duplicateScannerDesc": "Scan your sample library to find and remove identical or redundant files.",
+        "scanDuplicates": "Scan Duplicates",
+        "waveformCache": "Waveform Cache",
+        "waveformCacheDesc": "Free up storage by clearing cached waveforms for processed tracks.",
+        "clearCache": "Clear Cache"
     },
     "deps": {
         "title": "System Check",
@@ -307,7 +315,9 @@
         "pro": "Pro (6 Stems)",
         "oneShots": "One-Shots",
         "info": "Info",
-        "close": "Close"
+        "close": "Close",
+        "cleaned": "Cleaned",
+        "cleaning": "Cleaning..."
     },
     "filters": {
         "tags": "Tags",

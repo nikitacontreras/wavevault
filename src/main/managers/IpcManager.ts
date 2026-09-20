@@ -9,7 +9,8 @@ import {
     deleteVersionDB, addWorkspaceDB, removeWorkspaceDB, getLocalFoldersDB,
     removeLocalFolderDB, getLocalFilesDB, saveWaveformCacheDB, getWaveformCacheDB,
     getWorkspacesDB, getDAWPathsDB, saveDAWPathDB, getLocalFilesByCategoryDB,
-    getLocalFilesGroupedDB, addProjectVersionDB
+    getLocalFilesGroupedDB, addProjectVersionDB, findDuplicatesDB, deleteLocalFileDB,
+    clearWaveformCacheDB
 } from '../db';
 import { separateStems, getStemsStatus, getAllStemsStatuses } from '../stems';
 import { scanProjects } from '../projects';
@@ -23,6 +24,7 @@ import { UpdateManager } from './UpdateManager';
 import { YouTubeAuthManager } from './YouTubeAuthManager';
 import { BackupManager } from './BackupManager';
 import path from 'path';
+import os from 'os';
 
 export function setupIpcHandlers() {
     console.log("Registering IPC Handlers...");
@@ -258,6 +260,82 @@ export function setupIpcHandlers() {
     });
     ipcMain.handle("get-platform", () => createSuccessResponse(process.platform));
     ipcMain.handle("get-platform-info", () => createSuccessResponse(process.platform));
+
+    ipcMain.handle("get-system-diagnostics", async () => {
+        try {
+            const cpus = os.cpus();
+            const totalMem = os.totalmem();
+            const freeMem = os.freemem();
+            const memUsage = process.memoryUsage();
+            const deps = await checkDependencies();
+
+            let dbSize = 0;
+            try {
+                const dbPath = path.join(app.getPath('userData'), 'wavevault.db');
+                if (fs.existsSync(dbPath)) {
+                    dbSize = fs.statSync(dbPath).size;
+                }
+            } catch {}
+
+            let sampleCount = 0;
+            let projectCount = 0;
+            try {
+                const files = getLocalFilesDB();
+                sampleCount = files.length;
+                const dbData = getFullProjectDB();
+                projectCount = dbData.allVersions?.length || 0;
+            } catch {}
+
+            return createSuccessResponse({
+                system: {
+                    platform: process.platform,
+                    arch: process.arch,
+                    osType: os.type(),
+                    osRelease: os.release(),
+                    hostname: os.hostname(),
+                    uptime: Math.round(os.uptime()),
+                    cpuModel: cpus[0]?.model || 'Unknown',
+                    cpuCores: cpus.length,
+                    totalMemoryMB: Math.round(totalMem / 1024 / 1024),
+                    freeMemoryMB: Math.round(freeMem / 1024 / 1024),
+                    usedMemoryMB: Math.round((totalMem - freeMem) / 1024 / 1024)
+                },
+                process: {
+                    pid: process.pid,
+                    nodeVersion: process.versions.node,
+                    electronVersion: process.versions.electron,
+                    chromeVersion: process.versions.chrome,
+                    v8Version: process.versions.v8,
+                    heapUsedMB: Math.round(memUsage.heapUsed / 1024 / 1024),
+                    heapTotalMB: Math.round(memUsage.heapTotal / 1024 / 1024),
+                    rssMB: Math.round(memUsage.rss / 1024 / 1024),
+                    appPath: app.getAppPath(),
+                    userDataPath: app.getPath('userData')
+                },
+                dependencies: {
+                    python: deps.python,
+                    pythonVersion: deps.pythonVersion,
+                    ffmpeg: deps.ffmpeg,
+                    ffmpegVersion: deps.ffmpegVersion,
+                    ffprobe: deps.ffprobe,
+                    ffprobeVersion: deps.ffprobeVersion
+                },
+                storage: {
+                    dbSizeMB: (dbSize / 1024 / 1024).toFixed(2),
+                    indexedSamples: sampleCount,
+                    trackedProjects: projectCount,
+                    outDir: path.join(app.getPath('music'), 'WaveVault')
+                },
+                auth: {
+                    youtubeConnected: YouTubeAuthManager.hasCookies()
+                }
+            });
+        } catch (e: any) {
+            console.error("[IpcManager] Error gathering diagnostics:", e);
+            return createErrorResponse(e.message);
+        }
+    });
+
     ipcMain.handle("open-external", async (_evt, url) => {
         shell.openExternal(url);
         return createSuccessResponse(true);
@@ -392,6 +470,40 @@ export function setupIpcHandlers() {
     ipcMain.handle("youtube:logout", () => {
         YouTubeAuthManager.logout();
         return createSuccessResponse(true);
+    });
+
+    // Duplicates and Cache Management
+    ipcMain.handle("get-duplicates", () => {
+        try {
+            const duplicates = findDuplicatesDB();
+            return createSuccessResponse(duplicates);
+        } catch (e: any) {
+            console.error("[IpcManager] Error getting duplicates:", e);
+            return createErrorResponse(e.message);
+        }
+    });
+
+    ipcMain.handle("delete-duplicate-file", async (_evt, fileId: string, filePath?: string, deleteFromDisk?: boolean) => {
+        try {
+            if (deleteFromDisk && filePath && fs.existsSync(filePath)) {
+                await fs.promises.unlink(filePath);
+            }
+            deleteLocalFileDB(fileId);
+            return createSuccessResponse(true);
+        } catch (e: any) {
+            console.error("[IpcManager] Error deleting duplicate file:", e);
+            return createErrorResponse(e.message);
+        }
+    });
+
+    ipcMain.handle("clear-waveform-cache", () => {
+        try {
+            clearWaveformCacheDB();
+            return createSuccessResponse(true);
+        } catch (e: any) {
+            console.error("[IpcManager] Error clearing waveform cache:", e);
+            return createErrorResponse(e.message);
+        }
     });
 
     ipcMain.on('start-drag', (event, filePath, iconPath) => {

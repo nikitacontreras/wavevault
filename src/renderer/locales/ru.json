@@ -265,7 +265,15 @@
         "youtubeAccountDesc": "Синхронизация для загрузки приватных и возрастных треков",
         "youtubeLogin": "Войти в YouTube",
         "youtubeLogout": "Выйти",
-        "youtubeConnected": "Подключено"
+        "youtubeConnected": "Подключено",
+        "storage": "Хранилище",
+        "storageAndMaintenance": "Хранилище и обслуживание",
+        "duplicateScanner": "Поиск дубликатов",
+        "duplicateScannerDesc": "Сканирование библиотеки для поиска и удаления одинаковых сэмплов.",
+        "scanDuplicates": "Сканировать дубликаты",
+        "waveformCache": "Кэш осциллограмм",
+        "waveformCacheDesc": "Освобождает место, удаляя кэшированные осциллограммы обработанных треков.",
+        "clearCache": "Очистить кэш"
     },
     "deps": {
         "title": "Проверка системы",
@@ -320,7 +328,9 @@
         "pro": "Про (6 дорожек)",
         "oneShots": "Ван-шоты",
         "info": "Информация",
-        "close": "Закрыть"
+        "close": "Закрыть",
+        "cleaned": "Очищено",
+        "cleaning": "Очистка..."
     },
     "filters": {
         "tags": "Теги",

@@ -185,6 +185,13 @@ export function initDB() {
     if (!tableInfoLocalFiles.some(col => col.name === 'tags')) {
         try { db.prepare("ALTER TABLE local_files ADD COLUMN tags TEXT").run(); } catch (e) { }
     }
+    if (!tableInfoLocalFiles.some(col => col.name === 'hash')) {
+        try { db.prepare("ALTER TABLE local_files ADD COLUMN hash TEXT").run(); } catch (e) { }
+    }
+
+    try {
+        db.prepare("CREATE INDEX IF NOT EXISTS idx_local_files_hash ON local_files(hash)").run();
+    } catch (e) { }
 
     db.prepare(`
         CREATE TABLE IF NOT EXISTS waveform_cache (
@@ -505,23 +512,71 @@ export function removeLocalFolderDB(id: string) {
 
 export function addLocalFileDB(file: any) {
     const db = getDB();
-    // file object: { folderId, path, filename, type, instrument, key, bpm, duration, size }
     const id = "LFL-" + Math.random().toString(36).substr(2, 9);
+    const tags = file.tags || null;
+    const hash = file.hash || null;
     try {
         db.prepare(`
-            INSERT INTO local_files(id, folderId, path, filename, type, instrument, key, bpm, duration, size)
-    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(path) DO UPDATE SET
-    scannedAt = ? --Just to touch it if needed, but we don't have scannedAt on file. Re-insert logic basically.
-        `).run(id, file.folderId, file.path, file.filename, file.type, file.instrument, file.key, file.bpm, file.duration, file.size);
+            INSERT OR REPLACE INTO local_files(id, folderId, path, filename, type, instrument, key, bpm, duration, size, tags, hash)
+            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(id, file.folderId, file.path, file.filename, file.type, file.instrument, file.key, file.bpm, file.duration, file.size, tags, hash);
     } catch (e) {
-        // If conflict and we want to update metadata? For now ignore unique constraint if needed or REPLACE
-        // Using replace for simple updates
-        db.prepare(`
-             INSERT OR REPLACE INTO local_files(id, folderId, path, filename, type, instrument, key, bpm, duration, size)
-    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(id, file.folderId, file.path, file.filename, file.type, file.instrument, file.key, file.bpm, file.duration, file.size);
+        console.error("[DB] Error adding local file:", e);
     }
+}
+
+export interface DuplicateGroup {
+    hash: string;
+    count: number;
+    totalSize: number;
+    files: any[];
+}
+
+export function findDuplicatesDB(): DuplicateGroup[] {
+    const db = getDB();
+    const duplicateHashes = db.prepare(`
+        SELECT hash, COUNT(*) as count, SUM(size) as totalSize
+        FROM local_files
+        WHERE hash IS NOT NULL AND hash != ''
+        GROUP BY hash
+        HAVING count > 1
+        ORDER BY count DESC, totalSize DESC
+    `).all() as { hash: string; count: number; totalSize: number }[];
+
+    const result: DuplicateGroup[] = [];
+    const getFilesStmt = db.prepare(`
+        SELECT lf.*, f.name as folderName
+        FROM local_files lf
+        LEFT JOIN local_folders f ON lf.folderId = f.id
+        WHERE lf.hash = ?
+        ORDER BY lf.path ASC
+    `);
+
+    for (const item of duplicateHashes) {
+        const files = getFilesStmt.all(item.hash) as any[];
+        result.push({
+            hash: item.hash,
+            count: item.count,
+            totalSize: item.totalSize,
+            files
+        });
+    }
+
+    return result;
+}
+
+export function deleteLocalFileDB(id: string) {
+    getDB().prepare('DELETE FROM local_files WHERE id = ?').run(id);
+    return true;
+}
+
+export function clearWaveformCacheDB() {
+    const db = getDB();
+    db.prepare('DELETE FROM waveform_cache').run();
+    db.prepare('UPDATE local_files SET waveform = NULL').run();
+    db.prepare('UPDATE tracks SET waveform = NULL').run();
+    db.prepare('UPDATE samples SET waveform = NULL').run();
+    return true;
 }
 
 export function getLocalFilesDB(folderId?: string) {

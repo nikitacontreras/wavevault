@@ -95,6 +95,7 @@ contextBridge.exposeInMainWorld("api", {
     getAppVersion: () => safeInvoke("get-app-version"),
     openExternal: (url: string) => safeInvoke("open-external", url),
     getPlatformInfo: () => safeInvoke("get-platform-info"),
+    getSystemDiagnostics: () => safeInvoke("get-system-diagnostics"),
     startDrag: (filepath: string, iconpath?: string) => ipcRenderer.send("start-drag", filepath, iconpath),
 
     minimizeWindow: () => safeInvoke("window-minimize"),
@@ -137,6 +138,11 @@ contextBridge.exposeInMainWorld("api", {
     getCachedPeaks: (id: string) => safeInvoke("get-cached-peaks", id),
     saveHistory: (history: any[]) => safeInvoke("save-history", history),
     getHistory: () => safeInvoke("get-history"),
+
+    // Duplicates & Cache Management
+    getDuplicates: () => safeInvoke("get-duplicates"),
+    deleteDuplicateFile: (fileId: string, filePath?: string, deleteFromDisk?: boolean) => safeInvoke("delete-duplicate-file", fileId, filePath, deleteFromDisk),
+    clearWaveformCache: () => safeInvoke("clear-waveform-cache"),
 
     // YouTube Auth
     youtubeLogin: () => safeInvoke("youtube:login"),

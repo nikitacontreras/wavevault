@@ -210,7 +210,15 @@
         "youtubeAccountDesc": "비공개/연령 제한 콘텐츠 다운로드를 위해 브라우저 쿠키를 연동합니다",
         "youtubeLogin": "YouTube 로그인",
         "youtubeLogout": "로그아웃",
-        "youtubeConnected": "연결됨"
+        "youtubeConnected": "연결됨",
+        "storage": "저장공간",
+        "storageAndMaintenance": "저장공간 및 유지보수",
+        "duplicateScanner": "중복 파일 스캐너",
+        "duplicateScannerDesc": "샘플 라이브러리를 검사하여 동일하거나 중복된 파일을 찾아 정리합니다.",
+        "scanDuplicates": "중복 파일 검사",
+        "waveformCache": "웨이브폼 캐시",
+        "waveformCacheDesc": "처리된 트랙의 캐시된 파형 데이터를 삭제하여 디스크 공간을 확보합니다.",
+        "clearCache": "캐시 정리"
     },
     "deps": {
         "title": "시스템 확인",
@@ -265,7 +273,9 @@
         "pro": "프로 (6트랙)",
         "oneShots": "원샷",
         "info": "정보",
-        "close": "닫기"
+        "close": "닫기",
+        "cleaned": "정리 완료",
+        "cleaning": "정리 중..."
     },
     "filters": {
         "tags": "태그",

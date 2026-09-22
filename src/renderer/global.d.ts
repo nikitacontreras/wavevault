@@ -81,8 +81,26 @@ declare global {
             checkForUpdates: () => Promise<any>;
             getPlatform: () => Promise<string>;
             getPlatformInfo: () => Promise<any>;
+            getSystemDiagnostics: () => Promise<{ success: boolean; data?: any; error?: string }>;
             saveHistory: (history: any[]) => Promise<any>;
             getHistory: () => Promise<any[]>;
+
+            // Duplicates & Cache Management
+            getDuplicates: () => Promise<{ success: boolean; data?: any[]; error?: string }>;
+            deleteDuplicateFile: (fileId: string, filePath?: string, deleteFromDisk?: boolean) => Promise<{ success: boolean; error?: string }>;
+            clearWaveformCache: () => Promise<{ success: boolean; error?: string }>;
+            getWaveformCacheSize: () => Promise<{ success: boolean; data?: number; error?: string }>;
+            getStorageStats: (customOutDir?: string) => Promise<{
+                success: boolean;
+                data?: {
+                    audioLibrary: { path: string; size: number; count: number };
+                    waveformCache: { size: number };
+                    database: { size: number };
+                    total: number;
+                };
+                error?: string;
+            }>;
+            openPath: (targetPath: string) => Promise<{ success: boolean; error?: string }>;
 
             startDrag: (filepath: string, iconpath?: string) => void;
 

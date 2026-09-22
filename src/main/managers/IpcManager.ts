@@ -1,5 +1,6 @@
 import { ipcMain, dialog, app, shell, clipboard, nativeImage } from 'electron';
 import fs from 'fs';
+import path from 'path';
 import { createSuccessResponse, createErrorResponse } from '../core/ApiResponse';
 import { processJob, fetchMeta, getStreamUrl, searchYoutube, batchSearchAndStream, fetchPlaylistMeta, trimAudio } from '../downloader';
 import { config, saveConfig, resetKeybinds } from '../config';
@@ -9,7 +10,8 @@ import {
     deleteVersionDB, addWorkspaceDB, removeWorkspaceDB, getLocalFoldersDB,
     removeLocalFolderDB, getLocalFilesDB, saveWaveformCacheDB, getWaveformCacheDB,
     getWorkspacesDB, getDAWPathsDB, saveDAWPathDB, getLocalFilesByCategoryDB,
-    getLocalFilesGroupedDB, addProjectVersionDB
+    getLocalFilesGroupedDB, addProjectVersionDB, findDuplicatesDB, deleteLocalFileDB,
+    clearWaveformCacheDB, getWaveformCacheSizeDB, getDBPath, getConfigDB
 } from '../db';
 import { separateStems, getStemsStatus, getAllStemsStatuses } from '../stems';
 import { scanProjects } from '../projects';
@@ -22,7 +24,7 @@ import { ShortcutManager } from './ShortcutManager';
 import { UpdateManager } from './UpdateManager';
 import { YouTubeAuthManager } from './YouTubeAuthManager';
 import { BackupManager } from './BackupManager';
-import path from 'path';
+import os from 'os';
 
 export function setupIpcHandlers() {
     console.log("Registering IPC Handlers...");
@@ -258,6 +260,82 @@ export function setupIpcHandlers() {
     });
     ipcMain.handle("get-platform", () => createSuccessResponse(process.platform));
     ipcMain.handle("get-platform-info", () => createSuccessResponse(process.platform));
+
+    ipcMain.handle("get-system-diagnostics", async () => {
+        try {
+            const cpus = os.cpus();
+            const totalMem = os.totalmem();
+            const freeMem = os.freemem();
+            const memUsage = process.memoryUsage();
+            const deps = await checkDependencies();
+
+            let dbSize = 0;
+            try {
+                const dbPath = path.join(app.getPath('userData'), 'wavevault.db');
+                if (fs.existsSync(dbPath)) {
+                    dbSize = fs.statSync(dbPath).size;
+                }
+            } catch {}
+
+            let sampleCount = 0;
+            let projectCount = 0;
+            try {
+                const files = getLocalFilesDB();
+                sampleCount = files.length;
+                const dbData = getFullProjectDB();
+                projectCount = dbData.allVersions?.length || 0;
+            } catch {}
+
+            return createSuccessResponse({
+                system: {
+                    platform: process.platform,
+                    arch: process.arch,
+                    osType: os.type(),
+                    osRelease: os.release(),
+                    hostname: os.hostname(),
+                    uptime: Math.round(os.uptime()),
+                    cpuModel: cpus[0]?.model || 'Unknown',
+                    cpuCores: cpus.length,
+                    totalMemoryMB: Math.round(totalMem / 1024 / 1024),
+                    freeMemoryMB: Math.round(freeMem / 1024 / 1024),
+                    usedMemoryMB: Math.round((totalMem - freeMem) / 1024 / 1024)
+                },
+                process: {
+                    pid: process.pid,
+                    nodeVersion: process.versions.node,
+                    electronVersion: process.versions.electron,
+                    chromeVersion: process.versions.chrome,
+                    v8Version: process.versions.v8,
+                    heapUsedMB: Math.round(memUsage.heapUsed / 1024 / 1024),
+                    heapTotalMB: Math.round(memUsage.heapTotal / 1024 / 1024),
+                    rssMB: Math.round(memUsage.rss / 1024 / 1024),
+                    appPath: app.getAppPath(),
+                    userDataPath: app.getPath('userData')
+                },
+                dependencies: {
+                    python: deps.python,
+                    pythonVersion: deps.pythonVersion,
+                    ffmpeg: deps.ffmpeg,
+                    ffmpegVersion: deps.ffmpegVersion,
+                    ffprobe: deps.ffprobe,
+                    ffprobeVersion: deps.ffprobeVersion
+                },
+                storage: {
+                    dbSizeMB: (dbSize / 1024 / 1024).toFixed(2),
+                    indexedSamples: sampleCount,
+                    trackedProjects: projectCount,
+                    outDir: path.join(app.getPath('music'), 'WaveVault')
+                },
+                auth: {
+                    youtubeConnected: YouTubeAuthManager.hasCookies()
+                }
+            });
+        } catch (e: any) {
+            console.error("[IpcManager] Error gathering diagnostics:", e);
+            return createErrorResponse(e.message);
+        }
+    });
+
     ipcMain.handle("open-external", async (_evt, url) => {
         shell.openExternal(url);
         return createSuccessResponse(true);
@@ -392,6 +470,177 @@ export function setupIpcHandlers() {
     ipcMain.handle("youtube:logout", () => {
         YouTubeAuthManager.logout();
         return createSuccessResponse(true);
+    });
+
+    // Duplicates and Cache Management
+    ipcMain.handle("get-duplicates", () => {
+        try {
+            const duplicates = findDuplicatesDB();
+            return createSuccessResponse(duplicates);
+        } catch (e: any) {
+            console.error("[IpcManager] Error getting duplicates:", e);
+            return createErrorResponse(e.message);
+        }
+    });
+
+    ipcMain.handle("delete-duplicate-file", async (_evt, fileId: string, filePath?: string, deleteFromDisk?: boolean) => {
+        try {
+            if (deleteFromDisk && filePath && fs.existsSync(filePath)) {
+                await fs.promises.unlink(filePath);
+            }
+            deleteLocalFileDB(fileId);
+            return createSuccessResponse(true);
+        } catch (e: any) {
+            console.error("[IpcManager] Error deleting duplicate file:", e);
+            return createErrorResponse(e.message);
+        }
+    });
+
+    ipcMain.handle("clear-waveform-cache", () => {
+        try {
+            clearWaveformCacheDB();
+            return createSuccessResponse(true);
+        } catch (e: any) {
+            console.error("[IpcManager] Error clearing waveform cache:", e);
+            return createErrorResponse(e.message);
+        }
+    });
+
+    ipcMain.handle("get-waveform-cache-size", () => {
+        try {
+            return createSuccessResponse(getWaveformCacheSizeDB());
+        } catch (e: any) {
+            console.error("[IpcManager] Error getting waveform cache size:", e);
+            return createErrorResponse(e.message);
+        }
+    });
+
+    const getDirStats = async (dirPath: string): Promise<{ size: number; count: number }> => {
+        let size = 0;
+        let count = 0;
+        try {
+            if (!fs.existsSync(dirPath)) return { size: 0, count: 0 };
+            const entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
+            for (const entry of entries) {
+                const fullPath = path.join(dirPath, entry.name);
+                if (entry.isDirectory()) {
+                    const sub = await getDirStats(fullPath);
+                    size += sub.size;
+                    count += sub.count;
+                } else if (entry.isFile()) {
+                    try {
+                        const s = await fs.promises.stat(fullPath);
+                        size += s.size;
+                        count++;
+                    } catch {}
+                }
+            }
+        } catch (e) {
+            console.warn("[IpcManager] Error reading dir stats:", e);
+        }
+        return { size, count };
+    };
+
+    ipcMain.handle("get-storage-stats", async (_evt, customOutDir?: string) => {
+        try {
+            const defaultMusicDir = app.getPath('music');
+            const configuredOutDir = config.outDir || null;
+            const targetOutDir = customOutDir || configuredOutDir || defaultMusicDir;
+
+            const seenPaths = new Set<string>();
+            let totalAudioBytes = 0;
+            let totalAudioFiles = 0;
+
+            // 1. Calculate from download history items (real downloads)
+            const history = getConfigDB("download_history") || [];
+            if (Array.isArray(history)) {
+                for (const item of history) {
+                    if (item && item.path && !seenPaths.has(item.path)) {
+                        seenPaths.add(item.path);
+                        try {
+                            if (fs.existsSync(item.path)) {
+                                const s = fs.statSync(item.path);
+                                totalAudioBytes += s.size;
+                                totalAudioFiles++;
+                            }
+                        } catch {}
+                    }
+                }
+            }
+
+            // 2. Also check configured directory or WaveVault folder for any additional audio files
+            const dirsToCheck = [
+                configuredOutDir,
+                path.join(defaultMusicDir, 'WaveVault')
+            ].filter(Boolean) as string[];
+
+            for (const dir of dirsToCheck) {
+                try {
+                    if (fs.existsSync(dir)) {
+                        const entries = await fs.promises.readdir(dir, { withFileTypes: true });
+                        for (const entry of entries) {
+                            const fullPath = path.join(dir, entry.name);
+                            if (entry.isFile() && !seenPaths.has(fullPath)) {
+                                if (/\.(mp3|wav|flac|m4a|ogg|aiff)$/i.test(entry.name)) {
+                                    seenPaths.add(fullPath);
+                                    try {
+                                        const s = await fs.promises.stat(fullPath);
+                                        totalAudioBytes += s.size;
+                                        totalAudioFiles++;
+                                    } catch {}
+                                }
+                            }
+                        }
+                    }
+                } catch {}
+            }
+
+            // 3. Database file size
+            let dbSize = 0;
+            try {
+                const dbPath = getDBPath();
+                if (fs.existsSync(dbPath)) {
+                    dbSize = fs.statSync(dbPath).size;
+                }
+            } catch {}
+
+            // 4. Waveform cache (including waveform strings stored in history)
+            const waveformCacheSize = getWaveformCacheSizeDB();
+
+            const displayPath = (history.length > 0 && history[0].path)
+                ? path.dirname(history[0].path)
+                : targetOutDir;
+
+            return createSuccessResponse({
+                audioLibrary: {
+                    path: displayPath,
+                    size: totalAudioBytes,
+                    count: totalAudioFiles
+                },
+                waveformCache: {
+                    size: waveformCacheSize
+                },
+                database: {
+                    size: dbSize
+                },
+                total: totalAudioBytes + waveformCacheSize + dbSize
+            });
+        } catch (e: any) {
+            console.error("[IpcManager] Error getting storage stats:", e);
+            return createErrorResponse(e.message);
+        }
+    });
+
+    ipcMain.handle("open-path", async (_evt, targetPath: string) => {
+        try {
+            if (targetPath) {
+                await shell.openPath(targetPath);
+                return createSuccessResponse(true);
+            }
+            return createErrorResponse("No path provided");
+        } catch (e: any) {
+            return createErrorResponse(e.message);
+        }
     });
 
     ipcMain.on('start-drag', (event, filePath, iconPath) => {

@@ -57,6 +57,7 @@ textarea,
 
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
+  height: 3px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
@@ -69,6 +70,23 @@ textarea,
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--wv-scrollbar-hover);
+}
+
+.custom-scrollbar-x::-webkit-scrollbar {
+  height: 3px;
+}
+
+.custom-scrollbar-x::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar-x::-webkit-scrollbar-thumb {
+  background: var(--wv-scrollbar-thumb);
+  border-radius: 9999px;
+}
+
+.custom-scrollbar-x::-webkit-scrollbar-thumb:hover {
   background: var(--wv-scrollbar-hover);
 }
 

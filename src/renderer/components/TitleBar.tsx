@@ -16,11 +16,6 @@ export const TitleBar: React.FC = () => {
             {/* Left Section */}
             <div className="flex items-center w-32 pl-4">
                 {isMac && <div className="w-16" />} {/* Spacer for traffic lights */}
-                {!isMac && (
-                    <div className={`text-[9px] font-bold uppercase tracking-widest border px-2 py-0.5 rounded ${isDark ? "text-white/20 border-white/5" : "text-black/20 border-black/5"}`}>
-                        v{version}
-                    </div>
-                )}
             </div>
 
             {/* Center Section */}
@@ -33,11 +28,7 @@ export const TitleBar: React.FC = () => {
 
             {/* Right Section */}
             <div className="flex items-center justify-end w-32">
-                {isMac ? (
-                    <div className={`mr-4 text-[9px] font-bold uppercase tracking-widest border px-2 py-0.5 rounded ${isDark ? "text-white/20 border-white/5" : "text-black/20 border-black/5"}`}>
-                        v{version}
-                    </div>
-                ) : (
+                {!isMac && (
                     <div className="flex h-10 no-drag">
                         <button
                             onClick={() => window.api.minimizeWindow()}

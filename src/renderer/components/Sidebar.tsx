@@ -103,14 +103,6 @@ export const Sidebar: React.FC = () => {
                         </span>
                     )}
                 </button>
-
-                {!isCollapsed ? (
-                    <div className={`text-[9px] font-bold tracking-widest uppercase text-center ${isDark ? "text-white/10" : "text-black/10"}`}>
-                        v{version}
-                    </div>
-                ) : (
-                    <div className={`w-2 h-2 rounded-full mx-auto ${isDark ? "bg-white/5" : "bg-black/5"}`} />
-                )}
             </div>
         </aside>
     );

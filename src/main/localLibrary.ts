@@ -64,15 +64,26 @@ function getWorker() {
 
         // Global listener for this worker
         worker.on('message', (res: any) => {
-            const resolve = pendingCallbacks.get(res.path);
+            const key = res.id || res.path;
+            const resolve = pendingCallbacks.get(key);
             if (resolve) {
                 resolve(res);
-                pendingCallbacks.delete(res.path);
+                pendingCallbacks.delete(key);
             }
         });
 
-        // Error handling
-        worker.on('error', (err) => console.error("Worker error:", err));
+        // Error handling and recovery
+        worker.on('error', (err) => {
+            console.error("[LocalLibrary] Worker error:", err);
+            worker = null;
+        });
+
+        worker.on('exit', (code) => {
+            if (code !== 0) {
+                console.warn(`[LocalLibrary] Worker stopped with exit code ${code}`);
+                worker = null;
+            }
+        });
     }
     return worker;
 }
@@ -102,9 +113,8 @@ export async function indexLocalConnect(folderPath: string) {
     const folder = addLocalFolderDB(folderPath, folderName);
 
     // 2. Start Scan (Async)
-    // We don't await this so the UI is responsive immediately
-    scanRecursive(folderPath, folder.id).then(() => {
-        // Cleanup?
+    scanRecursive(folderPath, folder.id).catch(err => {
+        console.error("[LocalLibrary] Scan failed:", err);
     });
 
     return folder;
@@ -160,12 +170,12 @@ async function scanRecursive(dir: string, folderId: string) {
         stats.currentFile = filename;
         broadcastProgress(folderId, 'processing', stats);
 
-        const fileStats = await fs.stat(fullPath);
-
         try {
+            const fileStats = await fs.stat(fullPath);
+
             const res: any = await new Promise((resolve) => {
                 pendingCallbacks.set(fullPath, resolve);
-                currentWorker.postMessage(fullPath);
+                currentWorker.postMessage({ id: fullPath, path: fullPath, computeHash: true });
             });
 
             if (res.success) {
@@ -190,7 +200,8 @@ async function scanRecursive(dir: string, folderId: string) {
                     bpm: res.bpm,
                     duration: res.duration,
                     size: fileStats.size,
-                    tags: JSON.stringify(tagsList)
+                    tags: JSON.stringify(tagsList),
+                    hash: res.hash
                 });
             }
         } catch (err) {
@@ -219,7 +230,7 @@ export async function indexStemResults(stems: Record<string, string>) {
     const folderPath = path.dirname(firstPath);
     const folderName = path.basename(folderPath);
 
-    // 2. Register Folder (or get existing from our updated DB helper)
+    // 2. Register Folder
     const folder = addLocalFolderDB(folderPath, folderName);
 
     // 3. Process each file
@@ -232,7 +243,7 @@ export async function indexStemResults(stems: Record<string, string>) {
 
             const res: any = await new Promise((resolve) => {
                 pendingCallbacks.set(fullPath, resolve);
-                currentWorker.postMessage(fullPath);
+                currentWorker.postMessage({ id: fullPath, path: fullPath, computeHash: true });
             });
 
             if (res.success) {
@@ -253,7 +264,8 @@ export async function indexStemResults(stems: Record<string, string>) {
                     bpm: res.bpm,
                     duration: res.duration,
                     size: fileStats.size,
-                    tags: JSON.stringify(tagsList)
+                    tags: JSON.stringify(tagsList),
+                    hash: res.hash
                 });
             }
         } catch (err) {

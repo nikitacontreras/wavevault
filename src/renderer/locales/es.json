@@ -10,7 +10,7 @@
         "darkMode": "Modo Oscuro"
     },
     "player": {
-        "none": "Ninguno"
+        "none": "Ninguna pista seleccionada"
     },
     "discovery": {
         "title": "Crate Digging",
@@ -67,14 +67,14 @@
     "library": {
         "tabs": {
             "downloads": "Descargas",
-            "local": "Local"
+            "local": "Librería Local"
         },
         "local": {
-            "empty": "No hay carpetas indexadas",
-            "subtitle": "Añade tus propios directorios de samples para analizarlos",
-            "addFolder": "Añadir Carpeta",
-            "indexing": "Indexando...",
-            "stats": "{{count}} samples detectados"
+            "empty": "No hay carpetas locales agregadas",
+            "subtitle": "Agrega carpetas de tu equipo para indexar y buscar tus samples y sonidos locales con IA",
+            "addFolder": "Agregar Carpeta Local",
+            "indexing": "Indexando archivos locales...",
+            "stats": "{{count}} archivos de audio indexados"
         }
     },
     "spotlight": {
@@ -201,10 +201,12 @@
         "output": "Directorio Destino",
         "browse": "Buscar",
         "change": "Cambiar",
-        "keys": "Atajos de teclado",
+        "keys": "Atajos de Teclado",
         "smartOrganize": "Organización Inteligente",
         "smartOrganizeDesc": "Crear subcarpetas por Tonalidad (Camelot)",
         "smartOrganizeDesc2": "Crear carpetas por BPM/Key automáticamente",
+        "autoDetectPlaylists": "Detección de Playlists",
+        "autoDetectPlaylistsDesc": "Abrir el selector de lotes al ingresar enlaces de playlists. Si se desactiva, se descargarán como videos individuales.",
         "advanced": "Avanzado (Rutas)",
         "pathsDesc": "Rutas personalizadas para binarios del sistema",
         "pythonPath": "Ruta de Python 3",
@@ -262,13 +264,29 @@
         "stemsQualityStandard": "Estándar (4 Pistas, Rápido)",
         "stemsQualityBest": "Mejor (4 Pistas, Limpio)",
         "stemsQualityPro": "Pro (6 Pistas: Guitarra y Piano)",
-        "autoCheckUpdates": "Búsqueda automática de actualizaciones",
-        "autoCheckUpdatesDesc": "Buscar nuevas versiones automáticamente al iniciar",
+        "autoCheckUpdates": "Buscar Actualizaciones Automáticamente",
+        "autoCheckUpdatesDesc": "Buscar nuevas versiones automáticamente al iniciar la app",
         "youtubeAccount": "Cuenta de YouTube",
         "youtubeAccountDesc": "Inicia sesión para evitar la detección de bots y acceder a contenido con restricción de edad.",
         "youtubeLogin": "LOGIN",
         "youtubeLogout": "Cerrar Sesión",
-        "youtubeConnected": "Conectado"
+        "youtubeConnected": "Conectado",
+        "storage": "Almacenamiento",
+        "storageAndMaintenance": "Almacenamiento y Mantenimiento",
+        "storageDesc": "Gestiona el espacio en disco de tu librería y archivos temporales.",
+        "storageTotalUsed": "Espacio total utilizado por WaveVault: {{size}}",
+        "audioLibrary": "Librería de Audio",
+        "audioLibraryFiles": "{{count}} archivos en {{path}}",
+        "audioLibraryFiles_one": "{{count}} archivo en {{path}}",
+        "openFolder": "Abrir Carpeta",
+        "duplicateScanner": "Buscador de Duplicados",
+        "duplicateScannerDesc": "Analiza tu librería para detectar y eliminar archivos idénticos o repetidos.",
+        "scanDuplicates": "Escanear Duplicados",
+        "waveformCache": "Caché de Waveforms",
+        "waveformCacheDesc": "Libera espacio eliminando las formas de onda cacheadas de pistas procesadas.",
+        "clearCache": "Limpiar Caché",
+        "databaseAndMeta": "Base de Datos y Metadatos",
+        "databaseAndMetaDesc": "Índices SQLite, historial, análisis y configuración de WaveVault."
     },
     "deps": {
         "title": "Verificando Sistema",
@@ -319,8 +337,13 @@
         "openFolder": "Abrir Carpeta",
         "remove": "Eliminar",
         "standard": "Estándar",
-        "best": "Mejor",
-        "pro": "Pro (6S)"
+        "best": "Máxima Calidad",
+        "pro": "Pro (6 Pistas)",
+        "oneShots": "One-Shots",
+        "info": "Información",
+        "close": "Cerrar",
+        "cleaned": "Limpio",
+        "cleaning": "Limpiando..."
     },
     "filters": {
         "tags": "Tags",
@@ -335,7 +358,8 @@
         "projects": "Gestor de Proyectos",
         "search": "Buscar",
         "library": "Librería",
-        "settings": "Configuración"
+        "settings": "Configuración",
+        "converter": "Convertidor de Audio"
     },
     "footer": {
         "selectFile": "Selecciona un archivo"

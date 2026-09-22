@@ -20,6 +20,8 @@ export interface AppConfig {
     minimizeToTray: boolean;
     stemsQuality: 'standard' | 'best' | 'pro';
     autoCheckUpdates: boolean;
+    outDir?: string | null;
+    autoDetectPlaylists?: boolean;
 }
 
 export const DEFAULT_KEYBINDS: KeybindConfig[] = [

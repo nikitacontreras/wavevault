@@ -26,6 +26,7 @@ interface AppConfig {
     sidebarCollapsed: boolean;
     audioDeviceId: string;
     smartOrganize: boolean;
+    autoDetectPlaylists: boolean;
     discogsToken: string;
     lowPowerMode: boolean;
     volume: number;
@@ -57,6 +58,7 @@ const DEFAULT_CONFIG: AppConfig = {
     sidebarCollapsed: localStorage.getItem('sidebarCollapsed') === 'true',
     audioDeviceId: localStorage.getItem('audioDeviceId') || 'default',
     smartOrganize: localStorage.getItem('smartOrganize') === 'true',
+    autoDetectPlaylists: localStorage.getItem('autoDetectPlaylists') !== 'false',
     discogsToken: localStorage.getItem('discogsToken') || '',
     lowPowerMode: localStorage.getItem('lowPowerMode') === 'true',
     volume: parseFloat(localStorage.getItem('volume') || '0.8')

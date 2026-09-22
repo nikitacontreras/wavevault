@@ -143,6 +143,9 @@ contextBridge.exposeInMainWorld("api", {
     getDuplicates: () => safeInvoke("get-duplicates"),
     deleteDuplicateFile: (fileId: string, filePath?: string, deleteFromDisk?: boolean) => safeInvoke("delete-duplicate-file", fileId, filePath, deleteFromDisk),
     clearWaveformCache: () => safeInvoke("clear-waveform-cache"),
+    getWaveformCacheSize: () => safeInvoke("get-waveform-cache-size"),
+    getStorageStats: (customOutDir?: string) => safeInvoke("get-storage-stats", customOutDir),
+    openPath: (targetPath: string) => safeInvoke("open-path", targetPath),
 
     // YouTube Auth
     youtubeLogin: () => safeInvoke("youtube:login"),

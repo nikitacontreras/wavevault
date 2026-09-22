@@ -56,16 +56,16 @@ export const GeneralSettingsSection: React.FC<GeneralSettingsSectionProps> = ({
                         </select>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4">
                         {[
                             { id: 'minimizeToTray', label: t('settings.minimizeTray'), desc: t('settings.minimizeTrayDesc'), checked: minimizeToTray, onChange: (v: boolean) => setMinimizeToTray(v) },
                             { id: 'autoCheckUpdates', label: t('settings.autoCheckUpdates'), desc: t('settings.autoCheckUpdatesDesc'), checked: autoCheckUpdates, onChange: (v: boolean) => setAutoCheckUpdates(v) },
                             { id: 'lowPowerMode', label: t('settings.lowPowerMode'), desc: t('settings.lowPowerModeDesc'), checked: lowPowerMode, onChange: (v: boolean) => setLowPowerMode(v) }
                         ].map(item => (
-                            <label key={item.id} className={`${cardClass} cursor-pointer flex items-center justify-between group`}>
-                                <div className="flex flex-col gap-1 pr-4">
+                            <label key={item.id} className={`${cardClass} cursor-pointer flex items-center justify-between gap-4 group`}>
+                                <div className="flex flex-col gap-1 pr-4 min-w-0 flex-1">
                                     <span className="text-sm font-semibold">{item.label}</span>
-                                    <span className="text-[11px] text-wv-text-muted leading-tight">{item.desc}</span>
+                                    <span className="text-xs text-wv-text-muted leading-relaxed">{item.desc}</span>
                                 </div>
                                 <div className="shrink-0">
                                     <input type="checkbox" className="sr-only" checked={item.checked} onChange={e => item.onChange(e.target.checked)} />

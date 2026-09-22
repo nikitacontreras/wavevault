@@ -7,6 +7,8 @@ interface DownloadsSettingsSectionProps {
     onPickDir: () => void;
     smartOrganize: boolean;
     setSmartOrganize: (v: boolean) => void;
+    autoDetectPlaylists: boolean;
+    setAutoDetectPlaylists: (v: boolean) => void;
     stemsQuality: 'standard' | 'best' | 'pro';
     setStemsQuality: (q: 'standard' | 'best' | 'pro') => void;
 }
@@ -17,6 +19,8 @@ export const DownloadsSettingsSection: React.FC<DownloadsSettingsSectionProps> =
     onPickDir,
     smartOrganize,
     setSmartOrganize,
+    autoDetectPlaylists,
+    setAutoDetectPlaylists,
     stemsQuality,
     setStemsQuality
 }) => {
@@ -36,7 +40,7 @@ export const DownloadsSettingsSection: React.FC<DownloadsSettingsSectionProps> =
                         <label className="text-sm font-semibold mb-4 block">{t('settings.output')}</label>
                         <div className="flex gap-3">
                             <div className={`flex-1 border px-4 py-2.5 text-xs font-mono break-all line-clamp-1 rounded-xl flex items-center ${isDark ? "bg-black/20 border-white/10 text-white/40" : "bg-black/5 border-black/10 text-black/40"}`}>
-                                {outDir || "~/Music/WaveVault"}
+                                {outDir || "~/Music"}
                             </div>
                             <button className={btnClass} onClick={onPickDir}>
                                 {t('settings.change')}
@@ -56,6 +60,23 @@ export const DownloadsSettingsSection: React.FC<DownloadsSettingsSectionProps> =
                             <input type="checkbox" className="sr-only" checked={smartOrganize} onChange={e => setSmartOrganize(e.target.checked)} />
                             <div className={toggleClass(smartOrganize)}>
                                 <div className={toggleHandle(smartOrganize)} />
+                            </div>
+                        </div>
+                    </label>
+
+                    <label className={`${cardClass} cursor-pointer flex items-center justify-between group`}>
+                        <div className="flex flex-col gap-1 pr-6">
+                            <span className="text-sm font-semibold flex items-center gap-2">
+                                {t('settings.autoDetectPlaylists') || "Detección de Playlists"}
+                            </span>
+                            <span className="text-[11px] text-wv-text-muted leading-tight max-w-lg">
+                                {t('settings.autoDetectPlaylistsDesc') || "Abrir el selector de lotes al ingresar enlaces de playlists. Si se desactiva, se descargarán como videos individuales."}
+                            </span>
+                        </div>
+                        <div className="shrink-0">
+                            <input type="checkbox" className="sr-only" checked={autoDetectPlaylists} onChange={e => setAutoDetectPlaylists(e.target.checked)} />
+                            <div className={toggleClass(autoDetectPlaylists)}>
+                                <div className={toggleHandle(autoDetectPlaylists)} />
                             </div>
                         </div>
                     </label>

@@ -33,7 +33,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenDuplicates }) 
     const {
         format, bitrate, sampleRate, normalize, outDir,
         pythonPath, ffmpegPath, ffprobePath,
-        audioDeviceId, smartOrganize, minimizeToTray, autoCheckUpdates,
+        audioDeviceId, smartOrganize, autoDetectPlaylists, minimizeToTray, autoCheckUpdates,
         discogsToken, lowPowerMode, stemsQuality, keybinds
     } = config;
 
@@ -75,40 +75,27 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenDuplicates }) 
     const cardClass = `p-6 border transition-all ${isDark ? "bg-white/[0.03] border-white/5 text-white rounded-2xl" : "bg-white border-black/[0.04] text-black rounded-2xl"}`;
 
     return (
-        <div className="flex-1 flex overflow-hidden">
-            {/* Sidebar de Ajustes */}
-            <div className={`w-64 border-r flex flex-col p-6 gap-2 ${isDark ? "bg-wv-sidebar border-white/5" : "bg-wv-sidebar border-black/5"}`}>
-                <div className="mb-6 px-2">
-                    <h2 className={`text-xl font-bold ${isDark ? "text-white" : "text-black"}`}>
-                        {t('settings.title')}
-                    </h2>
-                </div>
-
-                <div className="flex flex-col gap-1">
-                    {tabs.map(tab => (
+        <div className="flex-1 overflow-y-auto px-8 py-8 custom-scrollbar bg-wv-bg">
+            <div className={`flex items-center gap-6 mb-8 border-b ${isDark ? "border-white/[0.05]" : "border-black/[0.05]"} overflow-x-auto custom-scrollbar-x pb-2`}>
+                {tabs.map(tab => {
+                    const isActive = activeTab === tab.id;
+                    return (
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id as any)}
-                            className={`flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all group ${activeTab === tab.id
-                                ? (isDark ? "bg-white text-black font-bold shadow-lg" : "bg-black text-white font-bold shadow-lg")
-                                : (isDark ? "text-wv-text-muted hover:bg-white/5 hover:text-white" : "text-wv-text-muted hover:bg-black/5 hover:text-black")
-                                }`}
+                            className={`text-xs font-bold uppercase tracking-widest pb-3 border-b-2 whitespace-nowrap shrink-0 transition-all ${
+                                isActive
+                                    ? (isDark ? "text-white border-white" : "text-black border-black")
+                                    : (isDark ? "text-wv-gray border-transparent hover:text-white" : "text-wv-gray border-transparent hover:text-black")
+                            }`}
                         >
-                            <tab.icon size={16} className={`transition-transform duration-200 ${activeTab === tab.id ? "scale-110" : "group-hover:scale-110"}`} />
-                            <span className="text-xs font-semibold tracking-tight">{tab.label}</span>
+                            {tab.label}
                         </button>
-                    ))}
-                </div>
-
-                <div className="mt-auto pt-6 border-t border-black/5 dark:border-white/5">
-                    <span className="text-[10px] text-wv-text-muted font-medium opacity-60">Version</span>
-                    <span className={`block text-xs font-mono mt-0.5 ${isDark ? "text-white/60" : "text-black/60"}`}>{appVersion}</span>
-                </div>
+                    );
+                })}
             </div>
 
-            {/* Área de Contenido */}
-            <div className={`flex-1 overflow-y-auto custom-scrollbar p-10 ${isDark ? "bg-wv-bg" : "bg-gray-50/50"}`}>
-                <div className="max-w-3xl mx-auto animate-in fade-in slide-in-from-bottom-2 duration-500">
+            <div className="max-w-4xl animate-in fade-in slide-in-from-bottom-2 duration-300">
 
                     {activeTab === 'general' && (
                         <GeneralSettingsSection
@@ -151,6 +138,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenDuplicates }) 
                             }}
                             smartOrganize={smartOrganize}
                             setSmartOrganize={(s) => updateConfig({ smartOrganize: s })}
+                            autoDetectPlaylists={autoDetectPlaylists}
+                            setAutoDetectPlaylists={(v) => updateConfig({ autoDetectPlaylists: v })}
                             stemsQuality={stemsQuality}
                             setStemsQuality={(q) => updateConfig({ stemsQuality: q })}
                         />
@@ -220,7 +209,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenDuplicates }) 
                     )}
 
                 </div>
-            </div>
         </div>
     );
 };

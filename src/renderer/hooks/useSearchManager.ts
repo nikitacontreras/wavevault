@@ -2,10 +2,12 @@ import { useState, useCallback } from "react";
 import { SearchResult } from "../types";
 import { useApp } from "../context/AppContext";
 import { useLibrary } from "../context/LibraryContext";
+import { useSettings } from "../context/SettingsContext";
 
 export const useSearchManager = () => {
     const { addLog, showNotification, setView } = useApp();
     const { resetItemStates } = useLibrary();
+    const { config } = useSettings();
     const [query, setQuery] = useState("");
     const [results, setResults] = useState<SearchResult[]>([]);
     const [isSearching, setIsSearching] = useState(false);
@@ -18,7 +20,7 @@ export const useSearchManager = () => {
         setResults([]);
         resetItemStates();
         try {
-            if (query.match(/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.*[?&]list=([^#&?]+)/)) {
+            if (config.autoDetectPlaylists && query.match(/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.*[?&]list=([^#&?]+)/)) {
                 setPlaylistUrl(query);
                 setIsSearching(false);
                 return;

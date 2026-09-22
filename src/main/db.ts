@@ -576,7 +576,34 @@ export function clearWaveformCacheDB() {
     db.prepare('UPDATE local_files SET waveform = NULL').run();
     db.prepare('UPDATE tracks SET waveform = NULL').run();
     db.prepare('UPDATE samples SET waveform = NULL').run();
+
+    try {
+        const historyData = getConfigDB('download_history');
+        if (Array.isArray(historyData)) {
+            const cleaned = historyData.map((item: any) => ({ ...item, waveform: undefined }));
+            setConfigDB('download_history', cleaned);
+        }
+    } catch {}
+
     return true;
+}
+
+export function getWaveformCacheSizeDB(): number {
+    const db = getDB();
+    const cacheRow = db.prepare('SELECT COALESCE(SUM(LENGTH(waveform)), 0) as size FROM waveform_cache').get() as { size: number };
+    const localRow = db.prepare('SELECT COALESCE(SUM(LENGTH(waveform)), 0) as size FROM local_files WHERE waveform IS NOT NULL').get() as { size: number };
+    const tracksRow = db.prepare('SELECT COALESCE(SUM(LENGTH(waveform)), 0) as size FROM tracks WHERE waveform IS NOT NULL').get() as { size: number };
+    const samplesRow = db.prepare('SELECT COALESCE(SUM(LENGTH(waveform)), 0) as size FROM samples WHERE waveform IS NOT NULL').get() as { size: number };
+
+    let historyWaveformSize = 0;
+    try {
+        const historyData = getConfigDB('download_history');
+        if (Array.isArray(historyData)) {
+            historyWaveformSize = historyData.reduce((acc: number, item: any) => acc + (item.waveform ? Buffer.byteLength(item.waveform, 'utf8') : 0), 0);
+        }
+    } catch {}
+
+    return (cacheRow?.size || 0) + (localRow?.size || 0) + (tracksRow?.size || 0) + (samplesRow?.size || 0) + historyWaveformSize;
 }
 
 export function getLocalFilesDB(folderId?: string) {

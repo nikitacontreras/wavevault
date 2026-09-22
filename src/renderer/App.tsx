@@ -27,6 +27,7 @@ import { DuplicatesModal } from "./components/DuplicatesModal";
 import { UpdateNotification } from "./components/UpdateNotification";
 import { ToastNotification } from "./components/ToastNotification";
 import { StatsOverlay } from "./components/StatsOverlay";
+import { SplashScreen } from "./components/SplashScreen";
 import { useTranslation } from "react-i18next";
 import "./i18n";
 
@@ -125,7 +126,7 @@ export const App: React.FC = () => {
     }, [isPlaying, config.volume, activeTrack, currentTime, duration]);
 
     if (!dependencies) {
-        return <div className="h-screen w-screen bg-wv-bg flex items-center justify-center"><Loader2 className="animate-spin text-wv-gray" size={32} /></div>;
+        return <SplashScreen />;
     }
 
     if (isSpotlight) return <SpotlightView theme={config.theme} />;

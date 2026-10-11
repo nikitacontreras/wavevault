@@ -13,6 +13,7 @@ export interface DownloadJob {
     signal?: AbortSignal;
     smartOrganize?: boolean;
     onProgress?: (msg: string, progress?: number) => void;
+    onMeta?: (meta: VideoMeta) => void;
 }
 
 export interface VideoMeta {

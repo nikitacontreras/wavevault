@@ -78,11 +78,35 @@ export function saveConfig() {
     }
 }
 
+export function isValidPythonBinary(targetPath: string | null | undefined): boolean {
+    if (!targetPath || typeof targetPath !== 'string') return false;
+    const trimmed = targetPath.trim();
+    if (!trimmed) return false;
+
+    // Command in PATH like "python3"
+    if (!trimmed.includes('/') && !trimmed.includes('\\')) {
+        return true;
+    }
+
+    try {
+        if (!fs.existsSync(trimmed)) return false;
+        const stat = fs.statSync(trimmed);
+        return stat.isFile(); // CRITICAL: Never treat a directory like "/opt" as an executable file
+    } catch {
+        return false;
+    }
+}
+
 export function loadConfig() {
     try {
         const data = getConfigDB('app_config');
         if (data) {
             Object.assign(config, data);
+            if (config.pythonPath && !isValidPythonBinary(config.pythonPath)) {
+                console.warn(`[config] Sanitizing invalid pythonPath "${config.pythonPath}" (not a valid executable file)`);
+                config.pythonPath = null;
+                saveConfig();
+            }
         }
     } catch (e) {
         console.error("Failed to load config from DB:", e);
@@ -95,25 +119,27 @@ export function loadConfig() {
 let resolvedPythonCache: string | null = null;
 
 export function getPythonPath(): string {
-    if (config.pythonPath && config.pythonPath.trim().length > 0) {
-        return config.pythonPath;
+    if (isValidPythonBinary(config.pythonPath)) {
+        return config.pythonPath!.trim();
     }
-    if (resolvedPythonCache) {
+    if (resolvedPythonCache && isValidPythonBinary(resolvedPythonCache)) {
         return resolvedPythonCache;
     }
 
     if (process.platform === "darwin" || process.platform === "linux") {
         const candidates = [
             "/opt/homebrew/bin/python3",
+            "/Library/Frameworks/Python.framework/Versions/Current/bin/python3",
             "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3",
             "/Library/Frameworks/Python.framework/Versions/3.12/bin/python3",
             "/Library/Frameworks/Python.framework/Versions/3.11/bin/python3",
             "/Library/Frameworks/Python.framework/Versions/3.10/bin/python3",
             "/usr/local/bin/python3",
+            "/usr/bin/python3"
         ];
         for (const candidate of candidates) {
             try {
-                if (fs.existsSync(candidate)) {
+                if (isValidPythonBinary(candidate)) {
                     resolvedPythonCache = candidate;
                     return candidate;
                 }

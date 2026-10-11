@@ -1,4 +1,4 @@
-import { ipcMain, dialog, app, shell, clipboard, nativeImage } from 'electron';
+import { ipcMain, dialog, app, shell, clipboard, nativeImage, BrowserWindow } from 'electron';
 import fs from 'fs';
 import path from 'path';
 import { createSuccessResponse, createErrorResponse } from '../core/ApiResponse';
@@ -32,25 +32,44 @@ export function setupIpcHandlers() {
     const updateManager = UpdateManager.getInstance();
     const activeDownloadControllers = new Map<string, AbortController>();
 
+    const broadcast = (channel: string, data: any) => {
+        BrowserWindow.getAllWindows().forEach(win => {
+            if (!win.isDestroyed()) {
+                win.webContents.send(channel, data);
+            }
+        });
+    };
+
     // Downloads
     ipcMain.handle("download", async (evt, url, format, bitrate, sampleRate, normalize, outDir, smartOrganize) => {
         const controller = new AbortController();
         activeDownloadControllers.set(url, controller);
+
+        // Notify all windows that a download has started
+        broadcast("download-started", { url, title: url });
+
         try {
             const result = await processJob({
                 url, outDir: outDir || app.getPath("music"),
                 format, bitrate, sampleRate, normalize, smartOrganize,
                 signal: controller.signal,
+                onMeta: (meta) => {
+                    broadcast("download-started", { url, title: meta.title || url });
+                },
                 onProgress: (msg, progress) => {
-                    evt.sender.send("download-progress", { url, message: msg, progress });
+                    broadcast("download-progress", { url, message: msg, progress });
                 }
             });
+
+            // Notify all windows of success
+            broadcast("download-success", { url, result });
             return createSuccessResponse(result);
         } catch (e: any) {
             if (controller.signal.aborted || e.message === "Aborted") {
                 return createSuccessResponse({ aborted: true });
             }
             console.error("[IpcManager] Download handler failed:", e);
+            broadcast("download-error", { url, error: e.message });
             return createErrorResponse(e.message);
         } finally {
             activeDownloadControllers.delete(url);

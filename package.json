@@ -10,6 +10,8 @@
     "electron": "cross-env NODE_ENV=development node scripts/build.js && electron src/main/boot.js",
     "start": "npm run build && electron dist/main/main.js",
     "build": "node scripts/generate-icons.js && node scripts/build.js && tsc",
+    "build:app": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac --arm64 --dir",
+    "install:app": "npm run build:app && rm -rf /Applications/WaveVault.app && cp -R dist/mac-arm64/WaveVault.app /Applications/",
     "dist": "npm run build",
     "release": "cross-env NODE_ENV=production npm run build && npm version patch && npm run dist"
   },

@@ -38,7 +38,7 @@ async function runYtDlp(args: string[], options: any = {}) {
             try {
                 return await PythonShell.run(ytDlpBinary, runArgs, {
                     ...options,
-                    verbose: options.verbose ?? true,
+                    verbose: options.verbose ?? 'short',
                     onProgress: options.onProgress
                 });
             } catch (e: any) {
@@ -503,6 +503,7 @@ export async function processJob(job: DownloadJob): Promise<{
 
     job.onProgress?.("Obteniendo metadatos...");
     const meta = await fetchMeta(url);
+    job.onMeta?.(meta);
 
     if (job.signal?.aborted) throw new Error("Aborted");
 

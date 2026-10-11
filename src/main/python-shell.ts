@@ -2,7 +2,7 @@ import { execa } from "execa";
 import { spawn, ChildProcess } from "child_process";
 import path from "node:path";
 import fs from "node:fs";
-import { getPythonPath, getFFmpegPath, getFFprobePath } from "./config";
+import { getPythonPath, getFFmpegPath, getFFprobePath, isValidPythonBinary } from "./config";
 
 export interface PythonOptions {
     args?: string[];
@@ -27,6 +27,21 @@ export class PythonShell {
         const ffprobePath = getFFprobePath();
         const binDirs = new Set<string>();
 
+        // Augment PATH with standard unix locations (crucial for macOS packaged apps)
+        if (process.platform === "darwin" || process.platform === "linux") {
+            const systemDirs = [
+                "/opt/homebrew/bin",
+                "/opt/homebrew/sbin",
+                "/usr/local/bin",
+                "/Library/Frameworks/Python.framework/Versions/Current/bin"
+            ];
+            for (const dir of systemDirs) {
+                try {
+                    if (fs.existsSync(dir)) binDirs.add(dir);
+                } catch { }
+            }
+        }
+
         if (ffmpegPath) binDirs.add(path.dirname(ffmpegPath));
         if (ffprobePath) binDirs.add(path.dirname(ffprobePath));
 
@@ -48,8 +63,13 @@ export class PythonShell {
 
         const execute = async (executable: string, args: string[]) => {
             try {
-                const execaVerbose = options.verbose === false ? 'none' : (options.verbose === true ? 'short' : options.verbose);
+                const execaVerbose: 'none' | 'short' | 'full' =
+                    options.verbose === false || options.verbose === 'none'
+                        ? 'none'
+                        : (options.verbose === 'full' ? 'full' : 'short');
+
                 const execaOptions = { ...options };
+                delete execaOptions.verbose;
                 if (execaOptions.signal) {
                     execaOptions.cancelSignal = execaOptions.signal;
                     delete execaOptions.signal;
@@ -61,8 +81,8 @@ export class PythonShell {
                     env: { ...env, ...options.env }
                 });
 
-                const isVerbose = options.verbose === true || options.verbose === 'full';
-                if (isVerbose) {
+                const isVerbose = options.verbose === true || options.verbose === 'full' || options.verbose === 'short';
+                if (isVerbose && options.verbose === 'full') {
                     subprocess.stdout?.pipe(process.stdout);
                     subprocess.stderr?.pipe(process.stderr);
                 }
@@ -83,10 +103,16 @@ export class PythonShell {
                 // Specific retry logic for well-known python issues
                 if (e.stderr?.includes("unsupported version of Python")) {
                     const fallback = configPython === "python" ? "python3" : configPython;
-                    if (executable !== fallback) {
+                    if (isValidPythonBinary(fallback) && executable !== fallback) {
                         console.warn(`[PythonShell] Retrying with fallback "${fallback}" due to version mismatch`);
                         const retryArgs = [executable, ...args];
-                        return await execa(fallback, retryArgs, { ...options, env });
+                        const retryOptions = { ...options };
+                        delete retryOptions.verbose;
+                        return await execa(fallback, retryArgs, {
+                            ...retryOptions,
+                            verbose: 'short',
+                            env
+                        });
                     }
                 }
                 throw e;
@@ -104,15 +130,15 @@ export class PythonShell {
         // 1. If it's an absolute path that exists, we try to run it directly
         // UNLESS it's explicitly a .py script
         if (path.isAbsolute(bin) && fs.existsSync(bin)) {
-            if (isPyScript) {
+            if (isPyScript && isValidPythonBinary(configPython)) {
                 return await execute(configPython, [bin, ...runArgs]);
             }
             return await execute(bin, runArgs);
         }
 
         // 2. Fallback for relative names or missing absolute paths
-        // If it looks like a script or yt-dlp, try with python as last resort
-        if (isPyScript || isYtDlp) {
+        // If it looks like a script or yt-dlp, try with python as last resort IF valid
+        if ((isPyScript || isYtDlp) && isValidPythonBinary(configPython)) {
             return await execute(configPython, [bin, ...runArgs]);
         }
 

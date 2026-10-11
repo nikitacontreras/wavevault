@@ -81,13 +81,19 @@ export const LibraryProvider: React.FC<{ children: ReactNode }> = ({ children })
     // Active Downloads
     const [activeDownloads, setActiveDownloads] = useState<any[]>([]);
     const addActiveDownload = useCallback((id: string, title: string, url: string) => {
-        setActiveDownloads(prev => [...prev.filter(d => d.id !== id), { id, title, url, state: { status: 'loading', msg: 'Iniciando...' } }]);
+        setActiveDownloads(prev => {
+            const exists = prev.find(d => d.id === id || d.url === url);
+            if (exists) {
+                return prev.map(d => (d.id === id || d.url === url) ? { ...d, title: title || d.title } : d);
+            }
+            return [...prev, { id, title: title || url, url, state: { status: 'loading', msg: 'Iniciando...' } }];
+        });
     }, []);
     const updateActiveDownload = useCallback((id: string, state: Partial<ItemState>) => {
-        setActiveDownloads(prev => prev.map(d => d.id === id ? { ...d, state: { ...d.state, ...state } } : d));
+        setActiveDownloads(prev => prev.map(d => (d.id === id || d.url === id) ? { ...d, state: { ...d.state, ...state } } : d));
     }, []);
     const removeActiveDownload = useCallback((id: string) => {
-        setActiveDownloads(prev => prev.filter(d => d.id !== id));
+        setActiveDownloads(prev => prev.filter(d => d.id !== id && d.url !== id));
     }, []);
 
     // Active Stems

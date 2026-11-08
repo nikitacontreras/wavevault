@@ -27,7 +27,6 @@ async function runYtDlp(args: string[], options: any = {}) {
             "--no-cache-dir",
             "--force-ipv4",
             "--user-agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-            "--referer", "https://www.youtube.com/",
         ];
 
         // Do NOT inject cookies by default to prevent YouTube's session validation blocks.
@@ -109,6 +108,8 @@ async function runYtDlp(args: string[], options: any = {}) {
 }
 
 const YT_REGEX = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\//i;
+const SOUNDCLOUD_REGEX = /^(https?:\/\/)?(www\.|m\.)?soundcloud\.com\//i;
+const BANDCAMP_REGEX = /^(https?:\/\/)?[a-zA-Z0-9_-]+\.bandcamp\.com\//i;
 const YT_ID_REGEX = /^[a-zA-Z0-9_-]{11}$/;
 
 function normalizeUrl(input: any): string {
@@ -124,18 +125,22 @@ function normalizeUrl(input: any): string {
 
     const trimmed = input.trim();
 
-    // If it's just a video ID (11 characters), construct full URL
+    // If it's just a YouTube video ID (11 characters), construct full URL
     if (YT_ID_REGEX.test(trimmed)) {
         return `https://www.youtube.com/watch?v=${trimmed}`;
     }
 
-    // If it doesn't look like a YouTube URL at all, throw error
-    if (!YT_REGEX.test(trimmed) && !trimmed.includes('youtube.com') && !trimmed.includes('youtu.be')) {
-        throw new Error("URL no válida de YouTube");
-    }
-
     // Ensure it has protocol
     const urlWithProtocol = trimmed.startsWith("http") ? trimmed : "https://" + trimmed;
+
+    // Check supported providers or generic valid URL for yt-dlp
+    const isYouTube = YT_REGEX.test(urlWithProtocol) || urlWithProtocol.includes('youtube.com') || urlWithProtocol.includes('youtu.be');
+    const isSoundCloud = SOUNDCLOUD_REGEX.test(urlWithProtocol);
+    const isBandcamp = BANDCAMP_REGEX.test(urlWithProtocol);
+
+    if (!isYouTube && !isSoundCloud && !isBandcamp) {
+        throw new Error("URL no soportada. Introduce un enlace de YouTube, SoundCloud o Bandcamp.");
+    }
 
     try {
         const u = new URL(urlWithProtocol);

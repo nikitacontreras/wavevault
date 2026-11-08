@@ -26,7 +26,7 @@ export const useSearchManager = () => {
                 return;
             }
 
-            if (query.match(/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be|soundcloud\.com)\//)) {
+            if (query.match(/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be|soundcloud\.com|[a-zA-Z0-9_-]+\.bandcamp\.com)\//)) {
                 addLog("URL detectada. Obteniendo metadatos...");
                 try {
                     const meta: any = await window.api.getMeta(query);
@@ -66,7 +66,7 @@ export const useSearchManager = () => {
         if (isSearching || !query.trim() || results.length === 0) return;
 
         // Don't load more if query is a URL
-        if (query.match(/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be|soundcloud\.com)\//)) return;
+        if (query.match(/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be|soundcloud\.com|[a-zA-Z0-9_-]+\.bandcamp\.com)\//)) return;
 
         setIsSearching(true);
         try {

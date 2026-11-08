@@ -15,14 +15,21 @@ const isMac = process.platform === 'darwin';
 const appId = "com.strikemedia.wavevault";
 app.setAppUserModelId(appId);
 
-// Optimization flags for Mac production lag
+// Performance & memory optimizations
 if (isMac) {
-    app.commandLine.appendSwitch('disable-renderer-backgrounding');
     app.commandLine.appendSwitch('enable-gpu-rasterization');
     app.commandLine.appendSwitch('enable-native-gpu-memory-buffers');
     app.commandLine.appendSwitch('enable-zero-copy');
     app.commandLine.appendSwitch('ignore-gpu-blocklist');
 }
+
+// Low-memory & background throttling flags for legacy/low-RAM systems
+app.commandLine.appendSwitch('js-flags', '--max-old-space-size=256');
+app.commandLine.appendSwitch('disk-cache-size', '52428800'); // 50MB max disk cache
+app.commandLine.appendSwitch('disable-breakpad');
+app.commandLine.appendSwitch('disable-component-update');
+app.commandLine.appendSwitch('disable-domain-reliability');
+app.commandLine.appendSwitch('disable-sync');
 
 // Bypass "Insecure Browser" detection by Google
 app.commandLine.appendSwitch('disable-blink-features', 'AutomationControlled');
